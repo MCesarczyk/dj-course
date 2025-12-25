@@ -3,7 +3,7 @@ import threading
 from TTS.api import TTS
 import warnings
 
-from ..utils.animate import run_tts_animation, console
+from .utils.animate import run_tts_animation, console
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -25,7 +25,7 @@ def generate_file_thread(tts_instance, text, file_path, speaker_wav, language):
         GENERATION_DONE.set()
 
 
-def run_tts(texts: list[str]):
+def run_tts(texts: list[str], input_sound_path: str = FILE_PATH, output_wav_path: str = OUTPUT_WAV_PATH):
     try:
         console.print("\n[bold yellow]🤖 Ładowanie modelu TTS...[/bold yellow]")
         tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to("cpu")
@@ -35,11 +35,10 @@ def run_tts(texts: list[str]):
         exit(1)
 
     for idx, text_to_synthesize in enumerate(texts, 1):
-        output_wav_path = f"output_{idx}.wav"
         GENERATION_DONE.clear()
         generation_thread = threading.Thread(
             target=generate_file_thread,
-            args=(tts, text_to_synthesize, output_wav_path, FILE_PATH, "pl"),
+            args=(tts, text_to_synthesize, output_wav_path, input_sound_path, "pl"),
         )
         generation_thread.start()
 

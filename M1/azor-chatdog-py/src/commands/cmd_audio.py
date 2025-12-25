@@ -1,10 +1,16 @@
 import os
 import subprocess
+from datetime import datetime
 
 from ..session import SessionManager
 from ..cli.console import print_info, print_error
-from ..xtts import run
+from ..xtts import run_tts
 
+INPUT_FILE_PATH = "./src/files/sounds/sample-agent.wav"
+# INPUT_FILE_PATH = "./src/files/sounds/dzien swira-czy panowie.mp3"
+# INPUT_FILE_PATH = "./src/files/sounds/Oczom ich ukazał się las... krzyży.mp3"
+OUTPUT_WAV_PATH = "./src/files/sounds/"
+FILENAME = "output.wav"
 
 def cmd_audio(session_manager: SessionManager, *args):
     """
@@ -33,6 +39,7 @@ def cmd_audio(session_manager: SessionManager, *args):
                 "No model response found. Provide text to generate: /audio <text>"
             )
             return
+
         text_to_generate = last_response
 
     output_dir = os.path.abspath(
@@ -44,13 +51,13 @@ def cmd_audio(session_manager: SessionManager, *args):
     if session_manager.has_active_session():
         session_id = session_manager.get_current_session().session_id
 
-    output_filename = f"{session_id}.wav"
+    output_filename = f"{session_id}_{datetime.now().isoformat()}.wav"
     output_path = os.path.join(output_dir, output_filename)
 
     print_info(f"Generating audio... (this may take a moment)")
 
     try:
-        run.run_tts([text_to_generate])
+        run_tts([text_to_generate], INPUT_FILE_PATH, output_path)
         print_info(f"Audio saved to: {os.path.relpath(output_path)}")
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to generate audio.")

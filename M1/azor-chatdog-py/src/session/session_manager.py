@@ -1,7 +1,7 @@
-from cli import console
+from ..cli import console
 from .chat_session import ChatSession
-from assistant import create_azor_assistant
-from files import session_files
+from ..assistant import create_azor_assistant
+from ..files import session_files
 
 
 class SessionManager:
@@ -17,19 +17,23 @@ class SessionManager:
     def get_current_session(self) -> ChatSession:
         """
         Returns the current active session.
-        
+
         Raises:
             RuntimeError: If no session is active
         """
         if not self._current_session:
-            raise RuntimeError("No active session. Call create_new_session() or switch_to_session() first.")
+            raise RuntimeError(
+                "No active session. Call create_new_session() or switch_to_session() first."
+            )
         return self._current_session
 
     def has_active_session(self) -> bool:
         """Returns True if there's an active session."""
         return self._current_session is not None
 
-    def create_new_session(self, save_current: bool = True) -> tuple[ChatSession, bool, str | None, str | None]:
+    def create_new_session(
+        self, save_current: bool = True
+    ) -> tuple[ChatSession, bool, str | None, str | None]:
         """
         Creates a new session, optionally saving the current one.
 
@@ -62,7 +66,9 @@ class SessionManager:
 
         return new_session, save_attempted, previous_session_id, save_error
 
-    def switch_to_session(self, session_id: str) -> tuple[ChatSession | None, bool, str | None, bool, str | None, bool]:
+    def switch_to_session(
+        self, session_id: str
+    ) -> tuple[ChatSession | None, bool, str | None, bool, str | None, bool]:
         """
         Switches to an existing session by ID.
         Saves current session before switching.
@@ -90,7 +96,9 @@ class SessionManager:
 
         # Load new session
         assistant = create_azor_assistant()
-        new_session, error = ChatSession.load_from_file(assistant=assistant, session_id=session_id)
+        new_session, error = ChatSession.load_from_file(
+            assistant=assistant, session_id=session_id
+        )
 
         if error:
             # Failed to load - don't change current session
@@ -102,12 +110,14 @@ class SessionManager:
 
         return new_session, save_attempted, previous_session_id, True, None, has_history
 
-    def remove_current_session_and_create_new(self) -> tuple[ChatSession, str, bool, str | None]:
+    def remove_current_session_and_create_new(
+        self,
+    ) -> tuple[ChatSession, str, bool, str | None]:
         """
         Removes the current session file and immediately creates a new, empty session.
 
         Returns:
-            A tuple containing the new session, the ID of the removed session, 
+            A tuple containing the new session, the ID of the removed session,
             a boolean indicating if the removal was successful, and an optional error message.
         """
         if not self._current_session:
@@ -116,7 +126,9 @@ class SessionManager:
         removed_session_id = self._current_session.session_id
 
         # Remove the session file
-        remove_success, remove_error = session_files.remove_session_file(removed_session_id)
+        remove_success, remove_error = session_files.remove_session_file(
+            removed_session_id
+        )
 
         # Create a new session regardless of whether the file was successfully removed
         assistant = create_azor_assistant()
@@ -138,7 +150,9 @@ class SessionManager:
         """
         if cli_session_id:
             assistant = create_azor_assistant()
-            session, error = ChatSession.load_from_file(assistant=assistant, session_id=cli_session_id)
+            session, error = ChatSession.load_from_file(
+                assistant=assistant, session_id=cli_session_id
+            )
 
             if error:
                 console.print_error(error)
@@ -151,6 +165,7 @@ class SessionManager:
             console.display_help(session.session_id)
             if not session.is_empty():
                 from commands.session_summary import display_history_summary
+
                 display_history_summary(session.get_history(), session.assistant_name)
         else:
             print("Rozpoczynanie nowej sesji.")
@@ -172,7 +187,9 @@ class SessionManager:
         session = self._current_session
 
         if session.is_empty():
-            console.print_info(f"\nSesja jest pusta/niekompletna. Pominięto finalny zapis.")
+            console.print_info(
+                f"\nSesja jest pusta/niekompletna. Pominięto finalny zapis."
+            )
         else:
             console.print_info(f"\nFinalny zapis historii sesji: {session.session_id}")
             session.save_to_file()

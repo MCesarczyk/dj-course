@@ -6,9 +6,11 @@ from ..session import SessionManager
 from ..cli.console import print_info, print_error
 from ..xtts import run_tts
 
-USER_SPEAKER_WAV = "./src/files/sounds/sample-agent.wav"
+# USER_SPEAKER_WAV = "./src/files/sounds/sample-agent.wav"
 # USER_SPEAKER_WAV = "./src/files/sounds/dzien swira-czy panowie.mp3"
-AGENT_SPEAKER_WAV = "./src/files/sounds/Oczom ich ukazał się las... krzyży.mp3"
+USER_SPEAKER_WAV = "./src/files/sounds/znammalo.wav"
+# AGENT_SPEAKER_WAV = "./src/files/sounds/Oczom ich ukazał się las... krzyży.mp3"
+AGENT_SPEAKER_WAV = "./src/files/sounds/aplzaakc.wav"
 OUTPUT_WAV_PATH = "./src/files/sounds/"
 FILENAME = "output.wav"
 

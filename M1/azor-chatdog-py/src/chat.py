@@ -7,6 +7,7 @@ from .commands.welcome import print_welcome
 from . import command_handler
 
 
+
 def init_chat():
     """Initializes a new session or loads an existing one."""
     print_welcome()

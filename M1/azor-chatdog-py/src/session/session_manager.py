@@ -31,9 +31,7 @@ class SessionManager:
         """Returns True if there's an active session."""
         return self._current_session is not None
 
-    def create_new_session(
-        self, save_current: bool = True
-    ) -> tuple[ChatSession, bool, str | None, str | None]:
+    def create_new_session(self, save_current: bool = True) -> tuple[ChatSession, bool, str | None, str | None]:
         """
         Creates a new session, optionally saving the current one.
 
@@ -66,9 +64,7 @@ class SessionManager:
 
         return new_session, save_attempted, previous_session_id, save_error
 
-    def switch_to_session(
-        self, session_id: str
-    ) -> tuple[ChatSession | None, bool, str | None, bool, str | None, bool]:
+    def switch_to_session(self, session_id: str) -> tuple[ChatSession | None, bool, str | None, bool, str | None, bool]:
         """
         Switches to an existing session by ID.
         Saves current session before switching.
@@ -96,9 +92,7 @@ class SessionManager:
 
         # Load new session
         assistant = create_azor_assistant()
-        new_session, error = ChatSession.load_from_file(
-            assistant=assistant, session_id=session_id
-        )
+        new_session, error = ChatSession.load_from_file(assistant=assistant, session_id=session_id)
 
         if error:
             # Failed to load - don't change current session
@@ -150,9 +144,7 @@ class SessionManager:
         """
         if cli_session_id:
             assistant = create_azor_assistant()
-            session, error = ChatSession.load_from_file(
-                assistant=assistant, session_id=cli_session_id
-            )
+            session, error = ChatSession.load_from_file(assistant=assistant, session_id=cli_session_id)
 
             if error:
                 console.print_error(error)

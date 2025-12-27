@@ -173,7 +173,7 @@ class AudioRecorderApp:
             # Standard method, usually works on Windows/Linux
             self.master.wm_iconname(APP_TITLE)
 
-        master.geometry("800x600")  # Slightly larger window
+        master.geometry("1280x640")  # Slightly larger window
         master.config(bg="#121212")  # Set dark background for root
 
         # --- TKINTER WIDGET STYLES (ttk) ---
@@ -210,6 +210,25 @@ class AudioRecorderApp:
                 ("active", "#555555"),  # Lighter gray for hover/active state
                 ("disabled", "#333333"),
             ],  # Disabled state uses the default background
+        )
+
+        # 3. Define style for Delete button (Red)
+        style.configure(
+            "Delete.TButton",
+            background="#8B0000",  # Dark red
+            foreground="white",
+            font=("Arial", 14),
+            bordercolor="#8B0000",
+            borderwidth=0,
+            focuscolor="#8B0000",
+            padding=(20, 10, 20, 10),
+        )
+        style.map(
+            "Delete.TButton",
+            background=[
+                ("active", "#FF0000"),  # Bright red for hover/active state
+                ("disabled", "#550000"),  # Very dark red for disabled
+            ],
         )
 
         # --- Treeview Style for Dark Mode ---
@@ -290,7 +309,7 @@ class AudioRecorderApp:
         )
 
         # Define columns
-        columns = ("timestamp", "filename", "preview")
+        columns = ("timestamp", "filename", "preview", "filepath")  # filepath is hidden
         self.history_tree = ttk.Treeview(
             self.history_frame, columns=columns, show="headings", selectmode="browse"
         )
@@ -299,11 +318,15 @@ class AudioRecorderApp:
         self.history_tree.heading("timestamp", text="Date/Time")
         self.history_tree.heading("filename", text="File Name")
         self.history_tree.heading("preview", text="Preview")
+        # filepath column doesn't need heading as it's hidden
 
         # Define column widths
         self.history_tree.column("timestamp", width=150, anchor="center")
         self.history_tree.column("filename", width=200, anchor="w")
         self.history_tree.column("preview", width=400, anchor="w")
+        self.history_tree.column(
+            "filepath", width=0, stretch=tk.NO
+        )  # Hide filepath column
 
         # Add Scrollbar
         scrollbar = ttk.Scrollbar(
@@ -316,14 +339,27 @@ class AudioRecorderApp:
         )
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 20), pady=10)
 
-        # Refresh Button for History
+        # Buttons Frame for History Tab
+        history_buttons_frame = tk.Frame(self.history_frame, bg="#121212")
+        history_buttons_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=10)
+
+        # Delete Button
+        delete_btn = ttk.Button(
+            history_buttons_frame,
+            text="Delete Selected",
+            command=self.delete_selected_history,
+            style="Delete.TButton",
+        )
+        delete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+
+        # Refresh Button
         refresh_btn = ttk.Button(
-            self.history_frame,
+            history_buttons_frame,
             text="Refresh List",
             command=self.load_history,
             style="Dark.TButton",
         )
-        refresh_btn.pack(pady=5, side=tk.BOTTOM, fill=tk.X, padx=20)
+        refresh_btn.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
 
         # 3. Settings Tab
         self.settings_frame = tk.Frame(self.notebook, bg="#121212")
@@ -417,11 +453,53 @@ class AudioRecorderApp:
                         else transcription
                     )
 
+                    # Store full path in hidden column for deletion
                     self.history_tree.insert(
-                        "", tk.END, values=(timestamp, audio_file, preview)
+                        "", tk.END, values=(timestamp, audio_file, preview, file_path)
                     )
             except Exception as e:
                 logging.error(f"Error reading history file {file_path}: {e}")
+
+    def delete_selected_history(self):
+        """Deletes the selected transcription and its associated files."""
+        selected_item = self.history_tree.selection()
+        if not selected_item:
+            messagebox.showwarning(
+                "No Selection", "Please select a transcription to delete."
+            )
+            return
+
+        # Confirm deletion
+        if not messagebox.askyesno(
+            "Confirm Delete",
+            "Are you sure you want to delete this transcription and the audio file? This cannot be undone.",
+        ):
+            return
+
+        # Get file path from hidden column
+        item_values = self.history_tree.item(selected_item, "values")
+        json_path = item_values[3]  # 4th column is filepath
+
+        try:
+            # Delete JSON file
+            if os.path.exists(json_path):
+                os.remove(json_path)
+                logging.info(f"Deleted JSON file: {json_path}")
+
+            # Determine WAV path and delete it
+            # Assuming json_path ends with .json, replace with .wav
+            wav_path = json_path.rsplit(".", 1)[0] + ".wav"
+            if os.path.exists(wav_path):
+                os.remove(wav_path)
+                logging.info(f"Deleted WAV file: {wav_path}")
+
+            # Remove from Treeview
+            self.history_tree.delete(selected_item)
+            messagebox.showinfo("Success", "Files deleted successfully.")
+
+        except Exception as e:
+            logging.error(f"Error deleting files: {e}")
+            messagebox.showerror("Delete Error", f"Failed to delete files: {e}")
 
     def copy_to_clipboard(self, text: str):
         """Copies the given text to the system clipboard."""

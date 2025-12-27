@@ -11,6 +11,7 @@ import logging
 import logging.handlers
 from typing import TextIO
 import json
+import glob
 
 # --- Global Configuration ---
 APP_TITLE = "Azor Transcriber"
@@ -172,7 +173,7 @@ class AudioRecorderApp:
             # Standard method, usually works on Windows/Linux
             self.master.wm_iconname(APP_TITLE)
 
-        master.geometry("600x450")  # Slightly larger window
+        master.geometry("800x600")  # Slightly larger window
         master.config(bg="#121212")  # Set dark background for root
 
         # --- TKINTER WIDGET STYLES (ttk) ---
@@ -210,6 +211,23 @@ class AudioRecorderApp:
                 ("disabled", "#333333"),
             ],  # Disabled state uses the default background
         )
+
+        # --- Treeview Style for Dark Mode ---
+        style.configure(
+            "Treeview",
+            background="#1E1E1E",
+            foreground="white",
+            fieldbackground="#1E1E1E",
+            font=("Arial", 10),
+            rowheight=30,
+        )
+        style.configure(
+            "Treeview.Heading",
+            font=("Arial", 11, "bold"),
+            background="#333333",
+            foreground="white",
+        )
+        style.map("Treeview", background=[("selected", "#555555")])
 
         logging.info("GUI initialization started.")
 
@@ -253,7 +271,7 @@ class AudioRecorderApp:
         # Content for History Tab: Last Transcription Display
         tk.Label(
             self.history_frame,
-            text="Last transcription:",
+            text="Saved transcriptions",
             font=("Arial", 14, "bold"),
             fg="white",
             bg="#121212",
@@ -270,12 +288,42 @@ class AudioRecorderApp:
             insertbackground="white",
             state=tk.DISABLED,
         )
-        self.history_display.pack(pady=10, padx=20, fill=tk.BOTH, expand=True)
 
-        # Placeholder text in history
-        self.history_display.config(state=tk.NORMAL)
-        self.history_display.insert(tk.END, "Under construction...")
-        self.history_display.config(state=tk.DISABLED)
+        # Define columns
+        columns = ("timestamp", "filename", "preview")
+        self.history_tree = ttk.Treeview(
+            self.history_frame, columns=columns, show="headings", selectmode="browse"
+        )
+
+        # Define headings
+        self.history_tree.heading("timestamp", text="Date/Time")
+        self.history_tree.heading("filename", text="File Name")
+        self.history_tree.heading("preview", text="Preview")
+
+        # Define column widths
+        self.history_tree.column("timestamp", width=150, anchor="center")
+        self.history_tree.column("filename", width=200, anchor="w")
+        self.history_tree.column("preview", width=400, anchor="w")
+
+        # Add Scrollbar
+        scrollbar = ttk.Scrollbar(
+            self.history_frame, orient=tk.VERTICAL, command=self.history_tree.yview
+        )
+        self.history_tree.configure(yscroll=scrollbar.set)
+
+        self.history_tree.pack(
+            side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(20, 0), pady=10
+        )
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 20), pady=10)
+
+        # Refresh Button for History
+        refresh_btn = ttk.Button(
+            self.history_frame,
+            text="Refresh List",
+            command=self.load_history,
+            style="Dark.TButton",
+        )
+        refresh_btn.pack(pady=5, side=tk.BOTTOM, fill=tk.X, padx=20)
 
         # 3. Settings Tab
         self.settings_frame = tk.Frame(self.notebook, bg="#121212")
@@ -331,9 +379,49 @@ class AudioRecorderApp:
         # Handle window closing
         master.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+        # Load initial history
+        self.load_history()
+
         # Start the loop checking the queue
         self.master.after(100, self.check_transcription_queue)
         logging.info("GUI initialized successfully.")
+
+    def load_history(self):
+        """Loads transcription history from JSON files in the output directory."""
+        # Clear current list
+        for item in self.history_tree.get_children():
+            self.history_tree.delete(item)
+
+        output_dir = "output"
+        if not os.path.exists(output_dir):
+            return
+
+        json_files = glob.glob(os.path.join(output_dir, "*.json"))
+
+        # Sort files by modification time (newest first)
+        json_files.sort(key=os.path.getmtime, reverse=True)
+
+        for file_path in json_files:
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+                    timestamp = data.get("timestamp", "Unknown")
+                    audio_file = data.get("audio_file", os.path.basename(file_path))
+                    transcription = data.get("transcription", "")
+
+                    # Create preview (first 50 chars)
+                    preview = (
+                        transcription[:50] + "..."
+                        if len(transcription) > 50
+                        else transcription
+                    )
+
+                    self.history_tree.insert(
+                        "", tk.END, values=(timestamp, audio_file, preview)
+                    )
+            except Exception as e:
+                logging.error(f"Error reading history file {file_path}: {e}")
 
     def copy_to_clipboard(self, text: str):
         """Copies the given text to the system clipboard."""
@@ -496,11 +584,8 @@ class AudioRecorderApp:
             self.transcription_display.insert(tk.END, result)
             self.transcription_display.config(state=tk.DISABLED)
 
-            # 2. Update History tab (last output)
-            self.history_display.config(state=tk.NORMAL)
-            self.history_display.delete("1.0", tk.END)
-            self.history_display.insert(tk.END, "Under construction..." + result)
-            self.history_display.config(state=tk.DISABLED)
+            # 2. Update History list (reload from disk)
+            self.load_history()
 
             if "ERROR" in result:
                 logging.warning("Transcription failed with error message.")

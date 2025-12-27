@@ -10,6 +10,7 @@ import sys
 import logging
 import logging.handlers
 from typing import TextIO
+import json
 
 # --- Global Configuration ---
 APP_TITLE = "Azor Transcriber"
@@ -117,6 +118,21 @@ def transcribe_audio(audio_path: str, model_name: str) -> str:
         result = asr_pipeline(audio_path)
 
         transcription = result["text"].strip()
+
+        # === Save transcription to JSON ---
+        try:
+            json_filename = audio_path.replace(".wav", ".json")
+            data = {
+                "audio_file": os.path.basename(audio_path),
+                "transcription": transcription,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "model": model_name,
+            }
+            with open(json_filename, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+            logging.info(f"Transcription saved to JSON: {json_filename}")
+        except Exception as json_err:
+            logging.error(f"Failed to save JSON transcription: {json_err}")
 
         logging.info("Transcription finished.")
         return transcription

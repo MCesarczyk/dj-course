@@ -341,7 +341,7 @@ class AudioRecorderApp:
 
         # Buttons Frame for History Tab
         history_buttons_frame = tk.Frame(self.history_frame, bg="#121212")
-        history_buttons_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=10)
+        history_buttons_frame.pack(side=tk.TOP, fill=tk.BOTH, padx=20, pady=10)
 
         # Delete Button
         delete_btn = ttk.Button(
@@ -350,7 +350,7 @@ class AudioRecorderApp:
             command=self.delete_selected_history,
             style="Delete.TButton",
         )
-        delete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        delete_btn.pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=10)
 
         # Refresh Button
         refresh_btn = ttk.Button(
@@ -359,7 +359,7 @@ class AudioRecorderApp:
             command=self.load_history,
             style="Dark.TButton",
         )
-        refresh_btn.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
+        refresh_btn.pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=10)
 
         # 3. Settings Tab
         self.settings_frame = tk.Frame(self.notebook, bg="#121212")

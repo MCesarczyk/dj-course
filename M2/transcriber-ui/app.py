@@ -130,6 +130,29 @@ def output_filename() -> str:
     return f"{output_dir}/recording-{int(time.time())}.wav"
 
 
+def get_directory_size(directory: str) -> int:
+    """Calculates the total size of all files in a directory recursively."""
+    total_size = 0
+    try:
+        for dirpath, dirnames, filenames in os.walk(directory):
+            for filename in filenames:
+                filepath = os.path.join(dirpath, filename)
+                if os.path.exists(filepath):
+                    total_size += os.path.getsize(filepath)
+    except Exception as e:
+        logging.error(f"Error calculating directory size: {e}")
+    return total_size
+
+
+def format_size(size_bytes: int) -> str:
+    """Formats size in bytes to human-readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024:
+            return f"{size_bytes:.2f} {unit}"
+        size_bytes /= 1024
+    return f"{size_bytes:.2f} TB"
+
+
 def transcribe_audio(audio_path: str, model_name: str) -> str:
     """
     Loads the Whisper model and transcribes the audio file.
@@ -443,6 +466,42 @@ class AudioRecorderApp:
         )
         reset_dir_btn.pack(side=tk.LEFT)
 
+        # Directory Size Information
+        size_separator = tk.Frame(settings_content, bg="#333333", height=1)
+        size_separator.pack(fill=tk.X, pady=15)
+
+        size_label = tk.Label(
+            settings_content,
+            text="Directory Size",
+            font=("Arial", 12, "bold"),
+            fg="white",
+            bg="#121212",
+        )
+        size_label.pack(anchor="w", pady=(10, 5))
+
+        # Size Display
+        self.dir_size_label = tk.Label(
+            settings_content,
+            text="Calculating...",
+            font=("Arial", 11),
+            fg="#88FF88",
+            bg="#1E1E1E",
+            wraplength=500,
+            justify=tk.LEFT,
+            padx=10,
+            pady=10
+        )
+        self.dir_size_label.pack(anchor="w", fill=tk.X, pady=(0, 10))
+
+        # Refresh Size Button
+        refresh_size_btn = ttk.Button(
+            settings_content,
+            text="Refresh Size",
+            command=self.update_directory_size,
+            style="Dark.TButton"
+        )
+        refresh_size_btn.pack(anchor="w", pady=(0, 20))
+
         # --- Transcriber Tab Elements ---
 
         # Record Button
@@ -487,9 +546,23 @@ class AudioRecorderApp:
         # Load initial history
         self.load_history()
 
+        # Update directory size display
+        self.update_directory_size()
+
         # Start the loop checking the queue
         self.master.after(100, self.check_transcription_queue)
         logging.info("GUI initialized successfully.")
+
+    def update_directory_size(self):
+        """Updates the directory size display label."""
+        output_dir = CURRENT_CONFIG.get("output_dir", DEFAULT_OUTPUT_DIR)
+        if os.path.exists(output_dir):
+            size_bytes = get_directory_size(output_dir)
+            formatted_size = format_size(size_bytes)
+            self.dir_size_label.config(text=f"Total size: {formatted_size}")
+            logging.info(f"Directory size updated: {formatted_size}")
+        else:
+            self.dir_size_label.config(text="Directory does not exist")
 
     def change_output_directory(self):
         """Opens a file dialog to change the output directory."""
@@ -499,6 +572,7 @@ class AudioRecorderApp:
             save_config(CURRENT_CONFIG)
             self.current_dir_label.config(text=f"Current: {new_dir}")
             self.load_history()
+            self.update_directory_size()
             messagebox.showinfo("Success", f"Output directory changed to:\n{new_dir}")
             logging.info(f"Output directory changed to: {new_dir}")
 
@@ -508,6 +582,7 @@ class AudioRecorderApp:
         save_config(CURRENT_CONFIG)
         self.current_dir_label.config(text=f"Current: {DEFAULT_OUTPUT_DIR}")
         self.load_history()
+        self.update_directory_size()
         messagebox.showinfo("Success", f"Output directory reset to: {DEFAULT_OUTPUT_DIR}")
         logging.info(f"Output directory reset to default: {DEFAULT_OUTPUT_DIR}")
 
@@ -584,6 +659,8 @@ class AudioRecorderApp:
 
             # Remove from Treeview
             self.history_tree.delete(selected_item)
+            # Update directory size after deletion
+            self.update_directory_size()
             messagebox.showinfo("Success", "Files deleted successfully.")
 
         except Exception as e:

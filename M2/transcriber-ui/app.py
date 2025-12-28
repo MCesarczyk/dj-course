@@ -35,6 +35,7 @@ def load_config():
             return {"output_dir": DEFAULT_OUTPUT_DIR}
     return {"output_dir": DEFAULT_OUTPUT_DIR}
 
+
 def save_config(config):
     """Save configuration to config file."""
     try:
@@ -43,6 +44,7 @@ def save_config(config):
         logging.info(f"Config saved: {config}")
     except Exception as e:
         logging.error(f"Error saving config: {e}")
+
 
 # Load config globally
 CURRENT_CONFIG = load_config()
@@ -146,7 +148,7 @@ def get_directory_size(directory: str) -> int:
 
 def format_size(size_bytes: int) -> str:
     """Formats size in bytes to human-readable format."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
+    for unit in ["B", "KB", "MB", "GB"]:
         if size_bytes < 1024:
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024
@@ -226,7 +228,7 @@ class AudioRecorderApp:
             # Standard method, usually works on Windows/Linux
             self.master.wm_iconname(APP_TITLE)
 
-        master.geometry("1280x640")  # Slightly larger window
+        master.geometry("1024x720")  # Slightly larger window
         master.config(bg="#121212")  # Set dark background for root
 
         # --- TKINTER WIDGET STYLES (ttk) ---
@@ -361,10 +363,18 @@ class AudioRecorderApp:
             state=tk.DISABLED,
         )
 
+        # Main horizontal container for tree and preview
+        history_container = tk.Frame(self.history_frame, bg="#121212")
+        history_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        # Left side: Tree list
+        tree_frame = tk.Frame(history_container, bg="#121212")
+        tree_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+
         # Define columns
         columns = ("timestamp", "filename", "preview", "filepath")  # filepath is hidden
         self.history_tree = ttk.Treeview(
-            self.history_frame, columns=columns, show="headings", selectmode="browse"
+            tree_frame, columns=columns, show="headings", selectmode="browse", height=15
         )
 
         # Define headings
@@ -374,23 +384,62 @@ class AudioRecorderApp:
         # filepath column doesn't need heading as it's hidden
 
         # Define column widths
-        self.history_tree.column("timestamp", width=150, anchor="center")
-        self.history_tree.column("filename", width=200, anchor="w")
-        self.history_tree.column("preview", width=400, anchor="w")
+        self.history_tree.column("timestamp", width=120, anchor="center")
+        self.history_tree.column("filename", width=150, anchor="w")
+        self.history_tree.column("preview", width=200, anchor="w")
         self.history_tree.column(
             "filepath", width=0, stretch=tk.NO
         )  # Hide filepath column
 
-        # Add Scrollbar
-        scrollbar = ttk.Scrollbar(
-            self.history_frame, orient=tk.VERTICAL, command=self.history_tree.yview
+        # Add Scrollbar for tree
+        tree_scrollbar = ttk.Scrollbar(
+            tree_frame, orient=tk.VERTICAL, command=self.history_tree.yview
         )
-        self.history_tree.configure(yscroll=scrollbar.set)
+        self.history_tree.configure(yscroll=tree_scrollbar.set)
 
-        self.history_tree.pack(
-            side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(20, 0), pady=10
+        self.history_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tree_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Right side: Metadata preview panel
+        preview_frame = tk.Frame(
+            history_container, bg="#1E1E1E", relief=tk.SUNKEN, width=350
         )
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 20), pady=10)
+        preview_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=False, padx=(10, 0))
+        preview_frame.pack_propagate(False)
+
+        # Preview title
+        tk.Label(
+            preview_frame,
+            text="Metadata Preview",
+            font=("Arial", 11, "bold"),
+            fg="white",
+            bg="#1E1E1E",
+        ).pack(anchor="w", padx=10, pady=(10, 5))
+
+        # Metadata display area with scrollbar
+        preview_scrollbar = ttk.Scrollbar(preview_frame, orient=tk.VERTICAL)
+        self.metadata_display = tk.Text(
+            preview_frame,
+            height=20,
+            wrap=tk.WORD,
+            font=("Arial", 9),
+            relief=tk.FLAT,
+            bg="#0F0F0F",
+            fg="#CCCCCC",
+            yscrollcommand=preview_scrollbar.set,
+            state=tk.DISABLED,
+            padx=8,
+            pady=8,
+        )
+        preview_scrollbar.config(command=self.metadata_display.yview)
+
+        self.metadata_display.pack(
+            side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=(0, 10)
+        )
+        preview_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=(0, 10))
+
+        # Bind tree selection event
+        self.history_tree.bind("<<TreeviewSelect>>", self.on_history_item_selected)
 
         # Buttons Frame for History Tab
         history_buttons_frame = tk.Frame(self.history_frame, bg="#121212")
@@ -403,7 +452,7 @@ class AudioRecorderApp:
             command=self.delete_selected_history,
             style="Delete.TButton",
         )
-        delete_btn.pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=10)
+        delete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
 
         # Refresh Button
         refresh_btn = ttk.Button(
@@ -412,7 +461,7 @@ class AudioRecorderApp:
             command=self.load_history,
             style="Dark.TButton",
         )
-        refresh_btn.pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=10)
+        refresh_btn.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
 
         # 3. Settings Tab
         self.settings_frame = tk.Frame(self.notebook, bg="#121212")
@@ -442,7 +491,7 @@ class AudioRecorderApp:
             wraplength=500,
             justify=tk.LEFT,
             padx=10,
-            pady=10
+            pady=10,
         )
         self.current_dir_label.pack(anchor="w", fill=tk.X, pady=(0, 10))
 
@@ -454,7 +503,7 @@ class AudioRecorderApp:
             dir_buttons_frame,
             text="Change Directory",
             command=self.change_output_directory,
-            style="Dark.TButton"
+            style="Dark.TButton",
         )
         change_dir_btn.pack(side=tk.LEFT, padx=(0, 10))
 
@@ -462,7 +511,7 @@ class AudioRecorderApp:
             dir_buttons_frame,
             text="Reset to Default",
             command=self.reset_output_directory,
-            style="Dark.TButton"
+            style="Dark.TButton",
         )
         reset_dir_btn.pack(side=tk.LEFT)
 
@@ -489,7 +538,7 @@ class AudioRecorderApp:
             wraplength=500,
             justify=tk.LEFT,
             padx=10,
-            pady=10
+            pady=10,
         )
         self.dir_size_label.pack(anchor="w", fill=tk.X, pady=(0, 10))
 
@@ -498,7 +547,7 @@ class AudioRecorderApp:
             settings_content,
             text="Refresh Size",
             command=self.update_directory_size,
-            style="Dark.TButton"
+            style="Dark.TButton",
         )
         refresh_size_btn.pack(anchor="w", pady=(0, 20))
 
@@ -583,7 +632,9 @@ class AudioRecorderApp:
         self.current_dir_label.config(text=f"Current: {DEFAULT_OUTPUT_DIR}")
         self.load_history()
         self.update_directory_size()
-        messagebox.showinfo("Success", f"Output directory reset to: {DEFAULT_OUTPUT_DIR}")
+        messagebox.showinfo(
+            "Success", f"Output directory reset to: {DEFAULT_OUTPUT_DIR}"
+        )
         logging.info(f"Output directory reset to default: {DEFAULT_OUTPUT_DIR}")
 
     def load_history(self):
@@ -623,6 +674,46 @@ class AudioRecorderApp:
                     )
             except Exception as e:
                 logging.error(f"Error reading history file {file_path}: {e}")
+
+    def on_history_item_selected(self, event):
+        """Displays metadata preview when a history item is selected."""
+        selected_item = self.history_tree.selection()
+        if not selected_item:
+            return
+
+        # Get file path from hidden column
+        item_values = self.history_tree.item(selected_item, "values")
+        json_path = item_values[3]  # 4th column is filepath
+
+        # Clear previous content
+        self.metadata_display.config(state=tk.NORMAL)
+        self.metadata_display.delete("1.0", tk.END)
+
+        try:
+            # Read JSON file
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+                # Format metadata display
+                metadata_text = f"""File: {data.get('audio_file', 'Unknown')}
+
+Timestamp: {data.get('timestamp', 'Unknown')}
+
+Model: {data.get('model', 'Unknown')}
+
+━━━━━━━━━━━━━━━━━━
+
+Transcription:
+
+{data.get('transcription', 'No transcription available')}
+"""
+                self.metadata_display.insert("1.0", metadata_text)
+        except Exception as e:
+            error_text = f"Error loading metadata:\n{str(e)}"
+            self.metadata_display.insert("1.0", error_text)
+            logging.error(f"Error reading metadata: {e}")
+
+        self.metadata_display.config(state=tk.DISABLED)
 
     def delete_selected_history(self):
         """Deletes the selected transcription and its associated files."""

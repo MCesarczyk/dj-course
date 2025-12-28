@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox, scrolledtext, ttk
+from tkinter import messagebox, ttk, filedialog
 import pyaudio
 import wave
 import os
@@ -18,6 +18,34 @@ APP_TITLE = "Azor Transcriber"
 # Set to True to print output to the console (standard output/stderr).
 VERBOSE = False
 LOG_FILENAME = "transcriber.log"
+CONFIG_FILE = "transcriber_config.json"
+DEFAULT_OUTPUT_DIR = "output"
+
+
+# --- Config Management ---
+def load_config():
+    """Load configuration from config file."""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+                return config
+        except Exception as e:
+            logging.error(f"Error loading config: {e}")
+            return {"output_dir": DEFAULT_OUTPUT_DIR}
+    return {"output_dir": DEFAULT_OUTPUT_DIR}
+
+def save_config(config):
+    """Save configuration to config file."""
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+        logging.info(f"Config saved: {config}")
+    except Exception as e:
+        logging.error(f"Error saving config: {e}")
+
+# Load config globally
+CURRENT_CONFIG = load_config()
 
 
 # --- Logging Setup ---
@@ -47,7 +75,8 @@ class StreamToLogger(TextIO):
 # Configure the global logger BEFORE application startup
 def setup_logging():
     """Con gures the logging system to save all output to a le and optionally to console."""
-    os.makedirs("output", exist_ok=True)
+    output_dir = CURRENT_CONFIG.get("output_dir", DEFAULT_OUTPUT_DIR)
+    os.makedirs(output_dir, exist_ok=True)
 
     # 1. Root logger setup
     root_logger = logging.getLogger()
@@ -96,8 +125,9 @@ MODEL_NAME = "openai/whisper-tiny"
 
 def output_filename() -> str:
     """Generates output filename for transcription results."""
-    os.makedirs("output", exist_ok=True)
-    return f"output/recording-{int(time.time())}.wav"
+    output_dir = CURRENT_CONFIG.get("output_dir", DEFAULT_OUTPUT_DIR)
+    os.makedirs(output_dir, exist_ok=True)
+    return f"{output_dir}/recording-{int(time.time())}.wav"
 
 
 def transcribe_audio(audio_path: str, model_name: str) -> str:
@@ -366,13 +396,52 @@ class AudioRecorderApp:
         self.notebook.add(self.settings_frame, text="Settings")
 
         # Content for Settings Tab
-        tk.Label(
-            self.settings_frame,
-            text="Under construction...",
-            font=("Arial", 18),
-            fg="gray",
+        settings_content = tk.Frame(self.settings_frame, bg="#121212")
+        settings_content.pack(pady=20, padx=20, fill=tk.BOTH, expand=True)
+
+        # Output Directory Setting
+        dir_label = tk.Label(
+            settings_content,
+            text="Output Directory",
+            font=("Arial", 12, "bold"),
+            fg="white",
             bg="#121212",
-        ).pack(pady=50)
+        )
+        dir_label.pack(anchor="w", pady=(0, 10))
+
+        # Current Directory Display
+        self.current_dir_label = tk.Label(
+            settings_content,
+            text=f"Current: {CURRENT_CONFIG.get('output_dir', DEFAULT_OUTPUT_DIR)}",
+            font=("Arial", 10),
+            fg="#888888",
+            bg="#1E1E1E",
+            wraplength=500,
+            justify=tk.LEFT,
+            padx=10,
+            pady=10
+        )
+        self.current_dir_label.pack(anchor="w", fill=tk.X, pady=(0, 10))
+
+        # Buttons for directory management
+        dir_buttons_frame = tk.Frame(settings_content, bg="#121212")
+        dir_buttons_frame.pack(anchor="w", fill=tk.X, pady=(0, 20))
+
+        change_dir_btn = ttk.Button(
+            dir_buttons_frame,
+            text="Change Directory",
+            command=self.change_output_directory,
+            style="Dark.TButton"
+        )
+        change_dir_btn.pack(side=tk.LEFT, padx=(0, 10))
+
+        reset_dir_btn = ttk.Button(
+            dir_buttons_frame,
+            text="Reset to Default",
+            command=self.reset_output_directory,
+            style="Dark.TButton"
+        )
+        reset_dir_btn.pack(side=tk.LEFT)
 
         # --- Transcriber Tab Elements ---
 
@@ -422,13 +491,33 @@ class AudioRecorderApp:
         self.master.after(100, self.check_transcription_queue)
         logging.info("GUI initialized successfully.")
 
+    def change_output_directory(self):
+        """Opens a file dialog to change the output directory."""
+        new_dir = filedialog.askdirectory(title="Select Output Directory")
+        if new_dir:
+            CURRENT_CONFIG["output_dir"] = new_dir
+            save_config(CURRENT_CONFIG)
+            self.current_dir_label.config(text=f"Current: {new_dir}")
+            self.load_history()
+            messagebox.showinfo("Success", f"Output directory changed to:\n{new_dir}")
+            logging.info(f"Output directory changed to: {new_dir}")
+
+    def reset_output_directory(self):
+        """Resets the output directory to the default."""
+        CURRENT_CONFIG["output_dir"] = DEFAULT_OUTPUT_DIR
+        save_config(CURRENT_CONFIG)
+        self.current_dir_label.config(text=f"Current: {DEFAULT_OUTPUT_DIR}")
+        self.load_history()
+        messagebox.showinfo("Success", f"Output directory reset to: {DEFAULT_OUTPUT_DIR}")
+        logging.info(f"Output directory reset to default: {DEFAULT_OUTPUT_DIR}")
+
     def load_history(self):
         """Loads transcription history from JSON files in the output directory."""
         # Clear current list
         for item in self.history_tree.get_children():
             self.history_tree.delete(item)
 
-        output_dir = "output"
+        output_dir = CURRENT_CONFIG.get("output_dir", DEFAULT_OUTPUT_DIR)
         if not os.path.exists(output_dir):
             return
 

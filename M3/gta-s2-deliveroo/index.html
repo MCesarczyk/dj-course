@@ -887,6 +887,15 @@ class TowTruck extends NpcCar {
         return { x: cx, y: cy, w: this.bedWidth, l: this.bedLength, angle: this.angle };
     }
 
+    // Returns world-space rectangle of the cab (solid – crashes if hit from front/sides)
+    getCabRect() {
+        const cabLen = this.l - this.bedLength;                  // 75
+        const localOffset = -this.l / 2 + this.bedLength + cabLen / 2;  // 50
+        const cx = this.x + Math.cos(this.angle) * localOffset;
+        const cy = this.y + Math.sin(this.angle) * localOffset;
+        return { x: cx, y: cy, w: this.w, l: cabLen, angle: this.angle };
+    }
+
     draw(ctx) {
         if (this.isWaitingToSpawn) return;
 
@@ -2385,9 +2394,16 @@ class Game {
             }
         }
 
-        // 2. Cars (skip tow trucks – player drives onto them)
+        // 2. Cars
         for (let c of this.currentCars) {
-            if (c.isTowTruck) continue;
+            if (c.isTowTruck) {
+                // Only the cab is solid – player can enter from the rear onto the bed
+                if (checkRectCollision(this.player, c.getCabRect())) {
+                    this.triggerGameOver();
+                    return;
+                }
+                continue;
+            }
             if (checkRectCollision(this.player, c)) {
                 this.triggerGameOver();
                 return;

@@ -6,8 +6,8 @@ const SPRITE_FOLDER = '/assets/sprites/';
 export const ASSET_MAP = {
     // Grafika
     ss_soldier_sprite: SPRITE_FOLDER + 'sprites-ss.png',
-    
-    // Dźwięki
+
+    // Dźwięki - śmierć
     machine_gun_attack: SOUND_FOLDER + 'ATKMACHINEGUNSND.WAV',
     scream_1: SOUND_FOLDER + 'DEATHSCREAM1SND.WAV',
     scream_2: SOUND_FOLDER + 'DEATHSCREAM2SND.WAV',
@@ -17,6 +17,16 @@ export const ASSET_MAP = {
     scream_7: SOUND_FOLDER + 'DEATHSCREAM7SND.WAV',
     scream_8: SOUND_FOLDER + 'DEATHSCREAM8SND.WAV',
     scream_9: SOUND_FOLDER + 'DEATHSCREAM9SND.WAV',
+
+    // Dźwięki - alarmowe (niemieckie okrzyki)
+    halt: SOUND_FOLDER + 'HALTSND.WAV',
+    mein: SOUND_FOLDER + 'MEINSND.WAV',
+    guten: SOUND_FOLDER + 'GUTENTAGSND.WAV',
+    scheis: SOUND_FOLDER + 'SCHEISTSND.WAV',
+    eine: SOUND_FOLDER + 'EINESND.WAV',
+    nein: SOUND_FOLDER + 'NEINSOVASSND.WAV',
+    spion: SOUND_FOLDER + 'SPIONSND.WAV',
+    erlauben: SOUND_FOLDER + 'ERLAUBENSND.WAV',
 };
 
 // Konfiguracja dla Żołnierza SS

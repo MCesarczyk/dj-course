@@ -851,6 +851,171 @@ class NpcCar extends ObstacleCar {
     }
 }
 
+// ─── TOW TRUCK ────────────────────────────────────────────────────────────────
+// Moves at constant speed (no sensor logic). Player must drive onto its flatbed.
+class TowTruck extends NpcCar {
+    constructor(props) {
+        super(props);
+        this.w = 54;
+        this.l = 175;
+        this.isTowTruck = true;
+        this.color = props.color || '#e67e22';
+        this.bedLength = 100;
+        this.bedWidth = 50;
+    }
+
+    // Constant-speed movement – no obstacle detection
+    update(game, deltaTime) {
+        if (this.isWaitingToSpawn) return;
+        const dt = deltaTime * 60;
+        this.x += this.speed * dt;
+        if (this.speed > 0 && this.x > canvas.width + this.l) {
+            this.x = -this.l;
+        } else if (this.speed < 0 && this.x < -this.l) {
+            this.x = canvas.width + this.l;
+        }
+    }
+
+    // Ignore NPC-NPC stop signals
+    stop() {}
+
+    // Returns world-space rectangle of the flatbed (the "parking zone" on the truck)
+    getBedZone() {
+        const localOffset = -this.l / 2 + this.bedLength / 2;
+        const cx = this.x + Math.cos(this.angle) * localOffset;
+        const cy = this.y + Math.sin(this.angle) * localOffset;
+        return { x: cx, y: cy, w: this.bedWidth, l: this.bedLength, angle: this.angle };
+    }
+
+    draw(ctx) {
+        if (this.isWaitingToSpawn) return;
+
+        // ── Draw bed zone indicator (green dashed) ──
+        const zone = this.getBedZone();
+        ctx.save();
+        ctx.translate(zone.x, zone.y);
+        ctx.rotate(zone.angle);
+        ctx.strokeStyle = 'rgba(46, 204, 113, 0.9)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 4]);
+        ctx.strokeRect(-zone.l / 2, -zone.w / 2, zone.l, zone.w);
+        ctx.fillStyle = 'rgba(46, 204, 113, 0.12)';
+        ctx.fillRect(-zone.l / 2, -zone.w / 2, zone.l, zone.w);
+        ctx.setLineDash([]);
+        ctx.restore();
+
+        // ── Draw truck body ──
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillRect(-this.l / 2 + 6, -this.w / 2 + 6, this.l, this.w);
+
+        // Flatbed planks (rear portion)
+        ctx.fillStyle = '#c8a55a';
+        ctx.fillRect(-this.l / 2 + 10, -this.w / 2 + 5, this.bedLength - 14, this.w - 10);
+
+        // Plank grain lines
+        ctx.strokeStyle = '#a08040';
+        ctx.lineWidth = 1;
+        for (let i = 1; i <= 3; i++) {
+            const px = -this.l / 2 + 10 + (this.bedLength - 14) * i / 4;
+            ctx.beginPath();
+            ctx.moveTo(px, -this.w / 2 + 5);
+            ctx.lineTo(px, this.w / 2 - 5);
+            ctx.stroke();
+        }
+
+        // Side rails of bed
+        ctx.fillStyle = '#7a5c2a';
+        ctx.fillRect(-this.l / 2 + 10, -this.w / 2 + 3, this.bedLength - 14, 4);
+        ctx.fillRect(-this.l / 2 + 10, this.w / 2 - 7, this.bedLength - 14, 4);
+
+        // Rear ramp (entry point for player)
+        ctx.fillStyle = '#8b6914';
+        ctx.beginPath();
+        ctx.moveTo(-this.l / 2, -this.w / 2 + 7);
+        ctx.lineTo(-this.l / 2 + 10, -this.w / 2 + 5);
+        ctx.lineTo(-this.l / 2 + 10, this.w / 2 - 5);
+        ctx.lineTo(-this.l / 2, this.w / 2 - 7);
+        ctx.closePath();
+        ctx.fill();
+
+        // Cab (front portion)
+        const bedEnd = -this.l / 2 + this.bedLength;
+        const cabLen = this.l - this.bedLength;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.roundRect(bedEnd, -this.w / 2, cabLen, this.w, [0, 8, 8, 0]);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Cab windshield
+        ctx.fillStyle = 'rgba(180, 210, 255, 0.45)';
+        ctx.beginPath();
+        ctx.moveTo(this.l / 2 - 8, -this.w / 2 + 7);
+        ctx.lineTo(this.l / 2 - 8, this.w / 2 - 7);
+        ctx.lineTo(this.l / 2 - 28, this.w / 2 - 9);
+        ctx.lineTo(this.l / 2 - 28, -this.w / 2 + 9);
+        ctx.closePath();
+        ctx.fill();
+
+        // Headlights (front)
+        ctx.fillStyle = '#f1c40f';
+        ctx.shadowColor = '#ff0';
+        ctx.shadowBlur = 10;
+        ctx.fillRect(this.l / 2 - 5, -this.w / 2 + 5, 5, 10);
+        ctx.fillRect(this.l / 2 - 5, this.w / 2 - 15, 5, 10);
+        ctx.shadowBlur = 0;
+
+        // Taillights (rear – entry side)
+        ctx.fillStyle = '#c0392b';
+        ctx.fillRect(-this.l / 2, -this.w / 2 + 5, 3, 9);
+        ctx.fillRect(-this.l / 2, this.w / 2 - 14, 3, 9);
+
+        // Flashing orange warning light on cab roof
+        const flashOn = Math.floor(Date.now() / 400) % 2 === 0;
+        ctx.fillStyle = flashOn ? '#ff8c00' : 'rgba(255,140,0,0.25)';
+        ctx.beginPath();
+        ctx.arc(bedEnd + cabLen / 2, 0, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#d35400';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.restore();
+    }
+}
+
+// ─── VERTICAL NPC CAR ─────────────────────────────────────────────────────────
+// Like NpcCar but moves along the Y axis (perpendicular traffic at crossings).
+class VerticalNpcCar extends ObstacleCar {
+    constructor(props) {
+        super(props);
+        this.originalSpeed = props.speed || 4;
+        this.speed = this.originalSpeed;
+    }
+
+    update(game, deltaTime) {
+        const dt = deltaTime * 60;
+        this.y += this.speed * dt;
+        if (this.speed > 0 && this.y > canvas.height + this.l) {
+            this.y = -this.l;
+        } else if (this.speed < 0 && this.y < -this.l) {
+            this.y = canvas.height + this.l;
+        }
+    }
+
+    draw(ctx) {
+        if (this.y < -this.l - 20 || this.y > canvas.height + this.l + 20) return;
+        super.draw(ctx);
+    }
+}
+
 class Pillar {
     constructor(x, y) {
         this.x = x;
@@ -1972,6 +2137,71 @@ class Game {
                     new Curb(canvas.width/2 + 120, canvas.height/2 + 120 + (canvas.height/2 - 120)/2, 100, canvas.height/2 - 120, 90 * Math.PI/180),
                 ]
             },
+            // ─── TOW TRUCK LEVELS ─────────────────────────────────────────────────────
+            {
+                name: "Laweta: Prosty Odcinek",
+                type: 'street',
+                start: { x: 100, y: canvas.height/2 + 35, angle: 0 },
+                obstacles: [],
+                cars: [
+                    // Tow truck moving slowly right – drive onto its flatbed to win
+                    new TowTruck({x: 600, y: canvas.height/2 + 35, angle: 0, speed: 2, color: '#e67e22'})
+                ],
+                parkingZones: [],
+                curbs: [
+                    new Curb(canvas.width/2, canvas.height/2 - 120, 100, canvas.width, 0),
+                    new Curb(canvas.width/2, canvas.height/2 + 120, 100, canvas.width, 0),
+                ]
+            },
+            {
+                name: "Laweta: Ruch Drogowy",
+                type: 'street',
+                start: { x: 100, y: canvas.height/2 + 35, angle: 0 },
+                obstacles: [],
+                cars: [
+                    // Tow truck ahead in lower lane
+                    new TowTruck({x: 850, y: canvas.height/2 + 35, angle: 0, speed: 2, color: '#e67e22'}),
+                    // Slow car blocking player – must overtake using oncoming lane
+                    new NpcCar({x: 330, y: canvas.height/2 + 35, angle: 0, speed: 1.5, type: 'suv', color: '#2980b9'}),
+                    // Oncoming traffic in upper lane (dangerous to cut through)
+                    new NpcCar({x: canvas.width,        y: canvas.height/2 - 35, angle: 180, speed: -6, type: 'sedan',   color: '#c0392b'}),
+                    new NpcCar({x: canvas.width * 0.55, y: canvas.height/2 - 35, angle: 180, speed: -5, type: 'compact',  color: '#9b59b6'}),
+                    new NpcCar({x: canvas.width * 0.28, y: canvas.height/2 - 35, angle: 180, speed: -7, kind: 'aggressive', type: 'suv', color: '#e74c3c'}),
+                ],
+                parkingZones: [],
+                curbs: [
+                    new Curb(canvas.width/2, canvas.height/2 - 120, 100, canvas.width, 0),
+                    new Curb(canvas.width/2, canvas.height/2 + 120, 100, canvas.width, 0),
+                ]
+            },
+            {
+                name: "Laweta: Skrzyżowanie",
+                type: 'street_crossing',
+                start: { x: 100, y: canvas.height/2 + 35, angle: 0 },
+                obstacles: [],
+                cars: [
+                    // Tow truck past the intersection, moving right
+                    new TowTruck({x: canvas.width/2 + 320, y: canvas.height/2 + 35, angle: 0, speed: 1.5, color: '#e67e22'}),
+                    // Perpendicular cars crossing the intersection (going down)
+                    new VerticalNpcCar({x: canvas.width/2 - 35, y: 60,   angle: 90, speed: 4, type: 'sedan',   color: '#990212'}),
+                    new VerticalNpcCar({x: canvas.width/2 - 35, y: -260, angle: 90, speed: 4, type: 'compact', color: '#27ae60'}),
+                    new VerticalNpcCar({x: canvas.width/2 + 35, y: -130, angle: 90, speed: 4, type: 'suv',     color: '#2980b9'}),
+                    // Fast oncoming cars in upper horizontal lane – blocking lane-change escape
+                    new NpcCar({x: canvas.width,        y: canvas.height/2 - 35, angle: 180, speed: -6, type: 'sedan',  color: '#8e44ad'}),
+                    new NpcCar({x: canvas.width * 0.62, y: canvas.height/2 - 35, angle: 180, speed: -6, type: 'compact', color: '#34495e'}),
+                ],
+                parkingZones: [],
+                curbs: [
+                    new Curb((canvas.width/2 - 120)/2,                       canvas.height/2 - 120, 100, canvas.width/2 - 20,    0),
+                    new Curb(canvas.width/2 - 120,                           (canvas.height/2 - 120)/2, 100, canvas.height/2 - 120, 90 * Math.PI/180),
+                    new Curb(canvas.width/2 + 120 + (canvas.width/2 - 120)/2, canvas.height/2 - 120, 100, canvas.width/2 - 20,    0),
+                    new Curb(canvas.width/2 + 120,                           (canvas.height/2 - 120)/2, 100, canvas.height/2 - 120, 90 * Math.PI/180),
+                    new Curb((canvas.width/2 - 120)/2,                       canvas.height/2 + 120, 100, canvas.width/2 - 20,    0),
+                    new Curb(canvas.width/2 - 120,                           canvas.height/2 + 120 + (canvas.height/2 - 120)/2, 100, canvas.height/2 - 120, 90 * Math.PI/180),
+                    new Curb(canvas.width/2 + 120 + (canvas.width/2 - 120)/2, canvas.height/2 + 120, 100, canvas.width/2 - 20,    0),
+                    new Curb(canvas.width/2 + 120,                           canvas.height/2 + 120 + (canvas.height/2 - 120)/2, 100, canvas.height/2 - 120, 90 * Math.PI/180),
+                ]
+            },
             {
                 name: "Ekspresówka",
                 type: 'highway',
@@ -2155,8 +2385,9 @@ class Game {
             }
         }
 
-        // 2. Cars
+        // 2. Cars (skip tow trucks – player drives onto them)
         for (let c of this.currentCars) {
+            if (c.isTowTruck) continue;
             if (checkRectCollision(this.player, c)) {
                 this.triggerGameOver();
                 return;
@@ -2181,23 +2412,31 @@ class Game {
     }
 
     checkParking() {
-        // Car must be moving very slowly to be considered parked.
-        if (Math.abs(this.player.speed) > 0.1) return;
+        const carCorners = getCorners(this.player.x, this.player.y, this.player.w, this.player.l, this.player.angle);
 
-        for (let zone of this.currentParkingZones) {
-            // 1. Check if all 4 corners of the car are inside the parking zone
-            const carCorners = getCorners(this.player.x, this.player.y, this.player.w, this.player.l, this.player.angle);
+        // Standard stationary parking zones – require near-zero speed
+        if (Math.abs(this.player.speed) <= 0.1) {
+            for (let zone of this.currentParkingZones) {
+                let allCornersIn = true;
+                for (const corner of carCorners) {
+                    if (!isPointInRotatedRect(corner, zone)) { allCornersIn = false; break; }
+                }
+                if (allCornersIn) { this.triggerLevelComplete(); return; }
+            }
+        }
+
+        // Tow truck flatbed zones – player must match the truck's speed
+        for (let car of this.currentCars) {
+            if (!car.isTowTruck) continue;
+            const zone = car.getBedZone();
             let allCornersIn = true;
             for (const corner of carCorners) {
-                if (!isPointInRotatedRect(corner, zone)) {
-                    allCornersIn = false;
-                    break;
-                }
+                if (!isPointInRotatedRect(corner, zone)) { allCornersIn = false; break; }
             }
-
             if (allCornersIn) {
-                this.triggerLevelComplete();
-                return;
+                // player.velocityX is set every frame in updateSimplePhysics
+                const relativeSpeed = Math.abs(this.player.velocityX - car.speed);
+                if (relativeSpeed < 2.0) { this.triggerLevelComplete(); return; }
             }
         }
     }

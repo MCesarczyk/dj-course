@@ -12,6 +12,7 @@ import { WarehouseContentRef } from './scene/WarehouseContent';
 
 const TOTAL_SOLDIERS = 12;
 const SHOOT_COOLDOWN_MS = 350;
+const CAMERA_FOV_DEG = 75;
 
 export const WarehouseScene: React.FC = () => {
   const [playerPosition, setPlayerPosition] = useState({
@@ -21,16 +22,19 @@ export const WarehouseScene: React.FC = () => {
   const [playerRotation, setPlayerRotation] = useState(INITIAL_PLAYER_ROTATION);
   const [killCount, setKillCount] = useState(0);
   const [flash, setFlash] = useState<'hit' | 'miss' | null>(null);
+  const [mousePos, setMousePos] = useState({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
 
   const contentRef = useRef<WarehouseContentRef>(null);
   const shootCooldownRef = useRef(false);
   const pistolAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Keep latest position/rotation in refs so the shoot handler never goes stale
+  // Always-fresh refs so callbacks never go stale
   const playerPositionRef = useRef(playerPosition);
   const playerRotationRef = useRef(playerRotation);
+  const mousePosRef = useRef(mousePos);
   playerPositionRef.current = playerPosition;
   playerRotationRef.current = playerRotation;
+  mousePosRef.current = mousePos;
 
   useEffect(() => {
     pistolAudioRef.current = new Audio('/assets/sounds/ATKPISTOLSND.WAV');
@@ -41,43 +45,61 @@ export const WarehouseScene: React.FC = () => {
     shootCooldownRef.current = true;
     setTimeout(() => { shootCooldownRef.current = false; }, SHOOT_COOLDOWN_MS);
 
-    // Play gunshot immediately
+    // Play gunshot
     const audio = pistolAudioRef.current;
-    if (audio) {
-      audio.currentTime = 0;
-      audio.play().catch(() => {});
-    }
+    if (audio) { audio.currentTime = 0; audio.play().catch(() => {}); }
 
-    // Ray direction from current rotation (0 = facing negative Z / north)
+    // Compute ray direction from mouse position in screen space.
+    // The camera rotates only around Y (yaw), so we project mouse into world XZ plane.
     const rot = playerRotationRef.current;
-    const dirX = -Math.sin(rot);
-    const dirZ = -Math.cos(rot);
+    const { x: mx, y: my } = mousePosRef.current;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    // Normalised device coords: [-1, 1]
+    const ndcX = (mx / w) * 2 - 1;
+    // (ndcY not needed — camera has no pitch)
+
+    // Camera local axes in world space
+    const sinR = Math.sin(rot);
+    const cosR = Math.cos(rot);
+    const fwdX = -sinR;
+    const fwdZ = -cosR;
+    const rightX = cosR;
+    const rightZ = -sinR; // wait: right = fwd cross up? Let me re-derive.
+    // Right vector: rotate (1,0,0) by yaw = rot
+    // R_y * (1,0,0) = (cos(rot), 0, -sin(rot))
+    // but our rotation convention: fwd = (-sin(rot), 0, -cos(rot))
+    // So right = (cos(rot), 0, -sin(rot)) — this is correct.
+
+    // Horizontal half-extent in world-space units at distance 1
+    const halfTanH = Math.tan((CAMERA_FOV_DEG / 2) * (Math.PI / 180)) * (w / h);
+
+    // World-space direction (ignore vertical, flatten to XZ)
+    const rawDirX = fwdX + rightX * ndcX * halfTanH;
+    const rawDirZ = fwdZ + rightZ * ndcX * halfTanH;
+    const len = Math.sqrt(rawDirX * rawDirX + rawDirZ * rawDirZ);
+
     const { x, z } = playerPositionRef.current;
+    const hit = contentRef.current?.shoot(x, z, rawDirX / len, rawDirZ / len) ?? false;
 
-    const hit = contentRef.current?.shoot(x, z, dirX, dirZ) ?? false;
-
-    if (hit) {
-      setKillCount(k => k + 1);
-      setFlash('hit');
-    } else {
-      setFlash('miss');
-    }
+    if (hit) setKillCount(k => k + 1);
+    setFlash(hit ? 'hit' : 'miss');
     setTimeout(() => setFlash(null), 80);
   }, []);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
-        event.preventDefault();
-        shoot();
-      }
-      if (event.shiftKey && event.code === 'KeyD') {
-        contentRef.current?.killRandomSoldier();
-      }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') { e.preventDefault(); shoot(); }
+      if (e.shiftKey && e.code === 'KeyD') contentRef.current?.killRandomSoldier();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [shoot]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
+  }, []);
 
   const handlePositionChange = (pos: { x: number; z: number }, rot: number) => {
     setPlayerPosition(pos);
@@ -89,12 +111,13 @@ export const WarehouseScene: React.FC = () => {
   return (
     <div
       className="w-full h-screen"
-      style={{ cursor: 'none' }}
+      style={{ cursor: 'none', userSelect: 'none' }}
+      onMouseMove={handleMouseMove}
       onClick={shoot}
     >
       <Canvas
         camera={{
-          fov: 75,
+          fov: CAMERA_FOV_DEG,
           near: 0.1,
           far: 1000,
           position: [
@@ -109,86 +132,62 @@ export const WarehouseScene: React.FC = () => {
         <WarehouseEnvironment ref={contentRef} />
       </Canvas>
 
-      {/* Muzzle flash / hit feedback overlay */}
+      {/* Screen flash on shoot */}
       {flash && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: flash === 'hit' ? 'rgba(255,30,30,0.18)' : 'rgba(255,255,220,0.10)',
-            pointerEvents: 'none',
-            zIndex: 40,
-          }}
-        />
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 40,
+          backgroundColor: flash === 'hit' ? 'rgba(255,30,30,0.18)' : 'rgba(255,255,220,0.08)',
+        }} />
       )}
 
-      {/* Crosshair */}
-      <div
+      {/* Custom reticle cursor — follows the mouse */}
+      <svg
         style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
+          position: 'fixed',
+          left: mousePos.x,
+          top: mousePos.y,
           transform: 'translate(-50%, -50%)',
           pointerEvents: 'none',
-          zIndex: 50,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 0,
-          userSelect: 'none',
+          zIndex: 9999,
+          overflow: 'visible',
+          filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.8))',
         }}
+        width="44"
+        height="44"
+        viewBox="-22 -22 44 44"
       >
-        {/* top tick */}
-        <div style={{ width: 2, height: 10, backgroundColor: 'rgba(255,255,255,0.85)' }} />
-        {/* horizontal bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 10, height: 2, backgroundColor: 'rgba(255,255,255,0.85)' }} />
-          <div style={{ width: 4, height: 4, borderRadius: '50%', backgroundColor: 'rgba(255,80,80,0.9)' }} />
-          <div style={{ width: 10, height: 2, backgroundColor: 'rgba(255,255,255,0.85)' }} />
-        </div>
-        {/* bottom tick */}
-        <div style={{ width: 2, height: 10, backgroundColor: 'rgba(255,255,255,0.85)' }} />
-      </div>
+        {/* outer circle */}
+        <circle cx="0" cy="0" r="14" fill="none" stroke="white" strokeWidth="1.5" opacity="0.85" />
+        {/* gap lines (N / S / E / W) */}
+        <line x1="0" y1="-22" x2="0" y2="-17" stroke="white" strokeWidth="1.5" opacity="0.85" />
+        <line x1="0" y1="17" x2="0" y2="22" stroke="white" strokeWidth="1.5" opacity="0.85" />
+        <line x1="-22" y1="0" x2="-17" y2="0" stroke="white" strokeWidth="1.5" opacity="0.85" />
+        <line x1="17" y1="0" x2="22" y2="0" stroke="white" strokeWidth="1.5" opacity="0.85" />
+        {/* centre dot */}
+        <circle cx="0" cy="0" r="2.5" fill="#ff4444" opacity="0.95" />
+      </svg>
 
-      {/* Kill counter — top center */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 16,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 50,
-          pointerEvents: 'none',
-          fontFamily: 'monospace',
-          fontSize: 14,
-          color: remaining === 0 ? '#4ade80' : '#f87171',
-          backgroundColor: 'rgba(0,0,0,0.55)',
-          padding: '4px 14px',
-          borderRadius: 6,
-          letterSpacing: 1,
-          border: `1px solid ${remaining === 0 ? '#4ade80' : '#991b1b'}`,
-        }}
-      >
+      {/* Kill counter */}
+      <div style={{
+        position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 50, pointerEvents: 'none', fontFamily: 'monospace', fontSize: 14,
+        color: remaining === 0 ? '#4ade80' : '#f87171',
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        padding: '4px 14px', borderRadius: 6, letterSpacing: 1,
+        border: `1px solid ${remaining === 0 ? '#4ade80' : '#7f1d1d'}`,
+      }}>
         {remaining === 0
           ? '★  MISSION COMPLETE  ★'
-          : `☠ ${killCount} / ${TOTAL_SOLDIERS}  enemies eliminated`}
+          : `☠  ${killCount} / ${TOTAL_SOLDIERS}  enemies eliminated`}
       </div>
 
-      {/* Controls hint — bottom center */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 16,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 50,
-          pointerEvents: 'none',
-          fontFamily: 'monospace',
-          fontSize: 11,
-          color: 'rgba(255,255,255,0.45)',
-        }}
-      >
-        CLICK or SPACE to shoot · ARROWS to move · SHIFT+ARROWS to sprint/rotate faster
+      {/* Controls hint */}
+      <div style={{
+        position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 50, pointerEvents: 'none', fontFamily: 'monospace', fontSize: 11,
+        color: 'rgba(255,255,255,0.4)',
+      }}>
+        CLICK or SPACE to shoot · ARROWS to move · SHIFT for sprint
       </div>
 
       <Minimap playerPosition={playerPosition} playerRotation={playerRotation} />

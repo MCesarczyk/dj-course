@@ -23,11 +23,19 @@ const SOLDIER_POSITIONS = [
   { row: 11, col: 17 },
 ];
 
+export interface SoldierMapData {
+  x: number;
+  z: number;
+  isDead: boolean;
+}
+
 export interface WarehouseContentRef {
   killRandomSoldier: () => void;
   /** Cast a ray from (originX, originZ) in direction (dirX, dirZ). Returns true if a soldier was hit. */
   shoot: (originX: number, originZ: number, dirX: number, dirZ: number) => boolean;
   getLivingSoldierCount: () => number;
+  /** Current world positions of all soldiers (for minimap). */
+  getSoldierData: () => SoldierMapData[];
 }
 
 export const WarehouseContent = forwardRef<WarehouseContentRef, {}>((props, ref) => {
@@ -78,6 +86,15 @@ export const WarehouseContent = forwardRef<WarehouseContentRef, {}>((props, ref)
 
     getLivingSoldierCount: () =>
       soldierRefs.current.filter(s => s && !s.isDead()).length,
+
+    getSoldierData: () =>
+      soldierRefs.current
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map(s => ({
+          x: s.getPosition().x,
+          z: s.getPosition().z,
+          isDead: s.isDead(),
+        })),
   }));
 
   return (

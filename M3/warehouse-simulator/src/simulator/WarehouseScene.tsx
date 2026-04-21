@@ -190,7 +190,11 @@ export const WarehouseScene: React.FC = () => {
         CLICK or SPACE to shoot · ARROWS to move · SHIFT for sprint
       </div>
 
-      <Minimap playerPosition={playerPosition} playerRotation={playerRotation} />
+      <Minimap
+        playerPosition={playerPosition}
+        playerRotation={playerRotation}
+        enemyData={contentRef.current?.getSoldierData() ?? []}
+      />
 
       <div className="absolute top-4 left-4 z-50" style={{ width: 'max-content' }}>
         <div className="flex flex-col gap-2">

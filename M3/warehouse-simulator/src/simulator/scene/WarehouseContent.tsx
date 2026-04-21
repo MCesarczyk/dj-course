@@ -23,8 +23,19 @@ const SOLDIER_POSITIONS = [
   { row: 11, col: 17 },
 ];
 
+export interface SoldierMapData {
+  x: number;
+  z: number;
+  isDead: boolean;
+}
+
 export interface WarehouseContentRef {
   killRandomSoldier: () => void;
+  /** Cast a ray from (originX, originZ) in direction (dirX, dirZ). Returns true if a soldier was hit. */
+  shoot: (originX: number, originZ: number, dirX: number, dirZ: number) => boolean;
+  getLivingSoldierCount: () => number;
+  /** Current world positions of all soldiers (for minimap). */
+  getSoldierData: () => SoldierMapData[];
 }
 
 export const WarehouseContent = forwardRef<WarehouseContentRef, {}>((props, ref) => {
@@ -33,12 +44,57 @@ export const WarehouseContent = forwardRef<WarehouseContentRef, {}>((props, ref)
 
   useImperativeHandle(ref, () => ({
     killRandomSoldier: () => {
-      const livingSoldiers = soldierRefs.current.filter(s => s && !s.isDead());
-      if (livingSoldiers.length > 0) {
-        const randomIndex = Math.floor(Math.random() * livingSoldiers.length);
-        livingSoldiers[randomIndex]?.die();
+      const living = soldierRefs.current.filter(s => s && !s.isDead());
+      if (living.length > 0) {
+        const pick = Math.floor(Math.random() * living.length);
+        living[pick]?.die();
       }
-    }
+    },
+
+    shoot: (originX: number, originZ: number, dirX: number, dirZ: number): boolean => {
+      const HIT_RADIUS = 1.2; // world units — generous enough for fun gameplay
+      const MAX_RANGE = 60;
+      let closestT = MAX_RANGE;
+      let closestSoldier: (typeof soldierRefs.current)[number] = null;
+
+      for (const soldier of soldierRefs.current) {
+        if (!soldier || soldier.isDead()) continue;
+        const { x, z } = soldier.getPosition();
+
+        // Ray–cylinder intersection on the XZ plane (height ignored, soldiers are wide targets)
+        const ocX = originX - x;
+        const ocZ = originZ - z;
+        const b = ocX * dirX + ocZ * dirZ;
+        const c = ocX * ocX + ocZ * ocZ - HIT_RADIUS * HIT_RADIUS;
+        const discriminant = b * b - c;
+
+        if (discriminant >= 0) {
+          const t = -b - Math.sqrt(discriminant);
+          if (t > 0 && t < closestT) {
+            closestT = t;
+            closestSoldier = soldier;
+          }
+        }
+      }
+
+      if (closestSoldier) {
+        closestSoldier.die();
+        return true;
+      }
+      return false;
+    },
+
+    getLivingSoldierCount: () =>
+      soldierRefs.current.filter(s => s && !s.isDead()).length,
+
+    getSoldierData: () =>
+      soldierRefs.current
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map(s => ({
+          x: s.getPosition().x,
+          z: s.getPosition().z,
+          isDead: s.isDead(),
+        })),
   }));
 
   return (

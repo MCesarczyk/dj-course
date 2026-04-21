@@ -3,13 +3,15 @@ import { warehouseMap } from '../warehouseMap';
 import { TILE_TYPES } from '../model/warehouse.types';
 import { TILE_SIZE, getZoneColor } from '../configuration';
 import { Tooltip } from './Tooltip';
+import type { SoldierMapData } from '../scene/WarehouseContent';
 
 interface MinimapProps {
   playerPosition: { x: number; z: number };
   playerRotation: number;
+  enemyData?: SoldierMapData[];
 }
 
-export const Minimap: React.FC<MinimapProps> = ({ playerPosition, playerRotation }) => {
+export const Minimap: React.FC<MinimapProps> = ({ playerPosition, playerRotation, enemyData = [] }) => {
   const structure = warehouseMap.getStructure();
   const tileSize = 16; // Size of each tile in pixels
   const mapWidth = structure.width * tileSize;
@@ -123,6 +125,30 @@ export const Minimap: React.FC<MinimapProps> = ({ playerPosition, playerRotation
               })
             )}
             
+            {/* Enemy dots */}
+            {enemyData.map((enemy, i) => {
+              const ex = ((enemy.x + structure.width * TILE_SIZE / 2) / TILE_SIZE) * tileSize;
+              const ez = ((enemy.z + structure.height * TILE_SIZE / 2) / TILE_SIZE) * tileSize;
+              return (
+                <div
+                  key={`enemy-${i}`}
+                  className="absolute"
+                  style={{
+                    left: ex,
+                    top: ez,
+                    transform: 'translate(-50%, -50%)',
+                    width: enemy.isDead ? 5 : 8,
+                    height: enemy.isDead ? 5 : 8,
+                    borderRadius: '50%',
+                    backgroundColor: enemy.isDead ? 'rgba(120,120,120,0.5)' : '#ef4444',
+                    border: enemy.isDead ? '1px solid #555' : '1px solid #fff',
+                    zIndex: enemy.isDead ? 1 : 3,
+                    boxShadow: enemy.isDead ? 'none' : '0 0 3px #ef4444',
+                  }}
+                />
+              );
+            })}
+
             {/* Player cowboy emoji - now correctly positioned at tile center */}
             <div
               className="absolute text-lg leading-none select-none"
@@ -130,7 +156,8 @@ export const Minimap: React.FC<MinimapProps> = ({ playerPosition, playerRotation
                 left: playerX,
                 top: playerZ,
                 transform: `translate(-50%, -50%) rotate(${rotationAngle}deg)`,
-                transformOrigin: 'center center'
+                transformOrigin: 'center center',
+                zIndex: 4,
               }}
             >
               🤠
@@ -142,6 +169,14 @@ export const Minimap: React.FC<MinimapProps> = ({ playerPosition, playerRotation
             <div className="flex items-center gap-2">
               <span className="text-lg">🤠</span>
               <span>You</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#ef4444', border: '1px solid #fff', boxShadow: '0 0 3px #ef4444', flexShrink: 0 }} />
+              <span>Enemy (alive)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: 'rgba(120,120,120,0.5)', border: '1px solid #555', flexShrink: 0 }} />
+              <span>Enemy (dead)</span>
             </div>
             <div className="grid grid-cols-2 gap-1 text-xs">
               <div className="flex items-center gap-1">

@@ -25,6 +25,7 @@ interface SoldierProps {
 export interface SoldierRef {
   die: () => void;
   isDead: () => boolean;
+  getPosition: () => { x: number; z: number };
 }
 
 // ---------- Chroma-key texture hook (unchanged) ----------
@@ -218,6 +219,7 @@ export const Soldier = forwardRef<SoldierRef, SoldierProps>(({ position }, ref) 
   useImperativeHandle(ref, () => ({
     die,
     isDead: () => stateRef.current === 'dead',
+    getPosition: () => ({ x: posRef.current.x, z: posRef.current.z }),
   }));
 
   useFrame(({ clock }, delta) => {

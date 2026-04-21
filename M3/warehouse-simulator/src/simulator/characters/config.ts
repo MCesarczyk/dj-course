@@ -18,6 +18,9 @@ export const ASSET_MAP = {
     scream_8: SOUND_FOLDER + 'DEATHSCREAM8SND.WAV',
     scream_9: SOUND_FOLDER + 'DEATHSCREAM9SND.WAV',
 
+    // Dźwięki - broń gracza
+    pistol: SOUND_FOLDER + 'ATKPISTOLSND.WAV',
+
     // Dźwięki - alarmowe (niemieckie okrzyki)
     halt: SOUND_FOLDER + 'HALTSND.WAV',
     mein: SOUND_FOLDER + 'MEINSND.WAV',

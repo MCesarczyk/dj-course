@@ -1,0 +1,1277 @@
+<!doctype html>
+<html lang="pl">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Interaktywny Raport: Architektura Systemu Faktur</title>
+
+        <!-- Chosen Palette: Warm Neutrals (Stone/Amber) for calm harmony -->
+        <!-- Application Structure Plan: A dashboard-style SPA with a top navigation bar and dynamic content panels. This structure was chosen to separate the distinct architectural domains (Performance/Data, Server Logic, Frontend, Infrastructure) into easily digestible, task-oriented views. It allows the user to focus on one technical aspect at a time without being overwhelmed by a massive linear document, prioritizing modular understanding of the system's components. -->
+        <!-- Visualization & Content Choices:
+        1. Performance Data -> Goal: Compare -> Viz: Bar Chart (Chart.js) -> Interaction: Toggle metric view -> Justification: Clearly shows latency differences between Mongo/Redis. Library: Chart.js (Canvas, NO SVG).
+        2. Server Logic -> Goal: Change/Process -> Viz: HTML/CSS Flow Diagram -> Interaction: Click to simulate API requests -> Justification: Active learning of the Cache-Aside pattern is better than reading about it. Method: DOM manipulation (NO Mermaid/SVG).
+        3. Frontend Dark Mode -> Goal: Compare -> Viz: Interactive Color Table -> Interaction: Hover to see color blocks -> Justification: Makes CSS variables tangible. Method: HTML/Tailwind.
+    -->
+        <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            brand: {
+                                50: "#faf8f5",
+                                100: "#f0ece1",
+                                500: "#d97706", // amber-600
+                                800: "#92400e", // amber-800
+                                900: "#451a03",
+                            },
+                        },
+                        fontFamily: {
+                            sans: [
+                                "Inter",
+                                "Segoe UI",
+                                "Roboto",
+                                "Helvetica Neue",
+                                "Arial",
+                                "sans-serif",
+                            ],
+                        },
+                    },
+                },
+            };
+        </script>
+
+        <style>
+            body {
+                background-color: #faf8f5; /* Light warm neutral */
+                color: #333;
+            }
+
+            /* Chart Container Styling - Mandatory Requirements */
+            .chart-container {
+                position: relative;
+                width: 100%;
+                max-width: 800px;
+                margin-left: auto;
+                margin-right: auto;
+                height: 350px;
+                max-height: 400px;
+            }
+            @media (min-width: 768px) {
+                .chart-container {
+                    height: 400px;
+                }
+            }
+
+            /* Custom scrollbar for a cleaner look */
+            ::-webkit-scrollbar {
+                width: 8px;
+            }
+            ::-webkit-scrollbar-track {
+                background: #f0ece1;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #d1d5db;
+                border-radius: 4px;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: #9ca3af;
+            }
+
+            /* Transitions */
+            .tab-content {
+                display: none;
+                animation: fadeIn 0.4s ease-in-out;
+            }
+            .tab-content.active {
+                display: block;
+            }
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            /* Node Diagram styling */
+            .node-box {
+                transition: all 0.3s ease;
+            }
+            .node-active {
+                background-color: #fef3c7; /* yellow-100 */
+                border-color: #d97706; /* amber-600 */
+                transform: scale(1.05);
+                box-shadow:
+                    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+                    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            }
+            .flow-line {
+                transition: background-color 0.3s ease;
+            }
+            .flow-active {
+                background-color: #d97706;
+            }
+        </style>
+    </head>
+    <body class="antialiased min-h-screen flex flex-col">
+        <!-- Header / Navigation -->
+        <header class="bg-white shadow-sm sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 flex items-center gap-2">
+                            <span class="text-2xl">📦</span>
+                            <span
+                                class="font-bold text-xl text-brand-900 tracking-tight"
+                                >InvoiceSys Architektura</span
+                            >
+                        </div>
+                        <nav
+                            class="hidden sm:ml-8 sm:flex sm:space-x-4"
+                            aria-label="Nawigacja główna"
+                        >
+                            <button
+                                onclick="switchTab('intro')"
+                                class="nav-btn active border-brand-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                data-target="intro"
+                            >
+                                Podsumowanie
+                            </button>
+                            <button
+                                onclick="switchTab('data')"
+                                class="nav-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                data-target="data"
+                            >
+                                Strategia Danych
+                            </button>
+                            <button
+                                onclick="switchTab('logic')"
+                                class="nav-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                data-target="logic"
+                            >
+                                Logika Cache
+                            </button>
+                            <button
+                                onclick="switchTab('ui')"
+                                class="nav-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                data-target="ui"
+                            >
+                                Frontend & Docker
+                            </button>
+                        </nav>
+                    </div>
+                    <!-- Mobile menu button -->
+                    <div class="flex items-center sm:hidden">
+                        <button
+                            type="button"
+                            onclick="
+                                document
+                                    .getElementById('mobile-menu')
+                                    .classList.toggle('hidden')
+                            "
+                            class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none"
+                            aria-controls="mobile-menu"
+                            aria-expanded="false"
+                        >
+                            <span class="text-xl">☰</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Mobile Menu -->
+            <div
+                class="sm:hidden hidden bg-white border-b border-gray-200"
+                id="mobile-menu"
+            >
+                <div class="pt-2 pb-3 space-y-1">
+                    <button
+                        onclick="
+                            switchTab('intro');
+                            document
+                                .getElementById('mobile-menu')
+                                .classList.add('hidden');
+                        "
+                        class="bg-brand-50 border-brand-500 text-brand-800 block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left"
+                    >
+                        Podsumowanie
+                    </button>
+                    <button
+                        onclick="
+                            switchTab('data');
+                            document
+                                .getElementById('mobile-menu')
+                                .classList.add('hidden');
+                        "
+                        class="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left"
+                    >
+                        Strategia Danych
+                    </button>
+                    <button
+                        onclick="
+                            switchTab('logic');
+                            document
+                                .getElementById('mobile-menu')
+                                .classList.add('hidden');
+                        "
+                        class="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left"
+                    >
+                        Logika Cache
+                    </button>
+                    <button
+                        onclick="
+                            switchTab('ui');
+                            document
+                                .getElementById('mobile-menu')
+                                .classList.add('hidden');
+                        "
+                        class="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left"
+                    >
+                        Frontend & Docker
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main
+            class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full"
+        >
+            <!-- TAB: Podsumowanie (Intro) -->
+            <section id="intro" class="tab-content active">
+                <div
+                    class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                >
+                    <div class="p-6 sm:p-10">
+                        <h1
+                            class="text-3xl font-extrabold text-gray-900 tracking-tight mb-4"
+                        >
+                            Kompleksowy Projekt Architektoniczny
+                        </h1>
+                        <p class="text-lg text-gray-600 mb-8 leading-relaxed">
+                            Niniejszy interaktywny raport prezentuje analizę
+                            projektu i wdrożenia nowoczesnego systemu
+                            zarządzania fakturami. Skupiamy się na mechanicznych
+                            interakcjach między sprawdzonymi technologiami w z
+                            konteneryzowanym środowisku. Eksploruj kolejne
+                            zakładki, aby zrozumieć, jak współpracują ze sobą
+                            poszczególne warstwy.
+                        </p>
+
+                        <div
+                            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+                        >
+                            <!-- Tech Stack Cards -->
+                            <div
+                                class="bg-brand-50 rounded-lg p-6 border border-brand-100 flex flex-col items-center text-center"
+                            >
+                                <span class="text-4xl mb-3">💻</span>
+                                <h3 class="font-bold text-gray-900 text-lg">
+                                    Svelte
+                                </h3>
+                                <p class="text-sm text-gray-600 mt-2">
+                                    Frontend. Brak narzutu Virtual DOM,
+                                    reaktywny interfejs (Dark Mode).
+                                </p>
+                            </div>
+                            <div
+                                class="bg-brand-50 rounded-lg p-6 border border-brand-100 flex flex-col items-center text-center"
+                            >
+                                <span class="text-4xl mb-3">⚙️</span>
+                                <h3 class="font-bold text-gray-900 text-lg">
+                                    Node.js + TS
+                                </h3>
+                                <p class="text-sm text-gray-600 mt-2">
+                                    Serwer Express.js. Zarządza przepływem
+                                    danych i API.
+                                </p>
+                            </div>
+                            <div
+                                class="bg-brand-50 rounded-lg p-6 border border-brand-100 flex flex-col items-center text-center"
+                            >
+                                <span class="text-4xl mb-3">🗄️</span>
+                                <h3 class="font-bold text-gray-900 text-lg">
+                                    MongoDB
+                                </h3>
+                                <p class="text-sm text-gray-600 mt-2">
+                                    Główna baza dokumentowa. Przechowuje
+                                    struktury faktur.
+                                </p>
+                            </div>
+                            <div
+                                class="bg-brand-50 rounded-lg p-6 border border-brand-100 flex flex-col items-center text-center"
+                            >
+                                <span class="text-4xl mb-3">⚡</span>
+                                <h3 class="font-bold text-gray-900 text-lg">
+                                    Redis
+                                </h3>
+                                <p class="text-sm text-gray-600 mt-2">
+                                    Warstwa szybkiego dostępu (Cache-Aside)
+                                    zmniejszająca obciążenie bazy.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: Strategia Danych (Data & Performance) -->
+            <section id="data" class="tab-content">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                        Strategia Składowania Danych i Pamięci Podręcznej
+                    </h2>
+                    <p class="text-gray-600 leading-relaxed">
+                        Sercem systemu jest dwuwarstwowa strategia danych. W tej
+                        sekcji przeanalizujesz różnice wydajnościowe pomiędzy
+                        różnymi metodami pobierania danych. Zrozumienie tych
+                        różnic jest kluczowe dla optymalizacji czasu odpowiedzi
+                        systemu (latency).
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Data Table / Info -->
+                    <div class="lg:col-span-1 space-y-6">
+                        <div
+                            class="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                        >
+                            <h3
+                                class="font-semibold text-lg mb-4 text-brand-900"
+                            >
+                                Porównanie Czasu Dostępu
+                            </h3>
+                            <ul class="space-y-4">
+                                <li class="flex items-start">
+                                    <span
+                                        class="bg-gray-100 p-2 rounded text-lg mr-3"
+                                        >🗄️</span
+                                    >
+                                    <div>
+                                        <p class="font-bold text-gray-800">
+                                            Zapytanie MongoDB
+                                        </p>
+                                        <p class="text-sm text-gray-500">
+                                            Dysk/SSD | Złożoność: O(N) lub O(log
+                                            N)
+                                        </p>
+                                        <p
+                                            class="text-sm font-medium text-red-600 mt-1"
+                                        >
+                                            Opóźnienie: 10–50ms
+                                        </p>
+                                    </div>
+                                </li>
+                                <li class="flex items-start">
+                                    <span
+                                        class="bg-brand-100 p-2 rounded text-lg mr-3"
+                                        >⚡</span
+                                    >
+                                    <div>
+                                        <p class="font-bold text-gray-800">
+                                            Hit w Redis
+                                        </p>
+                                        <p class="text-sm text-gray-500">
+                                            RAM | Złożoność: O(1)
+                                        </p>
+                                        <p
+                                            class="text-sm font-medium text-green-600 mt-1"
+                                        >
+                                            Opóźnienie: 1–3ms
+                                        </p>
+                                    </div>
+                                </li>
+                                <li class="flex items-start">
+                                    <span
+                                        class="bg-blue-100 p-2 rounded text-lg mr-3"
+                                        >🔄</span
+                                    >
+                                    <div>
+                                        <p class="font-bold text-gray-800">
+                                            Hybryda (Cache Miss)
+                                        </p>
+                                        <p class="text-sm text-gray-500">
+                                            RAM + Dysk | Złożoność: O(N) + O(1)
+                                        </p>
+                                        <p
+                                            class="text-sm font-medium text-orange-600 mt-1"
+                                        >
+                                            Opóźnienie: 15–60ms
+                                        </p>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div
+                            class="bg-gray-900 text-white rounded-xl shadow-sm p-6"
+                        >
+                            <h3
+                                class="font-semibold text-lg mb-2 text-brand-100"
+                            >
+                                Matematyka Wydajności
+                            </h3>
+                            <p class="text-sm text-gray-300 mb-4">
+                                Całkowity czas T dla n żądań, gdzie h to
+                                współczynnik trafień (hit rate):
+                            </p>
+                            <div
+                                class="bg-gray-800 p-3 rounded font-mono text-xs text-green-400 overflow-x-auto"
+                            >
+                                T = n * (h * T_cache + (1 - h) * (T_db +
+                                T_cache_write))
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chart -->
+                    <div
+                        class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col"
+                    >
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-semibold text-lg text-gray-900">
+                                Wizualizacja Opóźnień (Latency)
+                            </h3>
+                            <select
+                                id="chartMetricSelector"
+                                onchange="updateChart()"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block p-2.5"
+                            >
+                                <option value="avg">Średni czas (ms)</option>
+                                <option value="max">
+                                    Maksymalny czas (ms)
+                                </option>
+                            </select>
+                        </div>
+                        <!-- MANDATORY CHART CONTAINER -->
+                        <div class="chart-container flex-grow">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4 text-center">
+                            Kliknij w legendę wykresu, aby ukryć lub pokazać
+                            wybrane zestawy danych.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: Logika Cache (Server Logic) -->
+            <section id="logic" class="tab-content">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                        Logika Serwera: Wzorzec Cache-Aside
+                    </h2>
+                    <p class="text-gray-600 leading-relaxed">
+                        Ta sekcja ilustruje, w jaki sposób serwer Node.js
+                        zarządza przepływem danych. Użyj przycisków poniżej, aby
+                        zasymulować zapytania do API i zaobserwować proces
+                        invalidacji oraz uzupełniania pamięci podręcznej Redis.
+                    </p>
+                </div>
+
+                <div
+                    class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:p-10"
+                >
+                    <!-- Controls -->
+                    <div class="flex flex-wrap gap-4 justify-center mb-12">
+                        <button
+                            onclick="simulateFlow('get-miss')"
+                            class="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg border border-blue-200 transition-colors"
+                        >
+                            🌐 Symuluj GET /invoices (Cache Miss)
+                        </button>
+                        <button
+                            onclick="simulateFlow('get-hit')"
+                            class="px-5 py-2.5 bg-green-50 hover:bg-green-100 text-green-700 font-medium rounded-lg border border-green-200 transition-colors"
+                        >
+                            ⚡ Symuluj GET /invoices (Cache Hit)
+                        </button>
+                        <button
+                            onclick="simulateFlow('post')"
+                            class="px-5 py-2.5 bg-brand-50 hover:bg-brand-100 text-brand-700 font-medium rounded-lg border border-brand-200 transition-colors"
+                        >
+                            📝 Symuluj POST /invoices (Zapis)
+                        </button>
+                    </div>
+
+                    <!-- Simulation Diagram (HTML/CSS NO SVG) -->
+                    <div
+                        class="relative max-w-3xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 py-10"
+                    >
+                        <!-- Client -->
+                        <div
+                            id="node-client"
+                            class="node-box z-10 bg-white border-2 border-gray-300 rounded-xl p-6 w-40 text-center relative"
+                        >
+                            <div class="text-4xl mb-2">💻</div>
+                            <div class="font-bold text-sm text-gray-800">
+                                Klient (Svelte)
+                            </div>
+                            <div
+                                id="msg-client"
+                                class="absolute -top-8 left-0 right-0 text-xs font-bold text-brand-600 opacity-0 transition-opacity"
+                            >
+                                Żądanie
+                            </div>
+                        </div>
+
+                        <!-- Server -->
+                        <div
+                            id="node-server"
+                            class="node-box z-10 bg-white border-2 border-gray-300 rounded-xl p-6 w-40 text-center relative"
+                        >
+                            <div class="text-4xl mb-2">⚙️</div>
+                            <div class="font-bold text-sm text-gray-800">
+                                Node.js API
+                            </div>
+                            <div
+                                id="msg-server"
+                                class="absolute -bottom-10 left-0 right-0 text-xs font-bold text-blue-600 opacity-0 transition-opacity"
+                            >
+                                Sprawdzanie...
+                            </div>
+                        </div>
+
+                        <!-- Databases -->
+                        <div class="flex flex-col gap-8 z-10 w-40">
+                            <!-- Redis -->
+                            <div
+                                id="node-redis"
+                                class="node-box bg-white border-2 border-gray-300 rounded-xl p-4 text-center relative"
+                            >
+                                <div class="text-3xl mb-1">⚡</div>
+                                <div class="font-bold text-sm text-gray-800">
+                                    Redis
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    Klucz: all_invoices
+                                </div>
+                                <div
+                                    id="msg-redis"
+                                    class="absolute -top-8 left-0 right-0 text-xs font-bold text-green-600 opacity-0 transition-opacity"
+                                ></div>
+                            </div>
+                            <!-- Mongo -->
+                            <div
+                                id="node-mongo"
+                                class="node-box bg-white border-2 border-gray-300 rounded-xl p-4 text-center relative"
+                            >
+                                <div class="text-3xl mb-1">🗄️</div>
+                                <div class="font-bold text-sm text-gray-800">
+                                    MongoDB
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    Kolekcja: faktury
+                                </div>
+                                <div
+                                    id="msg-mongo"
+                                    class="absolute -bottom-8 left-0 right-0 text-xs font-bold text-red-600 opacity-0 transition-opacity"
+                                >
+                                    Pobieranie DB
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Connecting Lines (Visuals made with Divs) -->
+                        <div
+                            class="hidden md:block absolute top-1/2 left-[160px] w-[calc(50%-160px)] h-1 bg-gray-200 -translate-y-1/2 -z-0"
+                            id="line-client-server"
+                        ></div>
+                        <div
+                            class="hidden md:block absolute top-[30%] left-[calc(50%+80px)] right-[160px] h-1 bg-gray-200 -z-0 origin-left transform rotate-[-20deg]"
+                            id="line-server-redis"
+                        ></div>
+                        <div
+                            class="hidden md:block absolute top-[70%] left-[calc(50%+80px)] right-[160px] h-1 bg-gray-200 -z-0 origin-left transform rotate-[20deg]"
+                            id="line-server-mongo"
+                        ></div>
+                    </div>
+
+                    <!-- Explanation Log -->
+                    <div
+                        class="mt-8 bg-gray-50 rounded p-4 border border-gray-200"
+                    >
+                        <h4 class="font-bold text-sm text-gray-700 mb-2">
+                            Dziennik Operacji:
+                        </h4>
+                        <p
+                            id="sim-log"
+                            class="text-sm font-mono text-gray-600 min-h-[3rem]"
+                        >
+                            Oczekiwanie na interakcję...
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: Frontend & Docker (UI & Infra) -->
+            <section id="ui" class="tab-content">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                        Frontend & Infrastruktura
+                    </h2>
+                    <p class="text-gray-600 leading-relaxed">
+                        Aplikacja Svelte obsługuje motyw ciemny (Dark Mode) za
+                        pomocą zmiennych CSS. Cały stos technologiczny jest
+                        orkiestrowany przy użyciu Docker Compose, co gwarantuje
+                        spójność środowiska.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- UI/Svelte Section -->
+                    <div
+                        class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                    >
+                        <div
+                            class="bg-gray-50 border-b border-gray-200 px-6 py-4"
+                        >
+                            <h3
+                                class="font-bold text-gray-900 flex items-center gap-2"
+                            >
+                                <span>🎨</span> Strategia Motywu Ciemnego
+                            </h3>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-sm text-gray-600 mb-4">
+                                System wykrywa preferencje za pomocą
+                                `prefers-color-scheme`. Użycie natywnych
+                                zmiennych CSS pozwala Svelte na natychmiastowe
+                                renderowanie bez JavaScriptowego "mrugania".
+                            </p>
+
+                            <div
+                                class="overflow-x-auto rounded-lg border border-gray-200"
+                            >
+                                <table
+                                    class="min-w-full divide-y divide-gray-200 text-sm text-left"
+                                >
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th
+                                                class="px-4 py-3 font-semibold text-gray-700"
+                                            >
+                                                Zmienna CSS
+                                            </th>
+                                            <th
+                                                class="px-4 py-3 font-semibold text-gray-700"
+                                            >
+                                                Tryb Jasny
+                                            </th>
+                                            <th
+                                                class="px-4 py-3 font-semibold text-gray-700"
+                                            >
+                                                Tryb Ciemny (.dark)
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody
+                                        class="divide-y divide-gray-200 bg-white"
+                                    >
+                                        <tr
+                                            class="hover:bg-gray-50 transition-colors"
+                                        >
+                                            <td
+                                                class="px-4 py-3 font-mono text-xs text-brand-600"
+                                            >
+                                                --bg-main
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div
+                                                    class="flex items-center gap-2"
+                                                >
+                                                    <div
+                                                        class="w-4 h-4 rounded border border-gray-300"
+                                                        style="
+                                                            background-color: #ffffff;
+                                                        "
+                                                    ></div>
+                                                    <span>#ffffff</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div
+                                                    class="flex items-center gap-2"
+                                                >
+                                                    <div
+                                                        class="w-4 h-4 rounded border border-gray-600"
+                                                        style="
+                                                            background-color: #121212;
+                                                        "
+                                                    ></div>
+                                                    <span>#121212</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr
+                                            class="hover:bg-gray-50 transition-colors"
+                                        >
+                                            <td
+                                                class="px-4 py-3 font-mono text-xs text-brand-600"
+                                            >
+                                                --text-primary
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div
+                                                    class="flex items-center gap-2"
+                                                >
+                                                    <div
+                                                        class="w-4 h-4 rounded border border-gray-300"
+                                                        style="
+                                                            background-color: #1a1a1a;
+                                                        "
+                                                    ></div>
+                                                    <span>#1a1a1a</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div
+                                                    class="flex items-center gap-2"
+                                                >
+                                                    <div
+                                                        class="w-4 h-4 rounded border border-gray-600"
+                                                        style="
+                                                            background-color: #f5f5f5;
+                                                        "
+                                                    ></div>
+                                                    <span>#f5f5f5</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr
+                                            class="hover:bg-gray-50 transition-colors"
+                                        >
+                                            <td
+                                                class="px-4 py-3 font-mono text-xs text-brand-600"
+                                            >
+                                                --accent
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div
+                                                    class="flex items-center gap-2"
+                                                >
+                                                    <div
+                                                        class="w-4 h-4 rounded border border-gray-300"
+                                                        style="
+                                                            background-color: #3b82f6;
+                                                        "
+                                                    ></div>
+                                                    <span>#3b82f6</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div
+                                                    class="flex items-center gap-2"
+                                                >
+                                                    <div
+                                                        class="w-4 h-4 rounded border border-gray-600"
+                                                        style="
+                                                            background-color: #60a5fa;
+                                                        "
+                                                    ></div>
+                                                    <span>#60a5fa</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Docker Section -->
+                    <div
+                        class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                    >
+                        <div
+                            class="bg-gray-50 border-b border-gray-200 px-6 py-4"
+                        >
+                            <h3
+                                class="font-bold text-gray-900 flex items-center gap-2"
+                            >
+                                <span>🐳</span> Infrastruktura jako kod (Docker)
+                            </h3>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-sm text-gray-600 mb-4">
+                                Stosowane są wieloetapowe buildy w celu
+                                minimalizacji obrazów (Alpine Linux). Całość
+                                działa z uprawnieniami non-root.
+                            </p>
+
+                            <div class="space-y-4">
+                                <div
+                                    class="p-3 border border-gray-200 rounded-lg bg-gray-50"
+                                >
+                                    <h4
+                                        class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1"
+                                    >
+                                        Kluczowe Parametry Compose
+                                    </h4>
+                                    <ul
+                                        class="text-sm text-gray-800 space-y-2 mt-2"
+                                    >
+                                        <li
+                                            class="flex justify-between border-b border-gray-200 pb-1"
+                                        >
+                                            <span
+                                                class="font-mono text-gray-500"
+                                                >image</span
+                                            >
+                                            <span class="font-medium"
+                                                >mongo:latest,
+                                                redis:alpine</span
+                                            >
+                                        </li>
+                                        <li
+                                            class="flex justify-between border-b border-gray-200 pb-1"
+                                        >
+                                            <span
+                                                class="font-mono text-gray-500"
+                                                >build</span
+                                            >
+                                            <span class="font-medium"
+                                                >./backend, ./frontend</span
+                                            >
+                                        </li>
+                                        <li class="flex justify-between">
+                                            <span
+                                                class="font-mono text-gray-500"
+                                                >healthcheck</span
+                                            >
+                                            <span
+                                                class="font-medium text-xs truncate ml-2"
+                                                >mongosh --eval
+                                                'db.runCommand({ping:1})'</span
+                                            >
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div
+                                    class="bg-yellow-50 border-l-4 border-yellow-400 p-3"
+                                >
+                                    <div class="flex items-start">
+                                        <div class="ml-3">
+                                            <h3
+                                                class="text-sm font-medium text-yellow-800"
+                                            >
+                                                Uwaga: Mongo-Express
+                                            </h3>
+                                            <p
+                                                class="mt-1 text-xs text-yellow-700"
+                                            >
+                                                Zastąpienie zmiennej
+                                                `ME_CONFIG_MONGODB_SERVER` przez
+                                                `ME_CONFIG_MONGODB_URL` (pełne
+                                                URI).
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Standardy block -->
+                <div
+                    class="mt-8 bg-gray-900 text-white rounded-xl shadow-lg p-6 lg:p-8 text-center"
+                >
+                    <h3 class="text-xl font-bold mb-4 text-brand-500">
+                        Standardy Profesjonalne Systemu
+                    </h3>
+                    <div class="flex flex-wrap justify-center gap-4">
+                        <span
+                            class="px-3 py-1 bg-gray-800 rounded-full text-sm font-medium border border-gray-700"
+                            >🔒 Użytkownicy Non-Root</span
+                        >
+                        <span
+                            class="px-3 py-1 bg-gray-800 rounded-full text-sm font-medium border border-gray-700"
+                            >🚀 Bezstanowy Backend (Replikacja)</span
+                        >
+                        <span
+                            class="px-3 py-1 bg-gray-800 rounded-full text-sm font-medium border border-gray-700"
+                            >📉 Minimalizacja CPU przez Redis</span
+                        >
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="bg-white border-t border-gray-200 py-6 mt-auto">
+            <div
+                class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-500"
+            >
+                Wygenerowano na podstawie "Dokumentacja Architektury Systemu
+                Faktur" • Interaktywna eksploracja ułatwiająca analizę danych.
+            </div>
+        </footer>
+
+        <!-- JavaScript Logic -->
+        <script>
+            // --- 1. Functional Navigation State ---
+            function switchTab(tabId) {
+                // Hide all tabs
+                document.querySelectorAll(".tab-content").forEach((tab) => {
+                    tab.classList.remove("active");
+                });
+                // Show target tab
+                document.getElementById(tabId).classList.add("active");
+
+                // Update nav buttons styling
+                document.querySelectorAll(".nav-btn").forEach((btn) => {
+                    if (btn.dataset.target === tabId) {
+                        btn.classList.add("border-brand-500", "text-gray-900");
+                        btn.classList.remove(
+                            "border-transparent",
+                            "text-gray-500",
+                        );
+                    } else {
+                        btn.classList.remove(
+                            "border-brand-500",
+                            "text-gray-900",
+                        );
+                        btn.classList.add(
+                            "border-transparent",
+                            "text-gray-500",
+                        );
+                    }
+                });
+            }
+
+            // --- 2. Chart.js Implementation (Performance Data) ---
+            // Data Storage Array based on report
+            const chartDataSets = {
+                avg: {
+                    label: "Średnie Opóźnienie (ms)",
+                    data: [30, 2, 37], // Mongo avg (10-50), Redis avg (1-3), Hybrid avg (15-60)
+                    colors: [
+                        "rgba(239, 68, 68, 0.7)",
+                        "rgba(34, 197, 94, 0.7)",
+                        "rgba(249, 115, 22, 0.7)",
+                    ],
+                    borders: [
+                        "rgb(239, 68, 68)",
+                        "rgb(34, 197, 94)",
+                        "rgb(249, 115, 22)",
+                    ],
+                },
+                max: {
+                    label: "Maksymalne Opóźnienie (ms)",
+                    data: [50, 3, 60], // Mongo max, Redis max, Hybrid max
+                    colors: [
+                        "rgba(185, 28, 28, 0.7)",
+                        "rgba(21, 128, 61, 0.7)",
+                        "rgba(194, 65, 12, 0.7)",
+                    ],
+                    borders: [
+                        "rgb(185, 28, 28)",
+                        "rgb(21, 128, 61)",
+                        "rgb(194, 65, 12)",
+                    ],
+                },
+            };
+
+            let performanceChart;
+
+            function initChart() {
+                const ctx = document
+                    .getElementById("performanceChart")
+                    .getContext("2d");
+                const initialData = chartDataSets["avg"];
+
+                performanceChart = new Chart(ctx, {
+                    type: "bar",
+                    data: {
+                        labels: [
+                            "Zapytanie MongoDB",
+                            "Hit w Redis",
+                            "Hybryda (Miss)",
+                        ],
+                        datasets: [
+                            {
+                                label: initialData.label,
+                                data: initialData.data,
+                                backgroundColor: initialData.colors,
+                                borderColor: initialData.borders,
+                                borderWidth: 1,
+                                borderRadius: 6,
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false, // CRITICAL for chart-container to work
+                        plugins: {
+                            legend: { position: "top" },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        return `${context.dataset.label}: ${context.parsed.y} ms`;
+                                    },
+                                },
+                            },
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: "Czas (Milisekundy)",
+                                },
+                            },
+                        },
+                    },
+                });
+            }
+
+            function updateChart() {
+                const metric = document.getElementById(
+                    "chartMetricSelector",
+                ).value;
+                const newData = chartDataSets[metric];
+
+                performanceChart.data.datasets[0].label = newData.label;
+                performanceChart.data.datasets[0].data = newData.data;
+                performanceChart.data.datasets[0].backgroundColor =
+                    newData.colors;
+                performanceChart.data.datasets[0].borderColor = newData.borders;
+                performanceChart.update();
+            }
+
+            // Initialize chart on load
+            window.addEventListener("DOMContentLoaded", initChart);
+
+            // --- 3. Interactive Server Logic Simulator (Vanilla JS + DOM) ---
+            function resetSimulation() {
+                // Reset active states
+                document
+                    .querySelectorAll(".node-box")
+                    .forEach((n) => n.classList.remove("node-active"));
+                document
+                    .querySelectorAll('[id^="line-"]')
+                    .forEach((l) => l.classList.remove("flow-active"));
+                document
+                    .querySelectorAll('[id^="msg-"]')
+                    .forEach((m) => (m.style.opacity = "0"));
+            }
+
+            function triggerNode(
+                nodeId,
+                msgId,
+                message,
+                delay,
+                isLineActive = false,
+                lineId = null,
+            ) {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        const node = document.getElementById(`node-${nodeId}`);
+                        const msg = document.getElementById(`msg-${msgId}`);
+
+                        if (node) node.classList.add("node-active");
+                        if (lineId)
+                            document
+                                .getElementById(lineId)
+                                .classList.add("flow-active");
+
+                        if (msg && message) {
+                            msg.innerText = message;
+                            msg.style.opacity = "1";
+                        }
+
+                        setTimeout(() => {
+                            if (node) node.classList.remove("node-active");
+                            if (lineId)
+                                document
+                                    .getElementById(lineId)
+                                    .classList.remove("flow-active");
+                            if (msg) msg.style.opacity = "0";
+                            resolve();
+                        }, 800);
+                    }, delay);
+                });
+            }
+
+            function setLog(text) {
+                document.getElementById("sim-log").innerHTML = text;
+            }
+
+            async function simulateFlow(type) {
+                resetSimulation();
+                const logEl = document.getElementById("sim-log");
+
+                if (type === "get-miss") {
+                    setLog(
+                        "Rozpoczęcie GET /invoices. Klient wysyła żądanie...",
+                    );
+                    await triggerNode(
+                        "client",
+                        "client",
+                        "GET",
+                        0,
+                        true,
+                        "line-client-server",
+                    );
+
+                    setLog(
+                        "Serwer otrzymuje żądanie. Sprawdzanie klucza w Redis...",
+                    );
+                    await triggerNode(
+                        "server",
+                        "server",
+                        "Sprawdzam Cache",
+                        100,
+                        true,
+                        "line-server-redis",
+                    );
+
+                    setLog(
+                        "Cache Miss! Brak danych w Redis. Serwer odpytuje MongoDB.",
+                    );
+                    await triggerNode("redis", "redis", "MISS", 100);
+                    await triggerNode(
+                        "server",
+                        "server",
+                        "Fallback DB",
+                        100,
+                        true,
+                        "line-server-mongo",
+                    );
+
+                    setLog(
+                        "MongoDB zwraca dane. O(N) wysokie I/O. Opóźnienie ~40ms.",
+                    );
+                    await triggerNode(
+                        "mongo",
+                        "mongo",
+                        "Pobrano 100 faktur",
+                        300,
+                    );
+
+                    setLog(
+                        "Serwer asynchronicznie zapisuje dane w Redis (TTL) i zwraca do Klienta.",
+                    );
+                    await triggerNode(
+                        "server",
+                        "server",
+                        "Zapis do Cache",
+                        100,
+                        true,
+                        "line-server-redis",
+                    );
+                    triggerNode("redis", "redis", "SET all_invoices", 100);
+                } else if (type === "get-hit") {
+                    setLog(
+                        "Rozpoczęcie GET /invoices. Klient wysyła żądanie...",
+                    );
+                    await triggerNode(
+                        "client",
+                        "client",
+                        "GET",
+                        0,
+                        true,
+                        "line-client-server",
+                    );
+
+                    setLog("Serwer sprawdza Redis. O(1) w RAM.");
+                    await triggerNode(
+                        "server",
+                        "server",
+                        "Pytam Redis",
+                        100,
+                        true,
+                        "line-server-redis",
+                    );
+
+                    setLog(
+                        "Cache Hit! Redis błyskawicznie zwraca dane. Opóźnienie ~2ms.",
+                    );
+                    await triggerNode(
+                        "redis",
+                        "redis",
+                        "HIT! Zwracam dane",
+                        200,
+                    );
+
+                    setLog(
+                        "Serwer odsyła odpowiedź. Baza MongoDB pominięta - oszczędność zasobów!",
+                    );
+                    await triggerNode(
+                        "server",
+                        "server",
+                        "Zwracam JSON",
+                        100,
+                        true,
+                        "line-client-server",
+                    );
+                    triggerNode("client", "client", "Odebrano", 100);
+                } else if (type === "post") {
+                    setLog(
+                        "Rozpoczęcie POST /invoices. Dodawanie nowej faktury...",
+                    );
+                    await triggerNode(
+                        "client",
+                        "client",
+                        "POST (Nowa)",
+                        0,
+                        true,
+                        "line-client-server",
+                    );
+
+                    setLog(
+                        "Serwer waliduje dane i wysyła polecenie zapisu do MongoDB.",
+                    );
+                    await triggerNode(
+                        "server",
+                        "server",
+                        "Zapis DB",
+                        100,
+                        true,
+                        "line-server-mongo",
+                    );
+
+                    setLog(
+                        "Zapisano do DB. Zapewniamy spójność - natychmiastowa invalidacja pamięci podręcznej.",
+                    );
+                    await triggerNode(
+                        "mongo",
+                        "mongo",
+                        "Zapisano fakturę",
+                        400,
+                    );
+
+                    setLog(
+                        "Serwer usuwa klucz 'all_invoices' z Redis (Polecenie DEL).",
+                    );
+                    await triggerNode(
+                        "server",
+                        "server",
+                        "Invalidacja",
+                        100,
+                        true,
+                        "line-server-redis",
+                    );
+                    await triggerNode(
+                        "redis",
+                        "redis",
+                        "DEL all_invoices",
+                        100,
+                    );
+
+                    setLog(
+                        "Proces zakończony. Kolejny GET wywoła Cache Miss i odświeży dane.",
+                    );
+                }
+            }
+        </script>
+    </body>
+</html>

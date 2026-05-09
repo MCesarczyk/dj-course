@@ -1,0 +1,12 @@
+Create such a setup:
+- databases: mongo + mongo-express (admin UI) + redis
+- server: node.js/TS/express
+- frontend: Svelte
+- app should contain 2 endpoints:
+  - GET /invoices
+  - POST /invoices
+    for reading/posting to db.
+Addiitonally data should be cached in Redis.
+App should contain dashboard with invoices list and form to add new invoice.
+Should be done in dark mode, keep design and code simple.
+Generate Dockerfiles and docker-compose files.

@@ -15,13 +15,30 @@
 
 #### 🟢 Przykłady:
 
+**R1: Ładunek suchy → naczepa firanka**
+
 | # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
 |---|-----------|----------------|-----------------|
 | 1 | Elektronika na palecie, brak wymagań temp. | Rodzaj: elektronika, palety, temp. otoczenia | System przypisuje naczepę firankę; zlecenie przechodzi weryfikację |
-| 2 | Świeże mięso, wymagane 0°C–4°C | Rodzaj: żywność świeża, temperatura: +2°C | System przypisuje chłodnię z agregatem; zlecenie przechodzi weryfikację |
-| 3 | Mrożonki, wymagane -18°C | Rodzaj: mrożonki, temperatura: -18°C | System przypisuje mroźnię; zlecenie przechodzi weryfikację |
-| 4 | Elementy stalowe 2,63 m szerokości | Rodzaj: konstrukcja stalowa, szerokość 2,63 m | System przypisuje platformę ponadgabarytową; zlecenie wymaga zezwolenia |
-| 5 | Elektronika przypisana do chłodni | Rodzaj: elektronika; wybrano: chłodnia | System blokuje zlecenie — niezgodność typu pojazdu z ładunkiem |
+
+**R2: Ładunek temp. → chłodnia lub mroźnia**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Świeże mięso, wymagane 0°C–4°C | Rodzaj: żywność świeża, temperatura: +2°C | System przypisuje chłodnię z agregatem; zlecenie przechodzi weryfikację |
+| 2 | Mrożonki, wymagane -18°C | Rodzaj: mrożonki, temperatura: -18°C | System przypisuje mroźnię; zlecenie przechodzi weryfikację |
+
+**R3: Ładunek ponadgabarytowy → platforma**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Elementy stalowe 2,63 m szerokości | Rodzaj: konstrukcja stalowa, szerokość 2,63 m | System przypisuje platformę ponadgabarytową; zlecenie wymaga zezwolenia |
+
+**R4: Niezgodność typu pojazdu → blokada zlecenia**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Elektronika przypisana do chłodni | Rodzaj: elektronika; wybrano: chłodnia | System blokuje zlecenie — niezgodność typu pojazdu z ładunkiem |
 
 #### 🔴 Pytania do eksperta:
 
@@ -46,14 +63,39 @@
 
 #### 🟢 Przykłady:
 
+**R1: Masa zestawu ≤ 40 t**
+
 | # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
 |---|-----------|----------------|-----------------|
-| 1 | Ładunek w normie | Masa: 22 t, szerokość: 2,40 m, wysokość: 3,80 m | Parametry OK; zlecenie przechodzi do dalszej weryfikacji |
+| 1 | Ładunek w normie masowej | Masa ładunku: 22 t (zestaw 5-osiowy, DMC 40 t) | Parametr masy OK; zlecenie przechodzi dalej |
 | 2 | Przekroczona masa — przykład z rozmowy | Deklarowana masa: 22 t, faktyczna: 25,2 t (zestaw 5-osiowy, DMC 40 t) | System blokuje — przekroczenie DMC o 5,2 t (~13%); kara ITD do 10 000 zł |
-| 3 | Przekroczona szerokość — przykład z rozmowy | Szerokość: 2,63 m (naczepa standardowa, limit 2,55 m) | System flaguje jako ponadgabaryt; wymaga zezwolenia kat. I lub wyżej |
-| 4 | Ładunek w normie dla chłodni | Masa: 18 t, szerokość: 2,58 m, naczepa: chłodnia | Parametry OK (chłodnia: limit 2,60 m); zlecenie przechodzi |
-| 5 | Przekroczenie wysokości | Masa: 18 t, szerokość: 2,50 m, wysokość: 4,20 m | System flaguje jako ponadgabaryt; wymaga zezwolenia; pilot wymagany przy >4,5 m |
-| 6 | Dane „na oko" | Klient wpisał: „około 20 ton" | System odrzuca zapis — wymagana wartość dokładna z potwierdzeniem |
+
+**R2: Szerokość ≤ 2,55 m (standard) / ≤ 2,60 m (chłodnia)**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Szerokość w normie | Szerokość: 2,40 m; naczepa: firanka | Parametr szerokości OK; zlecenie przechodzi dalej |
+| 2 | Przekroczona szerokość — przykład z rozmowy | Szerokość: 2,63 m; naczepa standardowa (limit 2,55 m) | System flaguje jako ponadgabaryt; wymaga zezwolenia kat. I lub wyżej |
+| 3 | Ładunek w normie dla chłodni | Szerokość: 2,58 m; naczepa: chłodnia (limit 2,60 m) | Parametr OK (chłodnia ma wyższy limit); zlecenie przechodzi |
+
+**R3: Wysokość ≤ 4,00 m**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Wysokość w normie | Wysokość: 3,80 m | Parametr wysokości OK; zlecenie przechodzi dalej |
+| 2 | Przekroczenie wysokości | Wysokość: 4,20 m | System flaguje jako ponadgabaryt; wymaga zezwolenia; pilot wymagany przy >4,5 m |
+
+**R4 + R5: Przekroczenie limitu → zezwolenie wymagane → blokada bez dokumentu**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Brak zezwolenia przy ponadgabarycie | Szerokość: 2,63 m; brak zezwolenia na przejazd | Zlecenie oznaczone jako wymagające zezwolenia kat. I; potwierdzenie zablokowane do czasu dostarczenia dokumentu |
+
+**R6: Dane szacunkowe odrzucane**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Dane „na oko" | Klient wpisał: „około 20 ton" | System odrzuca zapis — wymagana wartość dokładna z potwierdzeniem |
 
 #### 🔴 Pytania do eksperta:
 
@@ -76,13 +118,31 @@
 
 #### 🟢 Przykłady:
 
+**R1: Minimalny dzienny okres odpoczynku**
+
 | # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
 |---|-----------|----------------|-----------------|
-| 1 | Kierowca wypoczęty, ładunek zwykły | Kierowca A: wrócił 14 h temu, brak ADR; ładunek: palety | Kierowca dostępny; zlecenie można potwierdzić |
+| 1 | Kierowca wypoczęty, ładunek zwykły | Kierowca A: wrócił 14 h temu; ładunek: palety | Kierowca dostępny; zlecenie można potwierdzić |
 | 2 | Kierowca zbyt krótko odpoczywał | Kierowca B: wrócił 7 h temu; zlecenie startuje za 2 h | Kierowca niedostępny — brak wymaganego min. odpoczynku 9 h; system blokuje przypisanie |
-| 3 | ADR wymagane, kierowca bez certyfikatu | Ładunek: materiały klasy 3 (łatwopalne ciecze); Kierowca C: brak ADR | System blokuje — brak uprawnienia ADR; szuka innych kierowców z ADR klasy 3 |
-| 4 | ADR wymagane, kierowca z certyfikatem | Ładunek: materiały klasy 3; Kierowca D: ADR ważne do 2027 | Kierowca dostępny i uprawniony; zlecenie przechodzi |
-| 5 | Brak dostępnych kierowców w terminie | Wszystkie 3 dostępne traktory, kierowcy odpoczywają | System informuje: brak dostępności w żądanym terminie; proponuje najbliższy możliwy termin |
+
+**R2: Tygodniowy odpoczynek ≥ 45 h**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Kierowca bez odpoczynku tygodniowego | Kierowca C: nie miał 45 h odpoczynku tygodniowego w bieżącym tygodniu | Kierowca niedostępny — obowiązkowy odpoczynek tygodniowy jeszcze nie zrealizowany; system blokuje przypisanie |
+
+**R3: Uprawnienia ADR**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | ADR wymagane, kierowca bez certyfikatu | Ładunek: materiały klasy 3 (łatwopalne ciecze); Kierowca D: brak ADR | System blokuje — brak uprawnienia ADR; szuka innych kierowców z ADR klasy 3 |
+| 2 | ADR wymagane, kierowca z certyfikatem | Ładunek: materiały klasy 3; Kierowca E: ADR ważne do 2027 | Kierowca dostępny i uprawniony; zlecenie przechodzi |
+
+**R4: Brak dostępnych kierowców w terminie**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Brak dostępnych kierowców w terminie | Wszyscy 3 kierowcy odpoczywają — żaden nie spełnia min. odpoczynku | System informuje: brak dostępności w żądanym terminie; proponuje najbliższy możliwy termin |
 
 #### 🔴 Pytania do eksperta:
 
@@ -104,12 +164,24 @@
 
 #### 🟢 Przykłady:
 
+**R1: Brak konfliktu terminów z innym zleceniem**
+
 | # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
 |---|-----------|----------------|-----------------|
 | 1 | Pojazd wolny i sprawny | Naczepa FIR-001: wolna, przegląd ważny do 2025-12; zlecenie: 2025-01-15 | Pojazd dostępny; przypisanie możliwe |
 | 2 | Pojazd zajęty innym zleceniem | Naczepa FIR-001: przypisana do zlecenia #442 (14–16 sty); nowe zlecenie: 15 sty | System blokuje — konflikt terminów; wskazuje alternatywne dostępne pojazdy |
-| 3 | Pojazd w serwisie | Chłodnia CHL-003: w serwisie 12–20 sty; nowe zlecenie: 18 sty | System blokuje — pojazd niedostępny; sugeruje inną chłodnię |
-| 4 | Zły typ pojazdu | Zlecenie wymaga platformy; dostępna tylko firanka | System informuje o braku platformy w danym terminie |
+
+**R2: Pojazd w serwisie**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Pojazd w serwisie | Chłodnia CHL-003: w serwisie 12–20 sty; nowe zlecenie: 18 sty | System blokuje — pojazd niedostępny; sugeruje inną chłodnię |
+
+**R3: Zgodność typu pojazdu z wymaganą naczepą**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Zły typ pojazdu | Zlecenie wymaga platformy; dostępna tylko firanka | System informuje o braku platformy w danym terminie |
 
 #### 🔴 Pytania do eksperta:
 
@@ -132,12 +204,31 @@
 
 #### 🟢 Przykłady:
 
+**R1: Oznaczenie zlecenia jako pilne**
+
 | # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
 |---|-----------|----------------|-----------------|
-| 1 | Zlecenie ekspresowe, zasoby dostępne | Czas do załadunku: 8 h; cena bazowa: 5 000 zł; kierowca i pojazd dostępne | Zlecenie pilne; dopłata 1 000 zł (20%); cena łączna: 6 000 zł; skrócona ścieżka decyzyjna |
-| 2 | Zlecenie ekspresowe, brak zasobów | Czas do załadunku: 6 h; brak dostępnych kierowców | Zlecenie odrzucone — brak możliwości realizacji w terminie |
-| 3 | Zlecenie standardowe | Czas do załadunku: 36 h; cena bazowa: 5 000 zł | Zlecenie standardowe; brak dopłaty; pełna ścieżka weryfikacji |
-| 4 | Granica 12 godzin | Czas do załadunku: dokładnie 12 h | 🔴 Wymaga wyjaśnienia: czy 12 h to „pilne" czy „standardowe"? (patrz pytania) |
+| 1 | Zlecenie ekspresowe | Czas do załadunku: 8 h | System automatycznie oznacza zlecenie jako „pilne" |
+| 2 | Zlecenie standardowe (poza progiem) | Czas do załadunku: 36 h | Zlecenie standardowe — brak oznaczenia „pilne"; pełna ścieżka weryfikacji |
+| 3 | Granica 12 godzin | Czas do załadunku: dokładnie 12 h | 🔴 Wymaga wyjaśnienia: czy 12 h to „pilne" czy „standardowe"? (patrz pytania) |
+
+**R2: Automatyczna dopłata 20%**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Wyliczenie dopłaty ekspresowej | Czas do załadunku: 8 h; cena bazowa: 5 000 zł | Dopłata: 1 000 zł (20%); cena łączna: 6 000 zł |
+
+**R3: Skrócona ścieżka decyzyjna**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Zlecenie pilne — brak pełnego obiegu | Czas do załadunku: 8 h; dyspozytor upoważniony | Zlecenie potwierdzone bez pełnego obiegu dokumentów; decyzja operacyjna dyspozytora wystarczy |
+
+**R4: Brak zasobów przy zleceniu pilnym → odrzucenie**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Zlecenie ekspresowe, brak zasobów | Czas do załadunku: 6 h; brak dostępnych kierowców | Zlecenie odrzucone — brak możliwości realizacji w terminie |
 
 #### 🔴 Pytania do eksperta:
 
@@ -161,13 +252,30 @@
 
 #### 🟢 Przykłady:
 
+**R1: Komplet dokumentów ADR → zlecenie przechodzi**
+
 | # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
 |---|-----------|----------------|-----------------|
 | 1 | Pełna dokumentacja ADR | Klasa 3 (benzyna); nr UN: 1203; dok. przewozowy: TAK; instrukcje: TAK; ADR kierowcy: TAK (ważne 2027); CMR: TAK; certyfikat pojazdu: TAK | Dokumentacja kompletna; zlecenie przechodzi do weryfikacji zasobów |
-| 2 | Brak zaświadczenia ADR kierowcy | Klasa 3; wszystkie dok. OK; ADR kierowcy: BRAK | Zlecenie zablokowane — przypisanie kierowcy niemożliwe; system szuka kierowcy z ADR |
-| 3 | Brak dokumentu przewozowego z nr UN | Klasa 3; brak nr UN w dokumencie | Status: „oczekujące na dokumenty"; klient jest informowany o brakach |
-| 4 | Przeterminowane świadectwo ADR pojazdu | Certyfikat pojazdu wygasł 3 miesiące temu | Zlecenie zablokowane — pojazd nie może być użyty do ADR bez aktualnego certyfikatu |
-| 5 | Materiały nieoznaczone jako ADR przez klienta | Klient deklaruje „chemikalia przemysłowe" bez klasy ADR | 🔴 Wymaga wyjaśnienia — patrz pytania |
+
+**R2: Brak dokumentu ADR → blokada**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Brak zaświadczenia ADR kierowcy | Klasa 3; wszystkie dok. OK; ADR kierowcy: BRAK | Zlecenie zablokowane — przypisanie kierowcy niemożliwe; system szuka kierowców z ADR klasy 3 |
+
+**R3: Świadectwo pojazdu ADR aktualne i zgodne z klasą**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Przeterminowane świadectwo ADR pojazdu | Certyfikat pojazdu wygasł 3 miesiące temu | Zlecenie zablokowane — pojazd nie może być użyty do ADR bez aktualnego certyfikatu |
+
+**R4: Niekompletna dokumentacja → status „oczekujące na dokumenty"**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Brak dokumentu przewozowego z nr UN | Klasa 3; brak nr UN w dokumencie | Status: „oczekujące na dokumenty"; klient jest informowany o brakach; zlecenie nie jest odrzucane |
+| 2 | Materiały nieoznaczone jako ADR przez klienta | Klient deklaruje „chemikalia przemysłowe" bez klasy ADR | 🔴 Wymaga wyjaśnienia — patrz pytania |
 
 #### 🔴 Pytania do eksperta:
 
@@ -190,13 +298,31 @@
 
 #### 🟢 Przykłady:
 
+**R1: Komplet dokumentów celnych → zlecenie przechodzi**
+
 | # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
 |---|-----------|----------------|-----------------|
-| 1 | Pełna dokumentacja celna | Import z Niemiec do Polski; faktura: TAK; CMR: TAK; packing list: TAK; świadectwo pochodzenia: TAK | Dokumentacja kompletna; zlecenie przechodzi do weryfikacji operacyjnej |
-| 2 | Brak faktury handlowej | Import spoza UE; brak faktury; CMR: TAK; packing list: TAK | Status: „oczekujące na dokumenty"; klient informowany o braku faktury; zlecenie zablokowane |
-| 3 | Brak świadectwa pochodzenia | Eksport do UK; faktura: TAK; CMR: TAK; brak świadectwa pochodzenia | Status: „oczekujące"; klient powiadamiany; zablokowana finalna weryfikacja |
-| 4 | Towar wewnątrz UE | Transport Polska → Francja (UE → UE) | Odprawa celna nie dotyczy (rynek wewnętrzny UE); standard CMR wystarczy |
-| 5 | Klient dosyła dokumenty po terminie | Zlecenie zawieszone; brakująca faktura dostarczona 2 dni później | Zlecenie odblokowane — przechodzi do finalnej weryfikacji; termin załadunku aktualizowany |
+| 1 | Pełna dokumentacja celna (spoza UE) | Import z Niemiec do Polski; faktura: TAK; CMR: TAK; packing list: TAK; świadectwo pochodzenia: TAK | Dokumentacja kompletna; zlecenie przechodzi do weryfikacji operacyjnej |
+| 2 | Transport wewnątrz UE — brak wymogu celnego | Transport Polska → Francja (UE → UE) | Odprawa celna nie dotyczy (rynek wewnętrzny UE); standard CMR wystarczy |
+
+**R2: Brak dokumentu celnego → status „oczekujące"**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Brak faktury handlowej | Import spoza UE; brak faktury; CMR: TAK; packing list: TAK | Status: „oczekujące na dokumenty"; klient informowany o braku faktury; zlecenie zablokowane |
+| 2 | Brak świadectwa pochodzenia | Eksport do UK; faktura: TAK; CMR: TAK; brak świadectwa pochodzenia | Status: „oczekujące"; klient powiadamiany; zablokowana finalna weryfikacja |
+
+**R3: Dosłanie dokumentów → odblokowanie zlecenia**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Klient dosyła dokumenty po terminie | Zlecenie zawieszone; brakująca faktura dostarczona 2 dni później | Zlecenie odblokowane — przechodzi do finalnej weryfikacji; termin załadunku aktualizowany |
+
+**R4: Ograniczenia handlowe → wymagane zezwolenia**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Towar objęty pozwoleniem eksportowym | Eksport sprzętu objętego kontrolą MRiT; brak pozwolenia eksportowego | Zlecenie zablokowane — wymagane pozwolenie eksportowe przed potwierdzeniem |
 
 #### 🔴 Pytania do eksperta:
 
@@ -220,13 +346,35 @@
 
 #### 🟢 Przykłady:
 
+**R1: Weryfikacja dostępności miejsca w odpowiedniej strefie**
+
 | # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
 |---|-----------|----------------|-----------------|
 | 1 | Towar suchy, miejsce dostępne | Kategoria: sucha; potrzeba: 20 palet; dostępność strefy suchej: 50 palet wolnych | Rezerwacja 20 palet w strefie suchej; potwierdzenie dostępności |
-| 2 | Mrożonki, brak miejsca w mroźni | Kategoria: mroźnia (-18°C); potrzeba: 10 palet; dostępność mroźni: 0 wolnych miejsc | System blokuje — brak miejsca w mroźni; klient informowany; zlecenie nie może być przyjęte |
-| 3 | Opóźniony odbiór — przykład z rozmowy | Transport z Niemiec, wjazd piątek, odbiór poniedziałek; kategoria: sucha | Automatyczne wskazanie magazynu jako konieczne; rezerwacja na weekend (2 dni w cenie transportu) |
-| 4 | Klient rezerwuje miejsce z wyprzedzeniem | Klient retail: 30 palet strefa sucha, 3 dni przed kampanią promocyjną | Rezerwacja przyjęta; koszt składowania uwzględniony w wycenie |
-| 5 | Błędna kategoria strefy | Towar: świeże warzywa (wymaga 2–6°C); klient wnioskuje o strefę suchą | System blokuje — niezgodność kategorii; automatycznie proponuje strefę chłodniczą |
+
+**R2: Niezgodna kategoria strefy → blokada**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Błędna kategoria strefy | Towar: świeże warzywa (wymaga 2–6°C); klient wnioskuje o strefę suchą | System blokuje — niezgodność kategorii; automatycznie proponuje strefę chłodniczą |
+
+**R3: Rezerwacja miejsca z wyprzedzeniem**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Klient rezerwuje miejsce z wyprzedzeniem | Klient retail: 30 palet strefa sucha, 3 dni przed kampanią promocyjną | Rezerwacja przyjęta; koszt składowania uwzględniony w wycenie |
+
+**R4: Brak miejsca w strefie → blokada przyjęcia**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Mrożonki, brak miejsca w mroźni | Kategoria: mroźnia (-18°C); potrzeba: 10 palet; dostępność mroźni: 0 wolnych miejsc | System blokuje — brak miejsca w mroźni; klient informowany; zlecenie nie może być przyjęte |
+
+**R5: Magazynowanie jako usługa dodatkowa**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Opóźniony odbiór — przykład z rozmowy | Transport z Niemiec, wjazd piątek, odbiór poniedziałek; kategoria: sucha | Automatyczne wskazanie magazynu jako konieczne; rezerwacja na weekend (2 dni w cenie transportu) |
 
 #### 🔴 Pytania do eksperta:
 
@@ -249,16 +397,36 @@
 
 #### 🟢 Przykłady:
 
+**R1: Pierwsze 2 dni → bez opłaty**
+
 | # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
 |---|-----------|----------------|-----------------|
-| 1 | Składowanie 2 dni, strefa sucha | Kategoria: sucha; liczba dni: 2 | Opłata za składowanie: 0 zł (wliczone w cenę transportu) |
-| 2 | Składowanie 5 dni, strefa sucha | Kategoria: sucha; liczba dni: 5; stawka sucha: X zł/dzień | Opłata: 3 × X zł (3 dni ponad limit wliczone); pozycja na wycenie |
-| 3 | Składowanie 4 dni, chłodnia | Kategoria: chłodnicza; liczba dni: 4; stawka chłodnia: Y zł/dzień | Opłata: 2 × Y zł (2 dni ponad limit) |
-| 4 | Składowanie 1 dzień | Kategoria: sucha; liczba dni: 1 | Opłata: 0 zł (mieści się w 2 dniach wliczonych) |
+| 1 | Składowanie dokładnie 2 dni | Kategoria: sucha; liczba dni: 2 | Opłata za składowanie: 0 zł (wliczone w cenę transportu) |
+| 2 | Składowanie 1 dzień | Kategoria: sucha; liczba dni: 1 | Opłata: 0 zł (mieści się w 2 dniach wliczonych) |
+
+**R2: Każdy dzień ponad limit → dodatkowa opłata**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Składowanie 5 dni, strefa sucha | Kategoria: sucha; liczba dni: 5; stawka sucha: X zł/dzień | Opłata: 3 × X zł (3 dni ponad limit wliczone); pozycja na wycenie |
+| 2 | Składowanie 4 dni, chłodnia | Kategoria: chłodnicza; liczba dni: 4; stawka chłodnia: Y zł/dzień | Opłata: 2 × Y zł (2 dni ponad limit) |
+
+**R3: Stawka różna per kategoria strefy**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Porównanie stawek: sucha vs. chłodnia | Składowanie 3 dni; raz strefa sucha (X zł/dzień), raz chłodnia (Y zł/dzień) | Opłata za suchą: 1 × X zł; opłata za chłodnię: 1 × Y zł; Y > X |
+| 2 | Porównanie stawek: chłodnia vs. mroźnia | Składowanie 3 dni; raz chłodnia (Y zł/dzień), raz mroźnia (Z zł/dzień) | Opłata za chłodnię: 1 × Y zł; opłata za mroźnię: 1 × Z zł; Z > Y |
+
+**R4: Składowanie jako odrębna pozycja na wycenie**
+
+| # | Scenariusz | Dane wejściowe | Oczekiwany wynik |
+|---|-----------|----------------|-----------------|
+| 1 | Wycena ze składowaniem | Transport 5 000 zł; składowanie 5 dni strefa sucha: 3 × X zł | Wycena zawiera 2 pozycje: „transport: 5 000 zł" i „składowanie (3 dni): 3X zł" — wyszczególnione osobno |
 
 #### 🔴 Pytania do eksperta:
 
-- Jakie są konkretne stawki dzienne dla każdej kategorii strefy (sucha / chłodnicza / mroźnicza)? Bez tych danych przykłady 2 i 3 są niekompletne.
+- Jakie są konkretne stawki dzienne dla każdej kategorii strefy (sucha / chłodnicza / mroźnicza)? Bez tych danych przykłady R2 i R3 są niekompletne.
 - Czy „dzień" rozliczeniowy to 24 godziny od przyjęcia towaru, czy kalendarzowa doba (do 24:00)?
 - Co jeśli klient nie odbiera towaru po upłynięciu deklarowanego czasu składowania? Czy istnieje maksymalny czas składowania i procedura eskalacji?
 - Czy stawki za składowanie różnią się w zależności od wymiarów/masy towaru (np. cena za paletę vs. m²), czy są ryczałtowe?
@@ -269,15 +437,15 @@
 
 | ID | Tytuł User Story | Reguły | Przykłady | Pytania |
 |----|-----------------|--------|-----------|---------|
-| US-1 | Dobór typu naczepy | 4 | 5 | 3 |
-| US-2 | Weryfikacja gabarytów i masy | 6 | 6 | 3 |
-| US-3 | Dostępność kierowcy i uprawnienia | 4 | 5 | 3 |
-| US-4 | Dostępność pojazdu | 3 | 4 | 3 |
-| US-5 | Zlecenia pilne (<12 h) | 4 | 4 | 4 |
-| US-6 | Dokumentacja ADR | 4 | 5 | 3 |
-| US-7 | Dokumentacja celna | 4 | 5 | 3 |
-| US-8 | Zarządzanie przestrzenią magazynową | 5 | 5 | 3 |
-| US-9 | Wycena składowania tymczasowego | 4 | 4 | 4 |
+| US-1 | Dobór typu naczepy | 4 | 5 (per reguła) | 3 |
+| US-2 | Weryfikacja gabarytów i masy | 6 | 7 (per reguła) | 3 |
+| US-3 | Dostępność kierowcy i uprawnienia | 4 | 5 (per reguła) | 3 |
+| US-4 | Dostępność pojazdu | 3 | 4 (per reguła) | 3 |
+| US-5 | Zlecenia pilne (<12 h) | 4 | 6 (per reguła) | 4 |
+| US-6 | Dokumentacja ADR | 4 | 5 (per reguła) | 3 |
+| US-7 | Dokumentacja celna | 4 | 6 (per reguła) | 3 |
+| US-8 | Zarządzanie przestrzenią magazynową | 5 | 5 (per reguła) | 3 |
+| US-9 | Wycena składowania tymczasowego | 4 | 7 (per reguła) | 4 |
 
 ---
 

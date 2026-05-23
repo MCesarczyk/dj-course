@@ -19,7 +19,7 @@ import { Heading2Component, Heading4Component } from '../ui-library/Typography/T
         muted
         playsinline
       >
-        <source src="assets/deliveroo-background.mp4" type="video/mp4" />
+        <source src="https://xcivjcecfkgbhoojwovd.supabase.co/storage/v1/object/sign/misc/deliveroo-background.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wY2VlYTllZC02M2IxLTQwNTMtOGY2ZS04NzBiYjE3YWNjZGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtaXNjL2RlbGl2ZXJvby1iYWNrZ3JvdW5kLm1wNCIsImlhdCI6MTc3OTU2ODI3NCwiZXhwIjoxODExMTA0Mjc0fQ.HPYw0tHg1Z8_lQpMx06OPuuiYFIQDB13w0jv-zHsJPY" type="video/mp4" />
       </video>
       <div class="absolute inset-0 bg-black/75"></div>
       <div class="relative z-10 flex min-h-screen items-center justify-center p-4">

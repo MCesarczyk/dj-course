@@ -15,7 +15,11 @@ COPY --chown=node:node . .
 RUN --mount=type=cache,id=angular-cache-wms,target=/app/.angular/cache \
     npm run build
 
+FROM builder AS compressor
+RUN find /app/dist/wms-frontend/browser -type f \( -name "*.js" -o -name "*.css" \) \
+    -exec sh -c 'gzip -9 -c "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _ {} \;
+
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS production
-COPY --from=builder --chown=nginx:nginx /app/dist/wms-frontend/browser /usr/share/nginx/html
+COPY --from=compressor --chown=nginx:nginx /app/dist/wms-frontend/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080

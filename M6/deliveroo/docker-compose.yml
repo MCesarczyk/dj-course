@@ -67,13 +67,8 @@ services:
       context: ./wms-frontend
       dockerfile: Dockerfile
       target: production
-    environment:
-      API_URL: http://localhost:${WMS_API_PORT:-3001}
     ports:
-      - "${WMS_FRONTEND_PORT:-4200}:4200"
-    volumes:
-      - ./wms-frontend:/app
-      - /app/node_modules
+      - "${WMS_FRONTEND_PORT:-4200}:8080"
     networks:
       - deliveroo-network
     depends_on:

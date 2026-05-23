@@ -29,7 +29,7 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-root}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-example}
     ports:
-      - "${MONGO_PORT:-27017}:27017"
+      - "${MONGO_PORT:-27018}:27017"
     volumes:
       - mongodb_data:/data/db
       - ./mongodb/cp/init-db.js:/docker-entrypoint-initdb.d/init-db.js:ro
@@ -100,9 +100,9 @@ services:
       dockerfile: Dockerfile
     environment:
       VITE_PROXY_TARGET: http://tms-api:${TMS_API_PORT:-3030}
-      VITE_PORT: ${TMS_FRONTEND_PORT:-5173}
+      VITE_PORT: ${TMS_FRONTEND_PORT:-5174}
     ports:
-      - "${TMS_FRONTEND_PORT:-5173}:5173"
+      - "${TMS_FRONTEND_PORT:-5174}:5174"
     volumes:
       - ./tms-frontend:/app
       - /app/node_modules
@@ -119,10 +119,11 @@ services:
       dockerfile: Dockerfile
       target: development
     environment:
-      NUXT_PUBLIC_API_URL: http://localhost:${CUSTOMER_PORTAL_PORT:-3000}
+      PORT: ${CUSTOMER_PORTAL_PORT:-3002}
+      NUXT_PUBLIC_API_URL: http://localhost:${CUSTOMER_PORTAL_PORT:-3002}
       MONGODB_URI: mongodb://${MONGO_ROOT_USER:-root}:${MONGO_ROOT_PASSWORD:-example}@mongodb:27017/cp-db?authSource=admin
     ports:
-      - "${CUSTOMER_PORTAL_PORT:-3000}:3000"
+      - "${CUSTOMER_PORTAL_PORT:-3002}:3002"
     volumes:
       - ./customer-portal:/app
       - /app/node_modules

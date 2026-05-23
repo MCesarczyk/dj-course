@@ -1,0 +1,14 @@
+node_modules/
+.output/
+.nuxt/
+coverage/
+.git/
+.gitignore
+.env
+.env.*
+*.pem
+*.key
+.vscode/
+.DS_Store
+*.swp
+storybook-static/

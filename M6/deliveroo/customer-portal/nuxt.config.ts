@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   modules: [
     '@nuxt/ui',
     '@nuxtjs/color-mode',
@@ -11,7 +11,6 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
     '@artmizu/nuxt-prometheus',
     'nuxt3-winston-log',
-    '@nuxtjs/storybook',
   ],
 
   nuxt3WinstonLog: {

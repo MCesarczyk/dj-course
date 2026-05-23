@@ -1,18 +1,17 @@
-FROM node:22-bullseye
-
+FROM node:22.16-alpine3.21 AS base
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm install
-
-# Copy source code
+FROM base AS development
 COPY . .
-
-# Expose port 5173 (Vite's default port)
 EXPOSE 5173
-
-# Start the development server
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+FROM base AS builder
+COPY . .
+RUN npm run build
+
+FROM nginx:1.27-alpine3.21 AS production
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 80

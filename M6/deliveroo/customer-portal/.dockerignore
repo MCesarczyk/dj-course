@@ -12,3 +12,7 @@ coverage/
 .DS_Store
 *.swp
 storybook-static/
+.storybook/
+Dockerfile
+.dockerignore
+*.md

@@ -112,16 +112,11 @@ services:
     build:
       context: ./customer-portal
       dockerfile: Dockerfile
-      target: development
+      target: production
     environment:
-      PORT: ${CUSTOMER_PORTAL_PORT:-3002}
-      NUXT_PUBLIC_API_URL: http://localhost:${CUSTOMER_PORTAL_PORT:-3002}
       MONGODB_URI: mongodb://${MONGO_ROOT_USER:-root}:${MONGO_ROOT_PASSWORD:-example}@mongodb:27017/cp-db?authSource=admin
     ports:
-      - "${CUSTOMER_PORTAL_PORT:-3002}:3002"
-    volumes:
-      - ./customer-portal:/app
-      - /app/node_modules
+      - "${CUSTOMER_PORTAL_PORT:-3002}:3000"
     networks:
       - deliveroo-network
     depends_on:

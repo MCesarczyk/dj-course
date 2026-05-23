@@ -1,7 +1,8 @@
 FROM node:22.16-bullseye-slim AS base
 WORKDIR /app
 COPY package.json .npmrc ./
-RUN npm install && chown -R node:node /app
+RUN --mount=type=cache,id=npm-customer-portal,target=/root/.npm \
+    npm install && chown -R node:node /app
 
 FROM base AS development
 COPY --chown=node:node . .

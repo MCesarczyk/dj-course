@@ -1,7 +1,8 @@
 FROM node:22.16-alpine3.21 AS base
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci && chown -R node:node /app
+RUN --mount=type=cache,id=npm-tms-frontend,target=/root/.npm \
+    npm ci && chown -R node:node /app
 
 FROM base AS development
 COPY --chown=node:node . .

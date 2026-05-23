@@ -93,14 +93,9 @@ services:
     build:
       context: ./tms-frontend
       dockerfile: Dockerfile
-    environment:
-      VITE_PROXY_TARGET: http://tms-api:${TMS_API_PORT:-3030}
-      VITE_PORT: ${TMS_FRONTEND_PORT:-5174}
+      target: production
     ports:
-      - "${TMS_FRONTEND_PORT:-5174}:5174"
-    volumes:
-      - ./tms-frontend:/app
-      - /app/node_modules
+      - "${TMS_FRONTEND_PORT:-5174}:8080"
     networks:
       - deliveroo-network
     depends_on:

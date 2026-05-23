@@ -18,3 +18,7 @@ features/
 tests/
 playwright-report/
 storybook-static/
+.storybook/
+Dockerfile
+.dockerignore
+*.md

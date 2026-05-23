@@ -12,7 +12,8 @@ CMD ["npm", "start", "--", "--host", "0.0.0.0"]
 
 FROM base AS builder
 COPY --chown=node:node . .
-RUN npm run build
+RUN --mount=type=cache,id=angular-cache-wms,target=/app/.angular/cache \
+    npm run build
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS production
 COPY --from=builder --chown=nginx:nginx /app/dist/wms-frontend/browser /usr/share/nginx/html

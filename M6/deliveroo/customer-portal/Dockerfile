@@ -23,6 +23,7 @@ RUN apk add --no-cache libstdc++ libgcc
 COPY --from=node:22.16-alpine3.21 /usr/local/bin/node /usr/local/bin/node
 RUN addgroup -S node && adduser -S -G node node
 WORKDIR /app
+RUN mkdir /app/logs && chown node:node /app /app/logs
 COPY --from=builder --chown=node:node /app/.output ./.output
 EXPOSE 3000
 USER node

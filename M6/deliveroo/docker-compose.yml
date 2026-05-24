@@ -66,9 +66,9 @@ services:
     build:
       context: ./wms-frontend
       dockerfile: Dockerfile
-      target: development
+      target: production
     ports:
-      - "${WMS_FRONTEND_PORT:-4200}:4200"
+      - "${WMS_FRONTEND_PORT:-4200}:8080"
     networks:
       - deliveroo-network
     depends_on:

@@ -15,8 +15,9 @@ services:
       - deliveroo-network
     restart: unless-stopped
 
-  wms-api:
+  wms-api-dev:
     container_name: wms-api-container
+    profiles: [dev]
     build:
       context: ./wms-api
       dockerfile: Dockerfile
@@ -27,7 +28,9 @@ services:
     ports:
       - "3001:3001"
     networks:
-      - deliveroo-network
+      deliveroo-network:
+        aliases:
+          - wms-api
     develop:
       watch:
         - action: sync
@@ -35,6 +38,24 @@ services:
           target: /app/src
         - action: rebuild
           path: ./wms-api/requirements.txt
+
+  wms-api-prod:
+    container_name: wms-api-prod-container
+    profiles: [prod]
+    build:
+      context: ./wms-api
+      dockerfile: Dockerfile
+    command: gunicorn --bind 0.0.0.0:3001 --workers 4 --chdir /app/src application:app
+    environment:
+      - PORT=3001
+      - SERVICE_NAME=wms-api
+      - POSTGRES_URL=postgresql+psycopg2://admin:strongpassword123@wms-postgres:5432/deliveroo
+    ports:
+      - "3001:3001"
+    networks:
+      deliveroo-network:
+        aliases:
+          - wms-api
 
   wms-nginx:
     image: nginx:alpine
@@ -46,8 +67,6 @@ services:
       - ./nginx/empty:/etc/nginx/conf.d:ro
     networks:
       - deliveroo-network
-    depends_on:
-      - wms-api
 
   pgadmin:
     image: dpage/pgadmin4:9.4

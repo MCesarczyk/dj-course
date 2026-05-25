@@ -17,8 +17,8 @@
   // "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   // "workspaceFolder": "/workspaces/wms-api",
   "features": {
-    "ghcr.io/devcontainers/features/python:1": {}
-  }
+    "ghcr.io/devcontainers/features/python:1": {},
+  },
 
   // Features to add to the dev container. More info: https://containers.dev/features.
   // "features": {},
@@ -33,7 +33,7 @@
   // "shutdownAction": "none",
 
   // Uncomment the next line to run commands after the container is created.
-  // "postCreateCommand": "cat /etc/os-release",
+  "postCreateCommand": "cd /app && nohup python src/run.py > /tmp/wms-api.log 2>&1 &",
 
   // Configure tool-specific properties.
   // "customizations": {},

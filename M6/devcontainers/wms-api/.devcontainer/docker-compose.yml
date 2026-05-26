@@ -15,6 +15,7 @@ services:
       # - ${localWorkspaceFolder}/..:/workspaces:cached
       # - ..:/workspaces:cached
       - .:/workspaces/wms-api:cached
+      - ${HOME}/.colima/default/docker.sock:/var/run/docker.sock
 
     # Uncomment the next four lines if you will use a ptrace-based debugger like C++, Go, and Rust.
     # cap_add:

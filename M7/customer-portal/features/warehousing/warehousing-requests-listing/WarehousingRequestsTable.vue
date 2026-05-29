@@ -16,9 +16,9 @@
     empty-message="No warehousing requests found matching your criteria."
     :empty-icon="BuildingStorefrontIcon"
     @retry="warehousingQuery.refetch"
-    @previous-page="previousPage"
-    @next-page="nextPage"
-    @go-to-page="goToPage"
+    @previous-page="emit('previousPage')"
+    @next-page="emit('nextPage')"
+    @go-to-page="(page: number) => emit('goToPage', page)"
   >
     <!-- Request ID -->
     <template #cell-id="{ value }">
@@ -82,18 +82,23 @@ import StorageTypeBadge from '~/components/badges/StorageTypeBadge.vue'
 
 interface Props {
   filters: WarehousingRequestsFilters
+  currentPage: number
+  itemsPerPage: number
 }
 
 const props = defineProps<Props>()
 
-const currentPage = ref(1)
-const itemsPerPage = 10
+const emit = defineEmits<{
+  previousPage: []
+  nextPage: []
+  goToPage: [page: number]
+}>()
 
 // Use the API composable
 const warehousingQuery = useWarehousingRequestsPaginated(
   computed(() => props.filters),
-  currentPage,
-  itemsPerPage
+  toRef(props, 'currentPage'),
+  props.itemsPerPage
 )
 
 // Column definitions
@@ -229,52 +234,30 @@ const rowActions = [
 // Computed values for pagination
 const totalPages = computed(() => {
   const data = warehousingQuery.data.value
-  return data ? Math.ceil(data.total / itemsPerPage) : 0
+  return data ? Math.ceil(data.total / props.itemsPerPage) : 0
 })
 
-const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage)
-const endIndex = computed(() => startIndex.value + itemsPerPage)
+const startIndex = computed(() => (props.currentPage - 1) * props.itemsPerPage)
+const endIndex = computed(() => startIndex.value + props.itemsPerPage)
 
 const visiblePages = computed(() => {
   const pages = []
-  const start = Math.max(1, currentPage.value - 2)
-  const end = Math.min(totalPages.value, currentPage.value + 2)
-  
+  const start = Math.max(1, props.currentPage - 2)
+  const end = Math.min(totalPages.value, props.currentPage + 2)
+
   for (let i = start; i <= end; i++) {
     pages.push(i)
   }
-  
+
   return pages
 })
 
 const paginationData = computed(() => ({
-  currentPage: currentPage.value,
+  currentPage: props.currentPage,
   totalPages: totalPages.value,
   total: warehousingQuery.data.value?.total || 0,
   startIndex: startIndex.value,
   endIndex: endIndex.value,
   visiblePages: visiblePages.value
 }))
-
-// Actions
-const previousPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--
-  }
-}
-
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++
-  }
-}
-
-const goToPage = (page: number) => {
-  currentPage.value = page
-}
-
-// Watch for filter changes to reset pagination
-watch(() => props.filters, () => {
-  currentPage.value = 1
-}, { deep: true })
 </script> 

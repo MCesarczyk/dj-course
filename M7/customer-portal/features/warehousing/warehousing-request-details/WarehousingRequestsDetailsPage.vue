@@ -308,22 +308,6 @@ const pdfLoading = ref(false)
 // Use TanStack Query composable
 const { data: request, isLoading, isError, refetch } = useWarehousingRequestDetails(requestId)
 
-const loadWarehousingRequest = async () => {
-  if (!requestId) return
-  
-  isLoading.value = true
-  isError.value = false
-  
-  try {
-    await refetch()
-  } catch (error) {
-    isError.value = true
-    console.error('Error fetching warehousing request details:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
 const downloadPDF = async () => {
   if (!request.value) return
   

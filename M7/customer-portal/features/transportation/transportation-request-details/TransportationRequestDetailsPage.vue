@@ -262,22 +262,6 @@ const pdfLoading = ref(false)
 // Use TanStack Query composable
 const { data: request, isLoading, isError, refetch } = useTransportationRequestDetails(requestId)
 
-const loadTransportationRequest = async () => {
-  if (!requestId) return
-  
-  isLoading.value = true
-  isError.value = false
-  
-  try {
-    await refetch()
-  } catch (error) {
-    isError.value = true
-    console.error('Error fetching transportation request details:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
 const trackShipment = () => {
   if (request.value?.trackingNumber) {
     navigateTo(`/dashboard/tracking?number=${request.value.trackingNumber}`)

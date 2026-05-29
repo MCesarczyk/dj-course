@@ -206,14 +206,8 @@ const downloadPDF = async (item: WarehousingRequestItem) => {
 const rowActions = [
   {
     label: 'View Details',
-    handler: async (item: any) => {
-      console.log('View Details clicked - navigating to:', `/dashboard/requests/warehousing/${item.id}`)
-      try {
-        await navigateTo(`/dashboard/requests/warehousing/${item.id}`)
-        console.log('Navigation completed')
-      } catch (error) {
-        console.error('Navigation error:', error)
-      }
+    handler: (item: any) => {
+      navigateTo(`/dashboard/requests/warehousing/${item.id}`)
     },
     icon: EyeIcon
   },
@@ -226,10 +220,7 @@ const rowActions = [
   },
   {
     label: 'View Inventory',
-    handler: (item: any) => {
-      // Navigate to inventory view when available
-      console.log('View inventory for:', item.id)
-    },
+    handler: (_item: any) => {},
     icon: CubeIcon,
     condition: (item: any) => ['STORED', 'RECEIVED'].includes(item.status)
   }

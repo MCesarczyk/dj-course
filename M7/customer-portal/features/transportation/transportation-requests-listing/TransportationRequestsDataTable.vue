@@ -185,15 +185,8 @@ const rowActions = [
   {
     label: 'View',
     icon: EyeIcon,
-    handler: async (item: TransportationRequest) => {
-      console.log('View clicked - navigating to:', `/dashboard/requests/transportation/${item.id}`)
-      console.log('Item:', item)
-      try {
-        await navigateTo(`/dashboard/requests/transportation/${item.id}`)
-        console.log('Navigation completed')
-      } catch (error) {
-        console.error('Navigation error:', error)
-      }
+    handler: (item: TransportationRequest) => {
+      navigateTo(`/dashboard/requests/transportation/${item.id}`)
     }
   },
   {

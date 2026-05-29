@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
-import ServiceRequestsPage from '../ServiceRequestsPage.vue'
+import ServiceRequestsPage from '~/pages/dashboard/requests/index.vue'
 
 vi.mock('~/features/transportation/transportation-requests-listing/transportation-requests-api', async () => {
   const { mockTransportationRequests } = await import('~/features/transportation/transportation-requests-listing/transportation-request.mocks')

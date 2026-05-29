@@ -18,15 +18,11 @@ export function useServiceRequestsTab() {
   const router = useRouter()
 
   const activeTab = computed<ServiceRequestsTabId>(() =>
-    route.path.includes('/warehousing') ? 'warehousing' : 'transportation'
+    route.query.tab === 'warehousing' ? 'warehousing' : 'transportation'
   )
 
   const onTabChange = (tabId: string) => {
-    const tab = tabId as ServiceRequestsTabId
-    router.push(tab === 'warehousing'
-      ? '/dashboard/requests/warehousing'
-      : '/dashboard/requests/transportation'
-    )
+    router.push({ path: '/dashboard/requests', query: { tab: tabId } })
   }
 
   return { activeTab, onTabChange }

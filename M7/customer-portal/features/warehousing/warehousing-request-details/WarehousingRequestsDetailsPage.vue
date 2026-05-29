@@ -46,207 +46,13 @@
     />
 
     <div v-else-if="request" class="space-y-8">
-      <!-- Request Overview -->
-      <div class="card p-6">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-lg font-medium text-gray-900 dark:text-white">
-            Request Overview
-          </h2>
-          <span
-            :class="[
-              'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium',
-              getStatusColor(request.status)
-            ]"
-          >
-            {{ formatEnum(request.status) }}
-          </span>
-        </div>
-        
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Request Number</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ request.requestNumber }}</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Storage Type</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatEnum(request.storageType) }}</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Priority</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatEnum(request.priority) }}</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Storage Location</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ request.storageLocation || 'Not assigned' }}</dd>
-          </div>
-        </div>
-      </div>
-
-      <!-- Storage Requirements -->
-      <div class="card p-6">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">
-          Storage Requirements
-        </h3>
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Estimated Volume</dt>
-            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ request.estimatedVolume }} m³</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Estimated Weight</dt>
-            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ request.estimatedWeight }} kg</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Storage Duration</dt>
-            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-              {{ request.estimatedStorageDuration.value }} {{ request.estimatedStorageDuration.unit }}
-            </dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Security Level</dt>
-            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ formatEnum(request.securityLevel) }}</dd>
-          </div>
-        </div>
-      </div>
-
-      <!-- Cargo Information -->
-      <div class="card p-6">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">
-          Cargo Information
-        </h3>
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <div class="sm:col-span-2 lg:col-span-3">
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Description</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ request.cargo.description }}</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Cargo Type</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatEnum(request.cargo.cargoType) }}</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Packaging</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatEnum(request.cargo.packaging) }}</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Quantity</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ request.cargo.quantity }} {{ request.cargo.unitType }}</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Value</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">€{{ request.cargo.value?.toLocaleString() || 'Not specified' }}</dd>
-          </div>
-        </div>
-      </div>
-
-      <!-- Special Requirements -->
-      <div class="card p-6">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">
-          Special Requirements
-        </h3>
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Temperature Control</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">
-              <span :class="request.requiresTemperatureControl ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'">
-                {{ request.requiresTemperatureControl ? 'Required' : 'Not required' }}
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Humidity Control</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">
-              <span :class="request.requiresHumidityControl ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'">
-                {{ request.requiresHumidityControl ? 'Required' : 'Not required' }}
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Special Handling</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">
-              <span :class="request.requiresSpecialHandling ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'">
-                {{ request.requiresSpecialHandling ? 'Required' : 'Not required' }}
-              </span>
-            </dd>
-          </div>
-        </div>
-      </div>
-
-      <!-- Services -->
-      <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <!-- Handling Services -->
-        <div class="card p-6">
-          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            Handling Services
-          </h3>
-          <div class="space-y-2">
-            <div
-              v-for="service in request.handlingServices"
-              :key="service"
-              class="flex items-center"
-            >
-              <CheckIcon class="w-4 h-4 text-green-500 mr-2" />
-              <span class="text-sm text-gray-900 dark:text-white">{{ formatEnum(service) }}</span>
-            </div>
-            <div v-if="request.handlingServices.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
-              No additional handling services requested
-            </div>
-          </div>
-        </div>
-
-        <!-- Value-Added Services -->
-        <div class="card p-6">
-          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            Value-Added Services
-          </h3>
-          <div class="space-y-2">
-            <div
-              v-for="service in request.valueAddedServices"
-              :key="service"
-              class="flex items-center"
-            >
-              <CheckIcon class="w-4 h-4 text-green-500 mr-2" />
-              <span class="text-sm text-gray-900 dark:text-white">{{ formatEnum(service) }}</span>
-            </div>
-            <div v-if="request.valueAddedServices.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
-              No value-added services requested
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Timeline -->
+      <WarehousingRequestOverviewCard :request="request" />
+      <WarehousingStorageRequirementsCard :request="request" />
+      <WarehousingCargoCard :request="request" />
+      <WarehousingSpecialRequirementsCard :request="request" />
+      <WarehousingServicesCard :request="request" />
       <RequestTimelineCard :items="request.progressUpdates" prefix="at" />
-
-      <!-- Pricing Information -->
-      <div class="card p-6">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">
-          Pricing Information
-        </h3>
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-4">
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Estimated Cost</dt>
-            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-              <span v-if="request.estimatedCost">€{{ request.estimatedCost.toLocaleString() }}</span>
-              <span v-else>Pending quote</span>
-            </dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Final Cost</dt>
-            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-              <span v-if="request.finalCost">€{{ request.finalCost.toLocaleString() }}</span>
-              <span v-else>Not finalized</span>
-            </dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Billing Type</dt>
-            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ formatEnum(request.billingType) }}</dd>
-          </div>
-          <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Currency</dt>
-            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ request.currency }}</dd>
-          </div>
-        </div>
-      </div>
+      <WarehousingPricingCard :request="request" />
     </div>
 
     <NotFoundState
@@ -263,8 +69,7 @@
 import {
   ArrowLeftIcon,
   CubeIcon,
-  DocumentArrowDownIcon,
-  CheckIcon
+  DocumentArrowDownIcon
 } from '@heroicons/vue/24/outline'
 import { useWarehousingRequestDetails } from '~/features/warehousing/warehousing-request-details/warehousing-request-details-api'
 import type { WarehousingRequest } from '~/features/warehousing/warehousing-request-details/warehousing-request-details.model'
@@ -272,8 +77,12 @@ import LoadingState from '~/components/ui-library/states/LoadingState.vue'
 import ErrorState from '~/components/ui-library/states/ErrorState.vue'
 import NotFoundState from '~/components/ui-library/states/NotFoundState.vue'
 import RequestTimelineCard from '~/components/ui-library/timeline/RequestTimelineCard.vue'
-import { formatEnum } from '~/lib/utils/formatters'
-import { getStatusColor } from '~/lib/utils/statusColors'
+import WarehousingRequestOverviewCard from './WarehousingRequestOverviewCard.vue'
+import WarehousingStorageRequirementsCard from './WarehousingStorageRequirementsCard.vue'
+import WarehousingCargoCard from './WarehousingCargoCard.vue'
+import WarehousingSpecialRequirementsCard from './WarehousingSpecialRequirementsCard.vue'
+import WarehousingServicesCard from './WarehousingServicesCard.vue'
+import WarehousingPricingCard from './WarehousingPricingCard.vue'
 import { useWarehousingRequestPdf } from './use-warehousing-request-pdf'
 
 const route = useRoute()

@@ -300,35 +300,13 @@ import type { WarehousingRequest } from '~/features/warehousing/warehousing-requ
 import Timeline from '~/components/ui-library/timeline/Timeline.vue'
 import { formatEnum } from '~/lib/utils/formatters'
 import { getStatusColor } from '~/lib/utils/statusColors'
+import { useWarehousingRequestPdf } from './use-warehousing-request-pdf'
 
 const route = useRoute()
 const requestId = route.params.id as string
-const pdfLoading = ref(false)
 
 // Use TanStack Query composable
 const { data: request, isLoading, isError, refetch } = useWarehousingRequestDetails(requestId)
 
-const downloadPDF = async () => {
-  if (!request.value) return
-  
-  // Only run on client side
-  if (process.server) return
-  
-  pdfLoading.value = true
-  
-  try {
-    // Dynamically import PDF generator only on client side
-    const { PDFGenerator } = await import('~/lib/pdf/pdfGenerator')
-    
-    // Small delay to show loading state
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    await PDFGenerator.generateWarehousingRequestPDF(request.value)
-  } catch (error) {
-    console.error('Error generating PDF:', error)
-    alert('Error generating PDF. Please try again.')
-  } finally {
-    pdfLoading.value = false
-  }
-}
+const { isLoading: pdfLoading, download: downloadPDF } = useWarehousingRequestPdf(request)
 </script>

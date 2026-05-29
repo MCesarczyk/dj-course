@@ -254,41 +254,19 @@ import type { TransportationRequest } from '~/features/transportation/transporta
 import Timeline from '~/components/ui-library/timeline/Timeline.vue'
 import { formatEnum } from '~/lib/utils/formatters'
 import { getStatusColor } from '~/lib/utils/statusColors'
+import { useTransportationRequestPdf } from './use-transportation-request-pdf'
 
 const route = useRoute()
 const requestId = route.params.id as string
-const pdfLoading = ref(false)
 
 // Use TanStack Query composable
 const { data: request, isLoading, isError, refetch } = useTransportationRequestDetails(requestId)
 
+const { isLoading: pdfLoading, download: downloadPDF } = useTransportationRequestPdf(request)
+
 const trackShipment = () => {
   if (request.value?.trackingNumber) {
     navigateTo(`/dashboard/tracking?number=${request.value.trackingNumber}`)
-  }
-}
-
-const downloadPDF = async () => {
-  if (!request.value) return
-  
-  // Only run on client side
-  if (process.server) return
-  
-  pdfLoading.value = true
-  
-  try {
-    // Dynamically import PDF generator only on client side
-    const { PDFGenerator } = await import('~/lib/pdf/pdfGenerator')
-    
-    // Small delay to show loading state
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    await PDFGenerator.generateTransportationRequestPDF(request.value)
-  } catch (error) {
-    console.error('Error generating PDF:', error)
-    alert('Error generating PDF. Please try again.')
-  } finally {
-    pdfLoading.value = false
   }
 }
 </script>

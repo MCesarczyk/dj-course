@@ -40,30 +40,14 @@
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="isLoading" class="card p-8 text-center">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-      <p class="text-gray-500 dark:text-gray-400">Loading request details...</p>
-    </div>
+    <LoadingState v-if="isLoading" message="Loading request details..." />
 
-    <!-- Error State -->
-    <div v-else-if="isError" class="card p-8 text-center">
-      <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900 mb-4">
-        <ExclamationTriangleIcon class="h-8 w-8 text-red-600 dark:text-red-400" />
-      </div>
-      <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
-        Error Loading Request
-      </h3>
-      <p class="text-gray-500 dark:text-gray-400 mb-4">
-        There was a problem loading the transportation request details.
-      </p>
-      <button 
-        @click="() => refetch()" 
-        class="btn-primary"
-      >
-        Try Again
-      </button>
-    </div>
+    <ErrorState
+      v-else-if="isError"
+      title="Error Loading Request"
+      message="There was a problem loading the transportation request details."
+      @retry="refetch"
+    />
 
     <div v-else-if="request" class="space-y-8">
       <!-- Request Overview -->
@@ -190,12 +174,7 @@
       </div>
 
       <!-- Timeline -->
-      <div class="card p-6">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">
-          Request Timeline
-        </h3>
-        <Timeline :items="request.progressUpdates" />
-      </div>
+      <RequestTimelineCard :items="request.progressUpdates" />
 
       <!-- Pricing Information -->
       <div class="card p-6">
@@ -225,20 +204,13 @@
       </div>
     </div>
 
-    <div v-else-if="!isLoading" class="card p-8 text-center">
-      <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
-        Request Not Found
-      </h3>
-      <p class="text-gray-500 dark:text-gray-400 mb-4">
-        The transportation request you're looking for doesn't exist or you don't have permission to view it.
-      </p>
-      <NuxtLink
-        to="/dashboard/requests"
-        class="btn-primary"
-      >
-        Back to Requests
-      </NuxtLink>
-    </div>
+    <NotFoundState
+      v-else-if="!isLoading"
+      title="Request Not Found"
+      message="The transportation request you're looking for doesn't exist or you don't have permission to view it."
+      back-to="/dashboard/requests"
+      back-label="Back to Requests"
+    />
   </div>
 </template>
 
@@ -246,12 +218,14 @@
 import {
   ArrowLeftIcon,
   MapIcon,
-  DocumentArrowDownIcon,
-  ExclamationTriangleIcon
+  DocumentArrowDownIcon
 } from '@heroicons/vue/24/outline'
 import { useTransportationRequestDetails } from '~/features/transportation/transportation-request-details/transportation-request-details-api'
 import type { TransportationRequest } from '~/features/transportation/transportation-request-details/transportation-request-details.model'
-import Timeline from '~/components/ui-library/timeline/Timeline.vue'
+import LoadingState from '~/components/ui-library/states/LoadingState.vue'
+import ErrorState from '~/components/ui-library/states/ErrorState.vue'
+import NotFoundState from '~/components/ui-library/states/NotFoundState.vue'
+import RequestTimelineCard from '~/components/ui-library/timeline/RequestTimelineCard.vue'
 import { formatEnum } from '~/lib/utils/formatters'
 import { getStatusColor } from '~/lib/utils/statusColors'
 import { useTransportationRequestPdf } from './use-transportation-request-pdf'

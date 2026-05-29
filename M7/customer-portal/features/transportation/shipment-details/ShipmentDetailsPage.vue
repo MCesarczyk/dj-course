@@ -11,19 +11,14 @@
       </div>
     </div>
 
-    <div v-if="isLoading" class="card p-8 text-center">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-      <p class="text-gray-500 dark:text-gray-400">Loading shipment details...</p>
-    </div>
+    <LoadingState v-if="isLoading" message="Loading shipment details..." />
 
-    <div v-else-if="isError" class="card p-8 text-center">
-      <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900 mb-4">
-        <ExclamationTriangleIcon class="h-8 w-8 text-red-600 dark:text-red-400" />
-      </div>
-      <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Error Loading Shipment</h3>
-      <p class="text-gray-500 dark:text-gray-400 mb-4">There was a problem loading the shipment details.</p>
-      <button @click="refetch" class="btn-primary">Try Again</button>
-    </div>
+    <ErrorState
+      v-else-if="isError"
+      title="Error Loading Shipment"
+      message="There was a problem loading the shipment details."
+      @retry="refetch"
+    />
 
     <div v-else-if="shipment" class="space-y-8">
       <!-- Timeline -->
@@ -243,7 +238,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { ArrowLeftIcon, ExclamationTriangleIcon, TruckIcon, CheckIcon, CubeIcon, ArchiveBoxIcon } from '@heroicons/vue/24/outline'
+import { ArrowLeftIcon, TruckIcon, CheckIcon, CubeIcon, ArchiveBoxIcon } from '@heroicons/vue/24/outline'
+import LoadingState from '~/components/ui-library/states/LoadingState.vue'
+import ErrorState from '~/components/ui-library/states/ErrorState.vue'
 import { useRoute } from '#app'
 import { useShipmentDetails } from './shipment-details-api'
 import { mockShipmentData } from './mockShipmentData'

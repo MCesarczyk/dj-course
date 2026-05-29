@@ -11,19 +11,14 @@
       </div>
     </div>
 
-    <div v-if="isLoading" class="card p-8 text-center">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-      <p class="text-gray-500 dark:text-gray-400">Loading item details...</p>
-    </div>
+    <LoadingState v-if="isLoading" message="Loading item details..." />
 
-    <div v-else-if="isError" class="card p-8 text-center">
-      <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900 mb-4">
-        <ExclamationTriangleIcon class="h-8 w-8 text-red-600 dark:text-red-400" />
-      </div>
-      <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Error Loading Item</h3>
-      <p class="text-gray-500 dark:text-gray-400 mb-4">There was a problem loading the storage item details.</p>
-      <button @click="refetch" class="btn-primary">Try Again</button>
-    </div>
+    <ErrorState
+      v-else-if="isError"
+      title="Error Loading Item"
+      message="There was a problem loading the storage item details."
+      @retry="refetch"
+    />
 
     <div v-else class="space-y-6">
       <div class="card p-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -62,7 +57,9 @@
 
 <script setup lang="ts">
 import { useRoute, navigateTo } from '#app'
-import { ArrowLeftIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
+import LoadingState from '~/components/ui-library/states/LoadingState.vue'
+import ErrorState from '~/components/ui-library/states/ErrorState.vue'
 import { useStorageItemDetails } from './storage-details-api'
 import type { StorageItem } from '~/features/warehousing/storage-listing/storage-listing.model'
 import { formatEnum, formatDate } from '~/lib/utils/formatters'

@@ -25,7 +25,7 @@
             <div class="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
               <div>
                 <p class="text-sm text-gray-900 dark:text-white">
-                  {{ formatStatus(item.status) }}
+                  {{ formatEnum(item.status) }}
                   <span v-if="item.location" class="font-medium">{{ prefix }} {{ item.location }}</span>
                 </p>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -61,6 +61,7 @@
 
 <script setup lang="ts">
 import { CheckIcon } from '@heroicons/vue/24/outline'
+import { formatEnum } from '~/lib/utils/formatters'
 
 interface TimelineItem {
   id: string
@@ -82,9 +83,6 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const reversedItems = computed(() => [...props.items].reverse())
-
-const formatStatus = (status: string) =>
-  status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
 
 const getProgressColor = (status: string) => {
   const colors: Record<string, string> = {

@@ -74,7 +74,7 @@
               getStatusColor(request.status)
             ]"
           >
-            {{ formatStatus(request.status) }}
+            {{ formatEnum(request.status) }}
           </span>
         </div>
         
@@ -85,11 +85,11 @@
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Storage Type</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatStorageType(request.storageType) }}</dd>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatEnum(request.storageType) }}</dd>
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Priority</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatStatus(request.priority) }}</dd>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatEnum(request.priority) }}</dd>
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Storage Location</dt>
@@ -120,7 +120,7 @@
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Security Level</dt>
-            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ formatStatus(request.securityLevel) }}</dd>
+            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ formatEnum(request.securityLevel) }}</dd>
           </div>
         </div>
       </div>
@@ -137,11 +137,11 @@
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Cargo Type</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatCargoType(request.cargo.cargoType) }}</dd>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatEnum(request.cargo.cargoType) }}</dd>
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Packaging</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatPackaging(request.cargo.packaging) }}</dd>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatEnum(request.cargo.packaging) }}</dd>
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Quantity</dt>
@@ -201,7 +201,7 @@
               class="flex items-center"
             >
               <CheckIcon class="w-4 h-4 text-green-500 mr-2" />
-              <span class="text-sm text-gray-900 dark:text-white">{{ formatService(service) }}</span>
+              <span class="text-sm text-gray-900 dark:text-white">{{ formatEnum(service) }}</span>
             </div>
             <div v-if="request.handlingServices.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
               No additional handling services requested
@@ -221,7 +221,7 @@
               class="flex items-center"
             >
               <CheckIcon class="w-4 h-4 text-green-500 mr-2" />
-              <span class="text-sm text-gray-900 dark:text-white">{{ formatService(service) }}</span>
+              <span class="text-sm text-gray-900 dark:text-white">{{ formatEnum(service) }}</span>
             </div>
             <div v-if="request.valueAddedServices.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
               No value-added services requested
@@ -260,7 +260,7 @@
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Billing Type</dt>
-            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ formatStatus(request.billingType) }}</dd>
+            <dd class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ formatEnum(request.billingType) }}</dd>
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Currency</dt>
@@ -298,6 +298,8 @@ import {
 import { useWarehousingRequestDetails } from '~/features/warehousing/warehousing-request-details/warehousing-request-details-api'
 import type { WarehousingRequest } from '~/features/warehousing/warehousing-request-details/warehousing-request-details.model'
 import Timeline from '~/components/ui-library/timeline/Timeline.vue'
+import { formatEnum } from '~/lib/utils/formatters'
+import { getStatusColor } from '~/lib/utils/statusColors'
 
 const route = useRoute()
 const requestId = route.params.id as string
@@ -320,37 +322,6 @@ const loadWarehousingRequest = async () => {
   } finally {
     isLoading.value = false
   }
-}
-
-const formatStorageType = (type: string) => {
-  return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const formatCargoType = (type: string) => {
-  return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const formatPackaging = (packaging: string) => {
-  return packaging.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const formatService = (service: string) => {
-  return service.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const formatStatus = (status: string) => {
-  return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const getStatusColor = (status: string) => {
-  const colors = {
-    'SUBMITTED': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    'APPROVED': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    'RECEIVED': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-    'STORED': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    'COMPLETED': 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-  }
-  return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
 }
 
 const downloadPDF = async () => {

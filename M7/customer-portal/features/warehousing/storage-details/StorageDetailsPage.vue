@@ -43,7 +43,7 @@
           <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
           <dd class="mt-1 text-sm text-gray-900 dark:text-white">
             <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getStatusColor(item.status)]">
-              {{ formatStatus(item.status) }}
+              {{ formatEnum(item.status) }}
             </span>
           </dd>
         </div>
@@ -65,26 +65,11 @@ import { useRoute, navigateTo } from '#app'
 import { ArrowLeftIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import { useStorageItemDetails } from './storage-details-api'
 import type { StorageItem } from '~/features/warehousing/storage-listing/storage-listing.model'
+import { formatEnum, formatDate } from '~/lib/utils/formatters'
+import { getStatusColor } from '~/lib/utils/statusColors'
 
 const route = useRoute()
 const id = route.params.id as string
 const { data: item, isLoading, isError, refetch } = useStorageItemDetails(id) as unknown as { data: Ref<StorageItem>; isLoading: Ref<boolean>; isError: Ref<boolean>; refetch: () => void }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date)
-}
-
-function formatStatus(status: string) {
-  return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
-function getStatusColor(status: string) {
-  const map: Record<string, string> = {
-    PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    IN_STORAGE: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    DISPATCHED: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    REMOVED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-  }
-  return map[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-}
 </script>

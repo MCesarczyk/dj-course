@@ -119,31 +119,5 @@ const handleTracking = async (trackingNumber: string) => {
   }
 }
 
-const formatServiceType = (type: string) => {
-  return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
 
-const formatStatus = (status: string) => {
-  return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const getStatusColor = (status: string) => {
-  const colors = {
-    'PICKUP_SCHEDULED': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    'PICKED_UP': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    'IN_TRANSIT': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-    'DELIVERED': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-  }
-  return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-}
-
-const formatDateTime = (dateString: string) => {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  }).format(new Date(dateString))
-}
 </script>

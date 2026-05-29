@@ -569,8 +569,8 @@
             <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
               <p>{{ store.form.cargo.description }}</p>
               <p class="mt-2">Weight: {{ store.form.cargo.weight }} kg</p>
-              <p>Type: {{ formatCargoType(store.form.cargo.cargoType) }}</p>
-              <p>Packaging: {{ formatPackaging(store.form.cargo.packaging) }}</p>
+              <p>Type: {{ formatEnum(store.form.cargo.cargoType) }}</p>
+              <p>Packaging: {{ formatEnum(store.form.cargo.packaging) }}</p>
               <p>Quantity: {{ store.form.cargo.quantity }} {{ store.form.cargo.unitType }}</p>
               <div class="mt-2 flex space-x-4">
                 <span v-if="store.form.cargo.fragile" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
@@ -597,7 +597,7 @@
             <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
               <p v-if="store.form.specialInstructions">{{ store.form.specialInstructions }}</p>
               <p v-else>No special instructions provided.</p>
-              <p class="mt-2">Priority: {{ formatPriority(store.form.priority) }}</p>
+              <p class="mt-2">Priority: {{ formatEnum(store.form.priority) }}</p>
               <p v-if="store.form.requiresCustomsClearance" class="mt-2">
                 Requires customs clearance
               </p>
@@ -681,6 +681,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useTransportationRequestStore } from './submit-transportation-request-store'
 import ShipmentTimeline from '~/features/transportation/shipment-details/ShipmentTimeline.vue'
+import { formatEnum } from '~/lib/utils/formatters'
 import SuccessModal from '~/components/ui-library/modals/SuccessModal.vue'
 import type { ShipmentTimelineData } from '~/features/transportation/shipment-details/shipment-timeline.model'
 
@@ -883,18 +884,6 @@ const formatDate = (dateString: string) => {
 const getServiceTypeName = (type: string) => {
   const service = serviceTypes.find(s => s.value === type)
   return service ? service.name : type
-}
-
-const formatCargoType = (type: string) => {
-  return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const formatPackaging = (packaging: string) => {
-  return packaging.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const formatPriority = (priority: string) => {
-  return priority.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
 }
 
 // State for forcing validation display

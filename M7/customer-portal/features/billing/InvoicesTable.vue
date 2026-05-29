@@ -99,6 +99,7 @@ import {
   CreditCardIcon
 } from '@heroicons/vue/24/outline'
 import type { Invoice } from './billing.model'
+import { formatDate } from '~/lib/utils/formatters'
 
 defineProps<{
   invoices: Invoice[]
@@ -110,13 +111,6 @@ const emit = defineEmits<{
   exportAll: []
 }>()
 
-const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(date)
-}
 
 const getInvoiceStatusColor = (status: string) => {
   const colors = {

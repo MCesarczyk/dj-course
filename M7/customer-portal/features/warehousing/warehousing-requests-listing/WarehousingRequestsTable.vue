@@ -74,6 +74,7 @@
 import { BuildingStorefrontIcon, EyeIcon, CubeIcon, DocumentArrowDownIcon } from '@heroicons/vue/24/outline'
 import DataTable from '~/components/ui-library/datatable/DataTable.vue'
 import { useWarehousingRequestsPaginated } from './warehousing-requests-api'
+import { formatDate } from '~/lib/utils/formatters'
 import type { WarehousingRequestsFilters, WarehousingRequestItem } from './warehousing-requests.model'
 import StorageStatusBadge from '~/components/badges/StorageStatusBadge.vue'
 import PriorityBadge from '~/components/badges/PriorityBadge.vue'
@@ -233,15 +234,6 @@ const rowActions = [
     condition: (item: any) => ['STORED', 'RECEIVED'].includes(item.status)
   }
 ]
-
-// Utility functions
-const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(date)
-}
 
 // Computed values for pagination
 const totalPages = computed(() => {

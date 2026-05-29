@@ -16,20 +16,7 @@
 <script setup lang="ts">
 import WarehousingRequestsFilters from './WarehousingRequestsFilters.vue'
 import WarehousingRequestsTable from './WarehousingRequestsTable.vue'
-import type { WarehousingRequestsFilters as WarehousingRequestsFiltersType } from './warehousing-requests.model'
+import { useWarehousingFilters } from './use-warehousing-filters'
 
-// Reactive filters state
-const filters = reactive<WarehousingRequestsFiltersType>({
-  status: '',
-  priority: '',
-  storageType: '',
-  securityLevel: '',
-  dateFrom: '',
-  dateTo: ''
-})
-
-// Handle filter updates
-const onFiltersUpdate = (newFilters: WarehousingRequestsFiltersType) => {
-  Object.assign(filters, newFilters)
-}
+const { filters, updateFilters: onFiltersUpdate } = useWarehousingFilters()
 </script> 

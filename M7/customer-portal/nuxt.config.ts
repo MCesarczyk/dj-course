@@ -3,6 +3,9 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
+  devServer: {
+    port: 3003,
+  },
   devtools: { enabled: true },
   modules: [
     '@nuxt/ui',
@@ -18,7 +21,7 @@ export default defineNuxtConfig({
     maxSize: "1024m",
     maxFiles: "14d",
   },
-  
+
   // Component auto-import configuration
   components: [
     {

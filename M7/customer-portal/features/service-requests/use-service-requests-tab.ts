@@ -29,11 +29,5 @@ export function useServiceRequestsTab() {
     )
   }
 
-  watch(() => route.path, (newPath) => {
-    if (newPath === '/dashboard/requests') {
-      router.replace('/dashboard/requests/transportation')
-    }
-  }, { immediate: true })
-
   return { activeTab, onTabChange }
 }

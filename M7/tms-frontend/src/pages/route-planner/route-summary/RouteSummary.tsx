@@ -1,0 +1,176 @@
+import React from 'react';
+import { Clock, MapPin } from 'lucide-react';
+import { formatDateTime } from '../../../lib/date/dateUtils';
+import { RoutePoint } from '../../../model/shipments';
+import { DraggableRouteList } from '../route-list/DraggableRouteList';
+import { RouteSummaryProps } from './route-summary.types';
+import { getEarliestETA, getLatestETD } from './route-summary.helpers';
+
+const POINT_TYPE_COLORS: Record<RoutePoint['type'], string> = {
+  pickup:   'text-green-600',
+  delivery: 'text-amber-600',
+  rest:     'text-purple-600',
+  fuel:     'text-red-600',
+  border:   'text-gray-600',
+};
+
+const POINT_TYPE_BG: Record<RoutePoint['type'], string> = {
+  pickup:   'bg-green-500',
+  delivery: 'bg-amber-500',
+  rest:     'bg-purple-500',
+  fuel:     'bg-red-500',
+  border:   'bg-gray-500',
+};
+
+const POINT_TYPE_BADGE: Record<RoutePoint['type'], string> = {
+  pickup:   'bg-green-100 text-green-800',
+  delivery: 'bg-amber-100 text-amber-800',
+  rest:     'bg-purple-100 text-purple-800',
+  fuel:     'bg-red-100 text-red-800',
+  border:   'bg-gray-100 text-gray-800',
+};
+
+const POINT_TYPES = ['pickup', 'delivery', 'rest', 'fuel', 'border'] as const;
+
+export const RouteSummary: React.FC<RouteSummaryProps> = ({ route, onReorderPoints, allowReordering = false }) => {
+  const earliestETA = getEarliestETA(route.points);
+  const latestETD = getLatestETD(route.points);
+
+  if (route.points.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-lg p-6 text-center py-8">
+        <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <h4 className="text-lg font-medium text-gray-900 mb-2">No Route Points</h4>
+        <p className="text-gray-500">Start adding points to your route using the controls on the left</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-6">
+      <h3 className="font-semibold text-gray-900 mb-6 flex items-center gap-2">
+        <MapPin className="w-5 h-5 text-blue-600" />
+        Current Route Stops
+      </h3>
+
+      <div className="space-y-4">
+        {/* Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-600">{route.points.length}</div>
+            <div className="text-sm text-gray-600">Total Stops</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-600">{route.totalDistance.toFixed(0)} km</div>
+            <div className="text-sm text-gray-600">Distance</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-orange-600">
+              {Math.floor(route.estimatedDuration / 60)}h {route.estimatedDuration % 60}m
+            </div>
+            <div className="text-sm text-gray-600">Duration</div>
+          </div>
+          <div className="text-center">
+            <div className={`text-2xl font-bold capitalize ${
+              route.status === 'active' ? 'text-green-600' :
+              route.status === 'delayed' ? 'text-red-600' :
+              route.status === 'completed' ? 'text-blue-600' : 'text-gray-600'
+            }`}>
+              {route.status}
+            </div>
+            <div className="text-sm text-gray-600">Status</div>
+          </div>
+        </div>
+
+        {/* Schedule */}
+        {(route.startTime || earliestETA || latestETD || route.estimatedCompletion) && (
+          <div className="border-t pt-4">
+            <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Schedule Overview
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              {route.startTime && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Start Time:</span>
+                  <span className="font-medium">{formatDateTime(route.startTime)}</span>
+                </div>
+              )}
+              {earliestETA && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">First ETA:</span>
+                  <span className="font-medium text-green-600">{formatDateTime(earliestETA)}</span>
+                </div>
+              )}
+              {latestETD && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Final ETD:</span>
+                  <span className="font-medium text-orange-600">{formatDateTime(latestETD)}</span>
+                </div>
+              )}
+              {route.estimatedCompletion && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Est. Completion:</span>
+                  <span className="font-medium text-blue-600">{formatDateTime(route.estimatedCompletion)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Breakdown */}
+        <div className="border-t pt-4">
+          <h4 className="font-medium text-gray-900 mb-3">Points Breakdown</h4>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {POINT_TYPES.map(type => {
+              const count = route.points.filter(p => p.type === type).length;
+              if (count === 0) return null;
+              return (
+                <div key={type} className="flex justify-between">
+                  <span className="text-gray-600 capitalize">{type}:</span>
+                  <span className={`font-medium ${POINT_TYPE_COLORS[type]}`}>{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Route Points */}
+        <div className="border-t pt-4">
+          <h4 className="font-medium text-gray-900 mb-3">Route Points</h4>
+          {allowReordering && onReorderPoints ? (
+            <DraggableRouteList points={route.points} onReorderPoints={onReorderPoints} />
+          ) : (
+            <div className="space-y-2">
+              {route.points.map((point, index) => (
+                <div key={point.id} className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg">
+                  <div className="flex-shrink-0">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${POINT_TYPE_BG[point.type]}`}>
+                      {index + 1}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h5 className="font-medium text-gray-900 truncate">{point.name}</h5>
+                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${POINT_TYPE_BADGE[point.type]}`}>
+                        {point.type.charAt(0).toUpperCase() + point.type.slice(1)}
+                      </span>
+                    </div>
+                    {point.address && <p className="text-sm text-gray-600 truncate">{point.address}</p>}
+                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                      {point.estimatedArrival && <span>ETA: {formatDateTime(point.estimatedArrival)}</span>}
+                      {point.duration && <span>Duration: {point.duration}min</span>}
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 text-sm text-gray-600">
+                    {point.coordinates.lat.toFixed(4)}, {point.coordinates.lng.toFixed(4)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

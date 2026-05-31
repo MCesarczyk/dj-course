@@ -49,6 +49,11 @@ export default defineNuxtConfig({
     plugins: [
       tailwindcss(),
     ],
+    resolve: {
+      alias: {
+        '@deliveroo/pdf-core': '../tms-frontend/packages/pdf-core/src/index.ts',
+      },
+    },
     optimizeDeps: {
       include: ['@jridgewell/sourcemap-codec'],
       force: true

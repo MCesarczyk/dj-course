@@ -15,6 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@deliveroo/pdf-core": "file:../tms-frontend/packages/pdf-core",
     "@artmizu/nuxt-prometheus": "^2.5.0",
     "@headlessui/vue": "^1.7.16",
     "@heroicons/vue": "^2.0.18",

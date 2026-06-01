@@ -1,5 +1,9 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import tailwindcss from "@tailwindcss/vite";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
@@ -50,7 +54,7 @@ export default defineNuxtConfig({
     ],
     resolve: {
       alias: {
-        '@deliveroo/pdf-core': '../tms-frontend/packages/pdf-core/src/index.ts',
+        '@deliveroo/pdf-core': resolve(__dirname, '../tms-frontend/packages/pdf-core/src/index.ts'),
       },
     },
     optimizeDeps: {

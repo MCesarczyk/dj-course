@@ -6,7 +6,7 @@ export default defineNuxtConfig({
   devServer: {
     port: 3003,
   },
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   modules: [
     '@nuxt/ui',
     '@nuxtjs/color-mode',
@@ -14,7 +14,6 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
     '@artmizu/nuxt-prometheus',
     'nuxt3-winston-log',
-    '@nuxtjs/storybook',
   ],
 
   nuxt3WinstonLog: {

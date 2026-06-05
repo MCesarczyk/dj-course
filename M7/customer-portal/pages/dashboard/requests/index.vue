@@ -2,6 +2,9 @@
     <div>
         <ServiceRequestsHeader />
 
+        <!-- Stats widget -->
+        <ServiceRequestsStats />
+
         <!-- Tabs -->
         <Tabs
             :tabs="SERVICE_REQUESTS_TABS"
@@ -23,6 +26,7 @@
 
 <script setup lang="ts">
 import ServiceRequestsHeader from "~/features/service-requests/ServiceRequestsHeader.vue";
+import ServiceRequestsStats from "~/features/service-requests/ServiceRequestsStats.vue";
 import Tabs from "~/components/ui-library/tabs/Tabs.vue";
 import {
     SERVICE_REQUESTS_TABS,

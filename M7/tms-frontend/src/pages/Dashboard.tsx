@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useOrdersQuery } from '@/http/orders.queries';
 import { useKPIsQuery, useKPIWidgetsQuery } from '@/http/kpis.queries';
+import { RoutePerformanceCard } from './dashboard/RoutePerformanceCard';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -89,34 +90,8 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* System Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle>System Status</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-600">Active Vehicles</span>
-                <span className="text-2xl font-bold text-blue-600">12</span>
-              </div>
-            </div>
-            
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-600">Pending Orders</span>
-                <span className="text-2xl font-bold text-orange-600">8</span>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-600">Maintenance Due</span>
-                <span className="text-2xl font-bold text-red-600">3</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Route Performance */}
+        <RoutePerformanceCard />
       </div>
     </div>
   );

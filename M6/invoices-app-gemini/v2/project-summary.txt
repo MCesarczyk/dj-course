@@ -1,0 +1,41 @@
+Structure:
+.
+├── backend/
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+│       └── index.ts
+├── frontend/
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── tailwind.config.js
+│   ├── index.html
+│   └── src/
+│       ├── App.svelte
+│       └── main.ts
+└── docker-compose.yml
+
+🚀 How to Run
+Ensure you have Docker and Docker Compose installed.
+
+Put the files in the structure shown above.
+
+In the root directory, run:
+
+Bash
+docker-compose up --build
+Access the goods:
+
+Frontend: http://localhost:5173
+
+API: http://localhost:3000/invoices
+
+Mongo Express (Admin): http://localhost:8081
+
+🧠 A Quick Note on the "Why"
+Redis Invalidations: I chose to delete the cache on every POST. This is the safest way to ensure "Read-Your-Writes" consistency. In a massive scale app, you might just update the cache object, but let's keep it simple for now.
+
+Dark Mode: The colors are based on the Slate palette. It’s high-contrast enough to be readable but low-light enough for 3 AM coding sessions.
+
+Mongo-Express: It’s a lifesaver for debugging. If you don't see an invoice, check localhost:8081 to see if it actually hit the DB.

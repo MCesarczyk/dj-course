@@ -1,25 +1,25 @@
-# Development stage
-FROM node:22-bullseye AS development
+FROM node:22.16-alpine3.21 AS base
 WORKDIR /app
-COPY package*.json ./
-COPY .npmrc ./
-RUN npm install
-COPY . .
+COPY package*.json .npmrc ./
+RUN --mount=type=cache,id=npm-wms-frontend,target=/root/.npm \
+    npm ci && chown -R node:node /app
+
+FROM base AS development
+COPY --chown=node:node . .
+USER node
 EXPOSE 4200
 CMD ["npm", "start", "--", "--host", "0.0.0.0"]
 
-# Production build stage
-FROM node:22-bullseye AS build
-WORKDIR /app
-COPY package*.json ./
-COPY .npmrc ./
-RUN npm ci
-COPY . .
-RUN npm run build
+FROM base AS builder
+COPY --chown=node:node . .
+RUN --mount=type=cache,id=angular-cache-wms,target=/app/.angular/cache \
+    npm run build
 
-# Production serve stage
-FROM nginx:alpine AS production
-COPY --from=build /app/dist/wms-frontend/browser/ /usr/share/nginx/html
+FROM builder AS compressor
+RUN find /app/dist/wms-frontend/browser -type f \( -name "*.js" -o -name "*.css" \) \
+    -exec sh -c 'gzip -9 -c "$1" > "$1.tmp" && mv "$1.tmp" "$1"' _ {} \;
+
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS production
+COPY --from=compressor --chown=nginx:nginx /app/dist/wms-frontend/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 8080

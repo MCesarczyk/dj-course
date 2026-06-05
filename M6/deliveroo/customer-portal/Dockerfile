@@ -1,33 +1,30 @@
-FROM --platform=linux/amd64 node:22-bullseye AS base
+FROM node:22.16-bullseye-slim AS base
 WORKDIR /app
-COPY package*.json ./
-# Install oxc-parser native binding explicitly
-RUN npm install --save-dev @oxc-parser/binding-linux-x64-gnu lightningcss-linux-x64-gnu @rollup/rollup-linux-x64-gnu || true
-RUN npm install
-COPY . .
+COPY package.json .npmrc ./
+RUN --mount=type=cache,id=npm-customer-portal,target=/root/.npm \
+    npm install && chown -R node:node /app
 
-# --- Development Stage ---
 FROM base AS development
+COPY --chown=node:node . .
 ENV NODE_ENV=development
-EXPOSE 3000
+USER node
+EXPOSE 3002
 CMD ["npm", "run", "dev"]
 
-# --- Build Stage ---
-FROM base AS build
+FROM base AS builder
+COPY --chown=node:node . .
 ENV NODE_ENV=production
-RUN npm run build
+RUN --mount=type=cache,id=vite-customer-portal,target=/app/node_modules/.vite \
+    --mount=type=cache,id=nuxt-customer-portal,target=/app/node_modules/.cache \
+    npm run build
 
-# --- Production Stage ---
-FROM --platform=linux/amd64 node:22-bullseye AS production
+FROM alpine:3.21 AS production
+RUN apk add --no-cache libstdc++ libgcc
+COPY --from=node:22.16-alpine3.21 /usr/local/bin/node /usr/local/bin/node
+RUN addgroup -S node && adduser -S -G node node
 WORKDIR /app
-ENV NODE_ENV=production
-ENV NITRO_HOST=0.0.0.0
-ENV NITRO_PORT=3000
-
-# Copy only built output and minimal dependencies
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=build /app/.output ./.output
-
+RUN mkdir /app/logs && chown node:node /app /app/logs
+COPY --from=builder --chown=node:node /app/.output ./.output
 EXPOSE 3000
 USER node
 CMD ["node", ".output/server/index.mjs"]

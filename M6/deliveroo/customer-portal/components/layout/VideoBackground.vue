@@ -1,7 +1,7 @@
 <template>
   <div class="fixed top-0 left-0 -z-10 h-full w-full overflow-hidden">
     <video
-      src="/deliveroo-background.mp4"
+      src="https://xcivjcecfkgbhoojwovd.supabase.co/storage/v1/object/sign/misc/deliveroo-background.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wY2VlYTllZC02M2IxLTQwNTMtOGY2ZS04NzBiYjE3YWNjZGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtaXNjL2RlbGl2ZXJvby1iYWNrZ3JvdW5kLm1wNCIsImlhdCI6MTc3OTU2ODI3NCwiZXhwIjoxODExMTA0Mjc0fQ.HPYw0tHg1Z8_lQpMx06OPuuiYFIQDB13w0jv-zHsJPY"
       autoplay
       loop
       muted
@@ -37,4 +37,4 @@
   height: 100%;
   background-color: rgba(0, 0, 0, 0.3);
 }
-</style> 
+</style>

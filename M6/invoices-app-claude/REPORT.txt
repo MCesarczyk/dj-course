@@ -1,0 +1,49 @@
+M6/invoices-app/ — pełna struktura projektu:
+
+  invoices-app/
+  ├── docker-compose.yml
+  ├── server/
+  │   ├── Dockerfile
+  │   ├── package.json
+  │   ├── tsconfig.json
+  │   └── src/index.ts
+  └── frontend/
+      ├── Dockerfile
+      ├── package.json
+      ├── svelte.config.js
+      ├── vite.config.ts
+      ├── index.html
+      └── src/
+          ├── main.ts
+          └── App.svelte
+
+  Usługi w docker-compose:
+
+  ┌───────────────┬───────┬────────────────────────┐
+  │    Usługa     │ Port  │          Opis          │
+  ├───────────────┼───────┼────────────────────────┤
+  │ mongodb       │ 27017 │ Baza danych            │
+  ├───────────────┼───────┼────────────────────────┤
+  │ mongo-express │ 8081  │ Admin UI MongoDB       │
+  ├───────────────┼───────┼────────────────────────┤
+  │ redis         │ 6379  │ Cache                  │
+  ├───────────────┼───────┼────────────────────────┤
+  │ server        │ 3000  │ Node.js/TS/Express API │
+  ├───────────────┼───────┼────────────────────────┤
+  │ frontend      │ 5173  │ Svelte dev server      │
+  └───────────────┴───────┴────────────────────────┘
+
+  API:
+  - GET /invoices — zwraca { data: [...], cached: true/false }, odczytuje z Redis (60s TTL),
+  fallback MongoDB
+  - POST /invoices — zapisuje do Mongo, invaliduje cache
+
+  Frontend:
+  - Dark mode (#0f172a slate-900), layout dwukolumnowy
+  - Lista faktur z odznaczką from cache gdy dane z Redisa
+  - Badge statusu: paid (zielony), pending (żółty), overdue (czerwony)
+  - Formularz: numer, klient, kwota, status
+
+  Uruchomienie:
+  cd M6/invoices-app
+  docker compose up --build

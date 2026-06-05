@@ -15,8 +15,9 @@ services:
       - deliveroo-network
     restart: unless-stopped
 
-  wms-api:
+  wms-api-dev:
     container_name: wms-api-container
+    profiles: [dev]
     build:
       context: ./wms-api
       dockerfile: Dockerfile
@@ -26,6 +27,47 @@ services:
       - POSTGRES_URL=postgresql+psycopg2://admin:strongpassword123@wms-postgres:5432/deliveroo
     ports:
       - "3001:3001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./postgres:/app/postgres:ro
+    networks:
+      deliveroo-network:
+        aliases:
+          - wms-api
+    develop:
+      watch:
+        - action: sync
+          path: ./wms-api/src
+          target: /app/src
+        - action: rebuild
+          path: ./wms-api/requirements.txt
+
+  wms-api-prod:
+    container_name: wms-api-prod-container
+    profiles: [prod]
+    build:
+      context: ./wms-api
+      dockerfile: Dockerfile
+    command: gunicorn --bind 0.0.0.0:3001 --workers 4 --chdir /app/src application:app
+    environment:
+      - PORT=3001
+      - SERVICE_NAME=wms-api
+      - POSTGRES_URL=postgresql+psycopg2://admin:strongpassword123@wms-postgres:5432/deliveroo
+    ports:
+      - "3001:3001"
+    networks:
+      deliveroo-network:
+        aliases:
+          - wms-api
+
+  wms-nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # This clears out the default configuration folder
+      - ./nginx/empty:/etc/nginx/conf.d:ro
     networks:
       - deliveroo-network
 

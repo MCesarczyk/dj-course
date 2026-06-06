@@ -44,7 +44,7 @@
                         <p
                             class="text-lg font-mono font-semibold text-gray-900 dark:text-white"
                         >
-                            {{ referenceNumber }}
+                            {{ "referenceNumber" }}
                         </p>
                     </div>
 

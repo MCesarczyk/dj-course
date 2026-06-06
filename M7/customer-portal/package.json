@@ -12,11 +12,14 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
-    "@deliveroo/pdf-core": "file:../tms-frontend/packages/pdf-core",
     "@artmizu/nuxt-prometheus": "^2.5.0",
+    "@deliveroo/pdf-core": "file:../tms-frontend/packages/pdf-core",
     "@headlessui/vue": "^1.7.16",
     "@heroicons/vue": "^2.0.18",
     "@nuxt/ui": "^3.2.0",
@@ -44,6 +47,7 @@
     "@nuxt/devtools": "^1.7.0",
     "@nuxt/test-utils": "^4.0.3",
     "@nuxtjs/storybook": "^8.4.1",
+    "@playwright/test": "^1.60.0",
     "@storybook/addon-a11y": "9.0.5",
     "@storybook/addon-docs": "9.0.5",
     "@storybook/addon-vitest": "9.0.5",

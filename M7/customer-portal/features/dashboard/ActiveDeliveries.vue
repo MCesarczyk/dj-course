@@ -99,7 +99,7 @@
             </td>
             <td class="px-4 py-4 whitespace-nowrap">
               <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                {{ formatServiceType(delivery.serviceType) }}
+                {{ formatEnum(delivery.serviceType) }}
               </span>
             </td>
             <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
@@ -133,6 +133,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import { getAllTracking } from '~/features/tracking/tracking-api'
 import type { TrackingData } from '~/features/tracking/tracking.model'
+import { formatEnum } from '~/lib/utils/formatters'
 
 const activeDeliveries = ref<TrackingData[]>([])
 const loading = ref(false)
@@ -154,10 +155,6 @@ const loadActiveDeliveries = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const formatServiceType = (type: string) => {
-  return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
 }
 
 const formatDateTime = (dateString?: string) => {

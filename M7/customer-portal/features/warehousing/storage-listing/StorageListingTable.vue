@@ -31,6 +31,7 @@ import DataTable from '~/components/ui-library/datatable/DataTable.vue';
 import type { StorageItem } from './storage-listing.model';
 import { getStorageItems } from './storage-listing-api';
 import { ref, onMounted, watch } from 'vue';
+import { formatDate } from '~/lib/utils/formatters';
 import { EyeIcon } from '@heroicons/vue/24/outline';
 import { navigateTo } from '#app';
 import StorageTypeBadge from '~/components/badges/StorageTypeBadge.vue'
@@ -64,10 +65,6 @@ const columns = [
   { key: 'status', label: 'Status' },
   { key: 'arrivalDate', label: 'Arrival Date' }
 ];
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
-}
 
 const rowActions = [
   {

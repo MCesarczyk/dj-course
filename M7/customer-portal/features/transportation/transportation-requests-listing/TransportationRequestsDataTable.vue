@@ -56,6 +56,8 @@ import TransportationServiceBadge from '~/components/badges/TransportationServic
 import TransportationStatusBadge from '~/components/badges/TransportationStatusBadge.vue'
 import { type PartialTransportationRequestFilters } from './transportation-requests-filter'
 import { useTransportationRequestsQuery } from './transportation-requests-api'
+import { formatDate } from '~/lib/utils/formatters'
+import { useTransportationListingPdf } from './use-transportation-listing-pdf'
 
 interface Props {
   filters?: PartialTransportationRequestFilters
@@ -75,15 +77,6 @@ onMounted(() => {
 
 // Router
 const router = useRouter()
-
-// Formatting functions
-const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(date)
-}
 
 // Navigation functions
 const trackShipment = (trackingNumber: string) => {
@@ -125,83 +118,14 @@ const columns = [
   }
 ]
 
-const downloadPDF = async (item: TransportationRequest) => {
-  // Only run on client side
-  if (process.server) return
-  
-  try {
-    // Dynamically import PDF generator only on client side
-    const { generateTransportationRequestPDF } = await import('~/lib/pdf/transportationRequestPdfGenerator')
-    
-    // Convert TransportationRequest to form data structure
-    const formData = {
-      serviceType: item.serviceType,
-      pickupLocation: {
-        address: {
-          street: item.pickupLocation.address.street || '',
-          city: item.pickupLocation.address.city || '',
-          country: item.pickupLocation.address.country || ''
-        },
-        contactPerson: item.pickupLocation.contactPerson || '',
-        contactPhone: item.pickupLocation.contactPhone || '',
-        contactEmail: item.pickupLocation.contactEmail || '',
-        loadingType: item.pickupLocation.loadingType || 'DOCK'
-      },
-      deliveryLocation: {
-        address: {
-          street: item.deliveryLocation.address.street || '',
-          city: item.deliveryLocation.address.city || '',
-          country: item.deliveryLocation.address.country || ''
-        },
-        contactPerson: item.deliveryLocation.contactPerson || '',
-        contactPhone: item.deliveryLocation.contactPhone || '',
-        contactEmail: item.deliveryLocation.contactEmail || '',
-        loadingType: item.deliveryLocation.loadingType || 'DOCK'
-      },
-      cargo: {
-        description: item.cargo.description || '',
-        cargoType: item.cargo.cargoType || 'GENERAL_CARGO',
-        weight: item.cargo.weight || 0,
-        packaging: item.cargo.packaging || 'PALLETS',
-        quantity: item.cargo.quantity || 1,
-        unitType: item.cargo.unitType || 'units',
-        value: item.cargo.value || 0,
-        currency: item.cargo.currency || 'EUR',
-        fragile: item.cargo.fragile || false,
-        stackable: item.cargo.stackable || true
-      },
-      requestedPickupDate: item.requestedPickupDate,
-      requestedDeliveryDate: item.requestedDeliveryDate,
-      specialInstructions: item.specialInstructions,
-      requiresInsurance: item.requiresInsurance,
-      requiresCustomsClearance: item.requiresCustomsClearance,
-      priority: item.priority,
-      currency: item.currency || 'EUR'
-    }
-    
-    await generateTransportationRequestPDF(formData, {
-      requestNumber: item.requestNumber,
-      createdAt: item.createdAt
-    })
-  } catch (error) {
-    console.error('Error generating PDF:', error)
-    alert('Error generating PDF. Please try again.')
-  }
-}
+const { downloadPDF } = useTransportationListingPdf()
 
 const rowActions = [
   {
     label: 'View',
     icon: EyeIcon,
-    handler: async (item: TransportationRequest) => {
-      console.log('View clicked - navigating to:', `/dashboard/requests/transportation/${item.id}`)
-      console.log('Item:', item)
-      try {
-        await navigateTo(`/dashboard/requests/transportation/${item.id}`)
-        console.log('Navigation completed')
-      } catch (error) {
-        console.error('Navigation error:', error)
-      }
+    handler: (item: TransportationRequest) => {
+      navigateTo(`/dashboard/requests/transportation/${item.id}`)
     }
   },
   {

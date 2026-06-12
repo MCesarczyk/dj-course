@@ -1,8 +1,8 @@
 <template>
   <Tooltip>
     <template #trigger>
-      <Badge 
-        :label="formatStatus(status)" 
+      <Badge
+        :label="formatEnum(status)"
         :variant="getStatusVariant(status)" 
       />
     </template>
@@ -13,6 +13,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatEnum } from '~/lib/utils/formatters'
 import Badge from '~/components/ui-library/badge/Badge.vue'
 import Tooltip from '~/components/ui-library/tooltip/Tooltip.vue'
 import type { BadgeVariant } from '~/components/ui-library/badge/Badge.vue'
@@ -22,10 +23,6 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
-const formatStatus = (status: string) => {
-  return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
 
 const getStatusVariant = (status: string): BadgeVariant => {
   const variants: Record<string, BadgeVariant> = {

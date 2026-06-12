@@ -1,15 +1,14 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { LogisticsMap } from './LogisticsMap';
-import { RouteControls } from './RouteControls';
-import { RouteSummary } from './RouteSummary';
-import { VehicleStatus } from './VehicleStatus';
+import { LogisticsMap } from './map/LogisticsMap';
+import { RouteControls } from './route-controls/RouteControls';
+import { RouteSummary } from './route-summary/RouteSummary';
+import { VehicleStatus } from './vehicle-status/VehicleStatus';
 import { RouteData, RoutePoint, Vehicle, Coordinates, Shipment } from '../../model/shipments';
 import { Driver, DriverRoute } from '../../model/drivers';
 import { Vehicle as VehicleType } from '../../model/vehicles';
-import { calculateRouteDistance, estimateTravelTime, generateOptimizedRoute, addRestStops } from './routeUtils';
+import { calculateRouteDistance, estimateTravelTime, generateOptimizedRoute, addRestStops } from './shared/route-planner.model';
+import { RouteContext, ContextOption, EntitySuggestion } from './shared/route-planner.types';
 import { ArrowLeft, Filter, Route as RouteIcon, User, Truck, MapPin, Clock, Search, X, Navigation, AlertTriangle, CheckCircle } from 'lucide-react';
-
-export type RouteContext = 'active-shipments' | 'driver-routes' | 'vehicle-routes' | 'route-planning';
 
 interface UnifiedRoutePlannerProps {
   context: RouteContext;
@@ -20,19 +19,6 @@ interface UnifiedRoutePlannerProps {
   onBack?: () => void;
   onShipmentUpdate?: (shipment: Shipment) => void;
   onContextChange?: (context: RouteContext, entity?: Driver | VehicleType) => void;
-}
-
-interface ContextOption {
-  value: RouteContext;
-  label: string;
-  icon: React.ReactNode;
-}
-
-interface EntitySuggestion {
-  id: string;
-  name: string;
-  type: 'driver' | 'vehicle';
-  entity: Driver | VehicleType;
 }
 
 // Convert driver route to shipment format for unified display

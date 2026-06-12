@@ -56,7 +56,7 @@
                   getRoleColor(member.role)
                 ]"
               >
-                {{ formatRole(member.role) }}
+                {{ formatEnum(member.role) }}
               </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
@@ -66,7 +66,7 @@
                   :key="permission"
                   class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
                 >
-                  {{ formatPermission(permission) }}
+                  {{ formatEnum(permission) }}
                 </span>
                 <span
                   v-if="member.permissions.length > 2"
@@ -132,6 +132,7 @@
 import { PencilIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import type { User } from '~/model/user'
 import { roleColorMap } from './team.mocks'
+import { formatEnum, formatDate } from '~/lib/utils/formatters'
 
 interface Props {
   teamMembers: User[]
@@ -145,23 +146,9 @@ interface Emits {
 defineProps<Props>()
 defineEmits<Emits>()
 
-const formatRole = (role: string) => {
-  return role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const formatPermission = (permission: string) => {
-  return permission.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
-
 const getRoleColor = (role: string) => {
   return roleColorMap[role as keyof typeof roleColorMap] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
 }
 
-const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(date)
-}
+
 </script> 

@@ -92,6 +92,7 @@
 import { EyeIcon } from '@heroicons/vue/24/outline'
 import { mockRecentRequests } from './dashboard.mocks'
 import type { RecentRequest } from './dashboard.model'
+import { formatDate } from '~/lib/utils/formatters'
 
 const recentRequests = mockRecentRequests
 
@@ -111,14 +112,6 @@ const getStatusColor = (status: string) => {
     'Pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
   }
   return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-}
-
-const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(date)
 }
 
 const getRequestDetailUrl = (request: RecentRequest) => {

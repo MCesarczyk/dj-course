@@ -4,7 +4,9 @@
   "compilerOptions": {
     "baseUrl": "./",
     "paths": {
-      "@app/*": ["src/app/*"]
+      "@app/*": ["src/app/*"],
+      "@deliveroo/pdf-core": ["../tms-frontend/packages/pdf-core/src/index.ts"],
+      "@deliveroo/pdf-core/*": ["../tms-frontend/packages/pdf-core/src/*"]
     },
     "outDir": "./dist/out-tsc",
     "forceConsistentCasingInFileNames": true,

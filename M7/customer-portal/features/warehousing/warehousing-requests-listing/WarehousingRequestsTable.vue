@@ -16,9 +16,9 @@
     empty-message="No warehousing requests found matching your criteria."
     :empty-icon="BuildingStorefrontIcon"
     @retry="warehousingQuery.refetch"
-    @previous-page="previousPage"
-    @next-page="nextPage"
-    @go-to-page="goToPage"
+    @previous-page="emit('previousPage')"
+    @next-page="emit('nextPage')"
+    @go-to-page="(page: number) => emit('goToPage', page)"
   >
     <!-- Request ID -->
     <template #cell-id="{ value }">
@@ -74,25 +74,32 @@
 import { BuildingStorefrontIcon, EyeIcon, CubeIcon, DocumentArrowDownIcon } from '@heroicons/vue/24/outline'
 import DataTable from '~/components/ui-library/datatable/DataTable.vue'
 import { useWarehousingRequestsPaginated } from './warehousing-requests-api'
+import { formatDate } from '~/lib/utils/formatters'
 import type { WarehousingRequestsFilters, WarehousingRequestItem } from './warehousing-requests.model'
+import { useWarehousingListingPdf } from './use-warehousing-listing-pdf'
 import StorageStatusBadge from '~/components/badges/StorageStatusBadge.vue'
 import PriorityBadge from '~/components/badges/PriorityBadge.vue'
 import StorageTypeBadge from '~/components/badges/StorageTypeBadge.vue'
 
 interface Props {
   filters: WarehousingRequestsFilters
+  currentPage: number
+  itemsPerPage: number
 }
 
 const props = defineProps<Props>()
 
-const currentPage = ref(1)
-const itemsPerPage = 10
+const emit = defineEmits<{
+  previousPage: []
+  nextPage: []
+  goToPage: [page: number]
+}>()
 
 // Use the API composable
 const warehousingQuery = useWarehousingRequestsPaginated(
   computed(() => props.filters),
-  currentPage,
-  itemsPerPage
+  toRef(props, 'currentPage'),
+  props.itemsPerPage
 )
 
 // Column definitions
@@ -138,81 +145,14 @@ const headerActions = [
   }
 ]
 
-const downloadPDF = async (item: WarehousingRequestItem) => {
-  // Only run on client side
-  if (process.server) return
-  
-  try {
-    // Fetch full request details
-    const { getWarehousingRequestDetails } = await import('~/features/warehousing/warehousing-request-details/warehousing-request-details-api')
-    const fullRequest = await getWarehousingRequestDetails(item.id)
-    
-    // Dynamically import PDF generator only on client side
-    const { generateWarehousingRequestPDF } = await import('~/lib/pdf/warehousingRequestPdfGenerator')
-    
-    // Convert WarehousingRequest to form data structure
-    const formData = {
-      storageType: String(fullRequest.storageType || ''),
-      securityLevel: String(fullRequest.securityLevel || ''),
-      estimatedVolume: fullRequest.estimatedVolume || 0,
-      estimatedWeight: fullRequest.estimatedWeight || 0,
-      estimatedStorageDuration: {
-        value: fullRequest.estimatedStorageDuration?.value || 0,
-        unit: (fullRequest.estimatedStorageDuration?.unit || 'months') as 'days' | 'weeks' | 'months' | 'years'
-      },
-      plannedStartDate: fullRequest.plannedStartDate instanceof Date 
-        ? fullRequest.plannedStartDate 
-        : new Date(fullRequest.plannedStartDate),
-      plannedEndDate: fullRequest.plannedEndDate 
-        ? (fullRequest.plannedEndDate instanceof Date 
-          ? fullRequest.plannedEndDate 
-          : new Date(fullRequest.plannedEndDate))
-        : undefined,
-      handlingServices: (fullRequest.handlingServices || []).map(s => String(s)),
-      valueAddedServices: (fullRequest.valueAddedServices || []).map(s => String(s)),
-      requiresTemperatureControl: fullRequest.requiresTemperatureControl || false,
-      requiresHumidityControl: fullRequest.requiresHumidityControl || false,
-      requiresSpecialHandling: fullRequest.requiresSpecialHandling || false,
-      specialInstructions: fullRequest.specialInstructions || undefined,
-      billingType: String(fullRequest.billingType || ''),
-      cargo: {
-        description: fullRequest.cargo?.description || '',
-        cargoType: String(fullRequest.cargo?.cargoType || ''),
-        packaging: String(fullRequest.cargo?.packaging || ''),
-        quantity: fullRequest.cargo?.quantity || 0,
-        unitType: fullRequest.cargo?.unitType || '',
-        value: fullRequest.cargo?.value || 0,
-        currency: fullRequest.cargo?.currency || 'EUR'
-      },
-      priority: String(fullRequest.priority || '')
-    }
-    
-    await generateWarehousingRequestPDF(formData, {
-      requestNumber: fullRequest.requestNumber,
-      createdAt: fullRequest.createdAt instanceof Date 
-        ? fullRequest.createdAt 
-        : new Date(fullRequest.createdAt),
-      storageLocation: fullRequest.storageLocation || undefined
-    })
-  } catch (error) {
-    console.error('Error generating PDF:', error)
-    console.error('Error details:', error instanceof Error ? error.message : error)
-    alert(`Error generating PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
-  }
-}
+const { downloadPDF } = useWarehousingListingPdf()
 
 // Row actions
 const rowActions = [
   {
     label: 'View Details',
-    handler: async (item: any) => {
-      console.log('View Details clicked - navigating to:', `/dashboard/requests/warehousing/${item.id}`)
-      try {
-        await navigateTo(`/dashboard/requests/warehousing/${item.id}`)
-        console.log('Navigation completed')
-      } catch (error) {
-        console.error('Navigation error:', error)
-      }
+    handler: (item: any) => {
+      navigateTo(`/dashboard/requests/warehousing/${item.id}`)
     },
     icon: EyeIcon
   },
@@ -225,73 +165,39 @@ const rowActions = [
   },
   {
     label: 'View Inventory',
-    handler: (item: any) => {
-      // Navigate to inventory view when available
-      console.log('View inventory for:', item.id)
-    },
+    handler: (_item: any) => {},
     icon: CubeIcon,
     condition: (item: any) => ['STORED', 'RECEIVED'].includes(item.status)
   }
 ]
 
-// Utility functions
-const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(date)
-}
-
 // Computed values for pagination
 const totalPages = computed(() => {
   const data = warehousingQuery.data.value
-  return data ? Math.ceil(data.total / itemsPerPage) : 0
+  return data ? Math.ceil(data.total / props.itemsPerPage) : 0
 })
 
-const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage)
-const endIndex = computed(() => startIndex.value + itemsPerPage)
+const startIndex = computed(() => (props.currentPage - 1) * props.itemsPerPage)
+const endIndex = computed(() => startIndex.value + props.itemsPerPage)
 
 const visiblePages = computed(() => {
   const pages = []
-  const start = Math.max(1, currentPage.value - 2)
-  const end = Math.min(totalPages.value, currentPage.value + 2)
-  
+  const start = Math.max(1, props.currentPage - 2)
+  const end = Math.min(totalPages.value, props.currentPage + 2)
+
   for (let i = start; i <= end; i++) {
     pages.push(i)
   }
-  
+
   return pages
 })
 
 const paginationData = computed(() => ({
-  currentPage: currentPage.value,
+  currentPage: props.currentPage,
   totalPages: totalPages.value,
   total: warehousingQuery.data.value?.total || 0,
   startIndex: startIndex.value,
   endIndex: endIndex.value,
   visiblePages: visiblePages.value
 }))
-
-// Actions
-const previousPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--
-  }
-}
-
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++
-  }
-}
-
-const goToPage = (page: number) => {
-  currentPage.value = page
-}
-
-// Watch for filter changes to reset pagination
-watch(() => props.filters, () => {
-  currentPage.value = 1
-}, { deep: true })
 </script> 

@@ -1,9 +1,16 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import tailwindcss from "@tailwindcss/vite";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
-  devtools: { enabled: true },
+  devServer: {
+    port: 3003,
+  },
+  devtools: { enabled: false },
   modules: [
     '@nuxt/ui',
     '@nuxtjs/color-mode',
@@ -11,14 +18,13 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
     '@artmizu/nuxt-prometheus',
     'nuxt3-winston-log',
-    '@nuxtjs/storybook',
   ],
 
   nuxt3WinstonLog: {
     maxSize: "1024m",
     maxFiles: "14d",
   },
-  
+
   // Component auto-import configuration
   components: [
     {
@@ -46,6 +52,11 @@ export default defineNuxtConfig({
     plugins: [
       tailwindcss(),
     ],
+    resolve: {
+      alias: {
+        '@deliveroo/pdf-core': resolve(__dirname, '../tms-frontend/packages/pdf-core/src/index.ts'),
+      },
+    },
     optimizeDeps: {
       include: ['@jridgewell/sourcemap-codec'],
       force: true

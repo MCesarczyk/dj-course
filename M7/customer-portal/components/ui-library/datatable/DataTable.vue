@@ -237,17 +237,8 @@ const getRowActions = (item: any) => {
 }
 
 const handleRowAction = async (action: RowAction, item: any) => {
-  console.log('handleRowAction called:', { action: action.label, item })
-  try {
-    if (action.handler) {
-      console.log('Calling handler for:', action.label)
-      await action.handler(item)
-      console.log('Handler completed for:', action.label)
-    } else {
-      console.warn('No handler found for action:', action.label)
-    }
-  } catch (error) {
-    console.error('Error executing row action:', error)
+  if (action.handler) {
+    await action.handler(item)
   }
 }
 

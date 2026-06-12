@@ -3,6 +3,7 @@ import { mockWarehousingRequests as detailedMockRequests } from '../warehousing-
 import { mockWarehousingRequests as listingMockRequests } from '../warehousing-requests-listing/warehousing-requests.mocks'
 import type { WarehousingRequest } from '../warehousing-request-details/warehousing-request-details.model'
 import type { WarehousingRequestItem } from '../warehousing-requests-listing/warehousing-requests.model'
+import { formatEnum } from '~/lib/utils/formatters'
 import { RequestStatus, Priority, StorageType, SecurityLevel, BillingType, InventoryStatus, HandlingService, ValueAddedService, CargoType, PackagingType } from '../warehousing-request-details/warehousing-request-details.model'
 
 export async function submitWarehousingRequest(
@@ -66,7 +67,7 @@ export async function submitWarehousingRequest(
   detailedMockRequests.unshift(newRequest) // Add to beginning so it appears first
   
   // Also add to listing mock data array (for listing page)
-  const storageTypeLabel = data.storageType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+  const storageTypeLabel = formatEnum(data.storageType)
   const listingItem: WarehousingRequestItem = {
     id: requestNumber,
     requestNumber,

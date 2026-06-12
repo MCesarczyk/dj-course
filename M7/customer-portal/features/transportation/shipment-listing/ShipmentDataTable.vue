@@ -53,20 +53,12 @@ import { useShipmentsQuery } from './shipment-api'
 import TransportationServiceBadge from '~/components/badges/TransportationServiceBadge.vue'
 import TransportationStatusBadge from '~/components/badges/TransportationStatusBadge.vue'
 import { inject, toRef } from 'vue'
+import { formatDate } from '~/lib/utils/formatters'
 import type { useShipmentsListingStore } from './shipments-listing.store'
 
 // Use TanStack Query
 const store = inject<ReturnType<typeof useShipmentsListingStore>>('shipmentsListing')
 const query = useShipmentsQuery(toRef(store!, 'filters'))
-
-// Formatting functions
-const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(date)
-}
 
 // Navigation functions
 const trackShipment = async (trackingNumber: string) => {

@@ -1,137 +1,93 @@
-import { ref, readonly, onMounted } from 'vue'
-import { mockTrackingData } from './tracking.mocks'
-import type { TrackingData } from './tracking.model'
+import type { TrackingData, TrackingEvent } from './tracking.model'
 
-export async function getTrackingByNumber(trackingNumber: string): Promise<TrackingData | null> {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  
-  return mockTrackingData[trackingNumber.trim()] || null
+interface GeoJSONFeature {
+  type: 'Feature'
+  geometry: { type: 'Point' | 'LineString'; coordinates: number[] | number[][] }
+  properties: Record<string, any>
 }
 
-export async function getAllTracking(): Promise<Record<string, TrackingData>> {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  return mockTrackingData
+interface TrackingFeatureCollection {
+  type: 'FeatureCollection'
+  trackingNumber: string
+  status: string
+  serviceType: string
+  origin: string
+  destination: string
+  estimatedDelivery?: string
+  actualDelivery?: string
+  updates: Array<{
+    id: string
+    timestamp: string
+    status: string
+    location?: string
+    description: string
+    estimatedTime?: string
+    actualTime?: string
+  }>
+  features: GeoJSONFeature[]
 }
 
-// Tracking composables
-export function useTrackingDetails(trackingNumber: string) {
-  const data = ref<TrackingData | null>(null)
-  const isLoading = ref(false)
-  const isError = ref(false)
+function adaptFeatureCollection(fc: TrackingFeatureCollection): TrackingData {
+  const routeFeature = fc.features.find(
+    f => f.properties.kind === 'route' && f.geometry.type === 'LineString'
+  )
+  const eventFeatures = fc.features.filter(f => f.properties.kind === 'event')
+  const vehicleFeature = fc.features.find(f => f.properties.kind === 'vehicle')
 
-  const refetch = async () => {
-    if (!trackingNumber) return
-    
-    isLoading.value = true
-    isError.value = false
-    try {
-      data.value = await getTrackingByNumber(trackingNumber)
-    } catch (error) {
-      isError.value = true
-      console.error('Error fetching tracking data:', error)
-    } finally {
-      isLoading.value = false
+  const route = routeFeature
+    ? (routeFeature.geometry.coordinates as number[][]).map((c, i) => ({
+        lng: c[0],
+        lat: c[1],
+        name: routeFeature.properties.waypoints?.[i] ?? ''
+      }))
+    : []
+
+  const trackingEvents: TrackingEvent[] = eventFeatures.map(f => {
+    const [lng, lat] = f.geometry.coordinates as number[]
+    return {
+      lat,
+      lng,
+      type: f.properties.type,
+      name: f.properties.name,
+      description: f.properties.description,
+      estimatedTime: f.properties.estimatedTime ?? undefined,
+      actualTime: f.properties.actualTime ?? undefined,
+      isCompleted: f.properties.isCompleted
     }
-  }
-
-  return {
-    data: readonly(data),
-    isLoading: readonly(isLoading),
-    isError: readonly(isError),
-    refetch
-  }
-}
-
-export function useActiveTracking() {
-  const data = ref<TrackingData[]>([])
-  const isLoading = ref(false)
-  const isError = ref(false)
-
-  const refetch = async () => {
-    isLoading.value = true
-    isError.value = false
-    try {
-      const allTracking = await getAllTracking()
-      data.value = Object.values(allTracking)
-        .filter(tracking => tracking.status === 'IN_TRANSIT')
-        .sort((a, b) => {
-          if (!a.estimatedDelivery || !b.estimatedDelivery) return 0
-          return new Date(a.estimatedDelivery).getTime() - new Date(b.estimatedDelivery).getTime()
-        })
-    } catch (error) {
-      isError.value = true
-      console.error('Error fetching active tracking:', error)
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  onMounted(() => {
-    refetch()
   })
 
+  const currentPosition = vehicleFeature
+    ? {
+        lng: (vehicleFeature.geometry.coordinates as number[])[0],
+        lat: (vehicleFeature.geometry.coordinates as number[])[1]
+      }
+    : { lat: 0, lng: 0 }
+
   return {
-    data: readonly(data),
-    isLoading: readonly(isLoading),
-    isError: readonly(isError),
-    refetch
+    trackingNumber: fc.trackingNumber,
+    status: fc.status,
+    serviceType: fc.serviceType,
+    origin: fc.origin,
+    destination: fc.destination,
+    estimatedDelivery: fc.estimatedDelivery,
+    actualDelivery: fc.actualDelivery,
+    route,
+    currentPosition,
+    trackingEvents,
+    updates: fc.updates.map(u => ({ ...u, timestamp: new Date(u.timestamp) }))
   }
 }
 
-export function useTrackingByNumber(trackingNumber: string) {
-  const data = ref<TrackingData | null>(null)
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-
-  const fetchTracking = async () => {
-    if (!trackingNumber) return
-
-    isLoading.value = true
-    error.value = null
-
-    try {
-      data.value = await getTrackingByNumber(trackingNumber)
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'An error occurred'
-      console.error('Error fetching tracking:', err)
-    } finally {
-      isLoading.value = false
+export async function getTrackingByNumber(trackingNumber: string): Promise<TrackingData | null> {
+  try {
+    const fc = await $fetch<TrackingFeatureCollection>(
+      `/api/tracking/${encodeURIComponent(trackingNumber)}`
+    )
+    return adaptFeatureCollection(fc)
+  } catch (error: any) {
+    if (error?.statusCode === 404 || error?.response?.status === 404) {
+      return null
     }
-  }
-
-  return {
-    data,
-    isLoading,
-    error,
-    fetchTracking
+    throw error
   }
 }
-
-export function useAllTracking() {
-  const data = ref<TrackingData[]>([])
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-
-  const fetchTracking = async () => {
-    isLoading.value = true
-    error.value = null
-
-    try {
-      const allTracking = await getAllTracking()
-      data.value = Object.values(allTracking)
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'An error occurred'
-      console.error('Error fetching all tracking:', err)
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  return {
-    data,
-    isLoading,
-    error,
-    fetchTracking
-  }
-} 

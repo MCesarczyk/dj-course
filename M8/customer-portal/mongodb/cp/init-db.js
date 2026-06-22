@@ -12,6 +12,11 @@ db.createCollection('metrics');
 db.createCollection('route_performance');
 db.createCollection('transportation_requests');
 db.createCollection('warehousing_requests');
+db.createCollection('tracking_data');
+db.createCollection('companies');
+db.createCollection('users');
+db.createCollection('notifications');
+db.createCollection('invoices');
 
 // Wstawianie danych dla dashboard_stats
 db.dashboard_stats.insertMany([
@@ -566,6 +571,340 @@ db.warehousing_requests.insertMany([
   }
 ]);
 
+// Wstawianie danych dla tracking_data (GeoJSON FeatureCollection, RFC 7946)
+// Współrzędne w kolejności [lng, lat]
+db.tracking_data.insertMany([
+  {
+    type: 'FeatureCollection',
+    trackingNumber: 'TRK123456789',
+    status: 'IN_TRANSIT',
+    serviceType: 'FULL_TRUCKLOAD',
+    origin: 'Warsaw, Poland',
+    destination: 'Berlin, Germany',
+    estimatedDelivery: '2024-01-17T16:00:00',
+    updates: [
+      { id: '1', timestamp: new Date('2024-01-15T08:00:00'), status: 'PICKUP_SCHEDULED', location: 'Warsaw, Poland', description: 'Pickup scheduled for 08:00', estimatedTime: '2024-01-15T08:00:00' },
+      { id: '2', timestamp: new Date('2024-01-15T09:30:00'), status: 'PICKED_UP', location: 'Warsaw, Poland', description: 'Cargo successfully picked up', estimatedTime: '2024-01-15T09:00:00', actualTime: '2024-01-15T09:30:00' },
+      { id: '3', timestamp: new Date('2024-01-15T14:00:00'), status: 'IN_TRANSIT', location: 'Łódź, Poland', description: 'In transit to destination', estimatedTime: '2024-01-15T13:30:00', actualTime: '2024-01-15T14:00:00' }
+    ],
+    features: [
+      { type: 'Feature', geometry: { type: 'LineString', coordinates: [[21.0122, 52.2297], [19.4794, 52.0907], [19.4560, 51.7592], [16.9252, 52.4064], [13.4050, 52.5200]] }, properties: { kind: 'route', name: 'Warsaw, Poland → Berlin, Germany', waypoints: ['Warsaw, Poland', 'Łódź, Poland', 'Kutno, Poland', 'Poznań, Poland', 'Berlin, Germany'] } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [21.0122, 52.2297] }, properties: { kind: 'event', type: 'pickup', name: 'Warsaw Depot', description: 'Cargo picked up from distribution center', estimatedTime: '2024-01-15T09:00:00', actualTime: '2024-01-15T09:30:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [20.2000, 52.1500] }, properties: { kind: 'event', type: 'refuel', name: 'Gas Station A2', description: 'Scheduled refueling stop', estimatedTime: '2024-01-15T11:00:00', actualTime: '2024-01-15T11:15:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [19.4794, 52.0907] }, properties: { kind: 'event', type: 'current', name: 'Łódź Transit Hub', description: 'Current location - sorting facility', estimatedTime: '2024-01-15T13:30:00', actualTime: '2024-01-15T14:00:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [16.9252, 52.4064] }, properties: { kind: 'event', type: 'warehouse', name: 'Poznań Distribution Hub', description: 'Transit through regional hub', estimatedTime: '2024-01-16T08:00:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [15.0000, 52.3000] }, properties: { kind: 'event', type: 'rest', name: 'Highway Rest Area', description: 'Mandatory driver rest period', estimatedTime: '2024-01-16T14:00:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [13.4050, 52.5200] }, properties: { kind: 'event', type: 'delivery', name: 'Berlin Warehouse', description: 'Final destination delivery point', estimatedTime: '2024-01-17T16:00:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [19.4794, 52.0907] }, properties: { kind: 'vehicle', name: 'Current vehicle position' } }
+    ]
+  },
+  {
+    type: 'FeatureCollection',
+    trackingNumber: 'TRK987654321',
+    status: 'DELIVERED',
+    serviceType: 'EXPRESS_DELIVERY',
+    origin: 'Krakow, Poland',
+    destination: 'Vienna, Austria',
+    estimatedDelivery: '2024-01-13T10:00:00',
+    actualDelivery: '2024-01-13T09:00:00',
+    updates: [
+      { id: '1', timestamp: new Date('2024-01-12T10:00:00'), status: 'PICKUP_SCHEDULED', location: 'Krakow, Poland', description: 'Express pickup scheduled', estimatedTime: '2024-01-12T11:00:00' },
+      { id: '2', timestamp: new Date('2024-01-12T11:00:00'), status: 'PICKED_UP', location: 'Krakow, Poland', description: 'Express cargo picked up', estimatedTime: '2024-01-12T11:00:00', actualTime: '2024-01-12T11:00:00' },
+      { id: '3', timestamp: new Date('2024-01-12T18:00:00'), status: 'IN_TRANSIT', location: 'Bratislava, Slovakia', description: 'Crossed border, in transit', estimatedTime: '2024-01-12T17:30:00', actualTime: '2024-01-12T18:00:00' },
+      { id: '4', timestamp: new Date('2024-01-13T09:00:00'), status: 'DELIVERED', location: 'Vienna, Austria', description: 'Successfully delivered', estimatedTime: '2024-01-13T10:00:00', actualTime: '2024-01-13T09:00:00' }
+    ],
+    features: [
+      { type: 'Feature', geometry: { type: 'LineString', coordinates: [[19.9450, 50.0647], [19.9494, 49.2951], [20.0688, 49.1951], [17.1077, 48.1486], [16.3738, 48.2082]] }, properties: { kind: 'route', name: 'Krakow, Poland → Vienna, Austria', waypoints: ['Krakow, Poland', 'Bielsko-Biała, Poland', 'Žilina, Slovakia', 'Bratislava, Slovakia', 'Vienna, Austria'] } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [19.9450, 50.0647] }, properties: { kind: 'event', type: 'pickup', name: 'Krakow Distribution Center', description: 'Express cargo picked up', estimatedTime: '2024-01-12T11:00:00', actualTime: '2024-01-12T11:00:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [19.8000, 49.5000] }, properties: { kind: 'event', type: 'refuel', name: 'Highway Service Station', description: 'Refueling stop', estimatedTime: '2024-01-12T13:30:00', actualTime: '2024-01-12T13:25:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [20.0688, 49.1951] }, properties: { kind: 'event', type: 'customs', name: 'Žilina Border Crossing', description: 'Customs clearance completed', estimatedTime: '2024-01-12T16:00:00', actualTime: '2024-01-12T15:45:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [17.5000, 48.5000] }, properties: { kind: 'event', type: 'rest', name: 'Driver Rest Area', description: 'Mandatory driver rest period', estimatedTime: '2024-01-12T20:00:00', actualTime: '2024-01-12T20:00:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [17.1077, 48.1486] }, properties: { kind: 'event', type: 'warehouse', name: 'Bratislava Hub', description: 'Transit through distribution hub', estimatedTime: '2024-01-13T06:00:00', actualTime: '2024-01-13T05:45:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [16.3738, 48.2082] }, properties: { kind: 'event', type: 'delivery', name: 'Vienna Delivery Point', description: 'Successfully delivered', estimatedTime: '2024-01-13T10:00:00', actualTime: '2024-01-13T09:00:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [16.3738, 48.2082] }, properties: { kind: 'vehicle', name: 'Current vehicle position' } }
+    ]
+  },
+  {
+    type: 'FeatureCollection',
+    trackingNumber: 'TRK456789123',
+    status: 'PICKUP_SCHEDULED',
+    serviceType: 'OVERSIZED_CARGO',
+    origin: 'Prague, Czech Republic',
+    destination: 'Hamburg, Germany',
+    estimatedDelivery: '2024-01-20T14:00:00',
+    updates: [
+      { id: '1', timestamp: new Date('2024-01-18T08:00:00'), status: 'PICKUP_SCHEDULED', location: 'Prague, Czech Republic', description: 'Oversized cargo pickup scheduled for tomorrow', estimatedTime: '2024-01-19T10:00:00' }
+    ],
+    features: [
+      { type: 'Feature', geometry: { type: 'LineString', coordinates: [[14.4378, 50.0755], [13.3089, 50.7753], [11.9603, 50.1109], [9.7320, 52.3759], [9.9937, 53.5511]] }, properties: { kind: 'route', name: 'Prague, Czech Republic → Hamburg, Germany', waypoints: ['Prague, Czech Republic', 'Karlovy Vary, Czech Republic', 'Bayreuth, Germany', 'Hannover, Germany', 'Hamburg, Germany'] } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [14.4378, 50.0755] }, properties: { kind: 'event', type: 'current', name: 'Prague Depot', description: 'Awaiting pickup - oversized cargo preparation', estimatedTime: '2024-01-19T10:00:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [13.8000, 50.5000] }, properties: { kind: 'event', type: 'refuel', name: 'Highway Station', description: 'Planned refuel stop', estimatedTime: '2024-01-19T13:00:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [11.9603, 50.1109] }, properties: { kind: 'event', type: 'customs', name: 'German Border Checkpoint', description: 'Customs inspection for oversized cargo', estimatedTime: '2024-01-19T16:30:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [10.0000, 52.0000] }, properties: { kind: 'event', type: 'rest', name: 'Overnight Rest Area', description: 'Mandatory overnight rest', estimatedTime: '2024-01-19T22:00:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [9.9937, 53.5511] }, properties: { kind: 'event', type: 'delivery', name: 'Hamburg Port Terminal', description: 'Final destination - port facility', estimatedTime: '2024-01-20T14:00:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [14.4378, 50.0755] }, properties: { kind: 'vehicle', name: 'Current vehicle position' } }
+    ]
+  },
+  {
+    type: 'FeatureCollection',
+    trackingNumber: 'TRK789123456',
+    status: 'IN_TRANSIT',
+    serviceType: 'EXPRESS_DELIVERY',
+    origin: 'Budapest, Hungary',
+    destination: 'Amsterdam, Netherlands',
+    estimatedDelivery: '2024-01-18T15:00:00',
+    updates: [
+      { id: '1', timestamp: new Date('2024-01-16T09:00:00'), status: 'PICKUP_SCHEDULED', location: 'Budapest, Hungary', description: 'Express pickup scheduled', estimatedTime: '2024-01-16T10:30:00' },
+      { id: '2', timestamp: new Date('2024-01-16T10:30:00'), status: 'PICKED_UP', location: 'Budapest, Hungary', description: 'Cargo picked up successfully', estimatedTime: '2024-01-16T10:30:00', actualTime: '2024-01-16T10:30:00' },
+      { id: '3', timestamp: new Date('2024-01-17T08:00:00'), status: 'IN_TRANSIT', location: 'Munich, Germany', description: 'In transit, currently in Munich', estimatedTime: '2024-01-17T08:00:00', actualTime: '2024-01-17T07:45:00' }
+    ],
+    features: [
+      { type: 'Feature', geometry: { type: 'LineString', coordinates: [[19.0402, 47.4979], [17.1077, 48.1486], [16.3738, 48.2082], [11.5820, 48.1351], [8.6821, 50.1109], [4.9041, 52.3676]] }, properties: { kind: 'route', name: 'Budapest, Hungary → Amsterdam, Netherlands', waypoints: ['Budapest, Hungary', 'Bratislava, Slovakia', 'Vienna, Austria', 'Munich, Germany', 'Frankfurt, Germany', 'Amsterdam, Netherlands'] } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [19.0402, 47.4979] }, properties: { kind: 'event', type: 'pickup', name: 'Budapest Central Hub', description: 'Express cargo collected', estimatedTime: '2024-01-16T10:30:00', actualTime: '2024-01-16T10:30:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [18.0000, 47.8000] }, properties: { kind: 'event', type: 'refuel', name: 'M1 Service Station', description: 'Refueling completed', estimatedTime: '2024-01-16T12:00:00', actualTime: '2024-01-16T12:10:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [17.1077, 48.1486] }, properties: { kind: 'event', type: 'warehouse', name: 'Bratislava Transit Hub', description: 'Quick transit through hub', estimatedTime: '2024-01-16T15:00:00', actualTime: '2024-01-16T14:45:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [14.0000, 48.0000] }, properties: { kind: 'event', type: 'rest', name: 'Austrian Rest Area', description: 'Driver rest period completed', estimatedTime: '2024-01-16T22:00:00', actualTime: '2024-01-16T22:00:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [11.5820, 48.1351] }, properties: { kind: 'event', type: 'current', name: 'Munich Distribution Center', description: 'Currently at distribution center', estimatedTime: '2024-01-17T08:00:00', actualTime: '2024-01-17T07:45:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [8.6821, 50.1109] }, properties: { kind: 'event', type: 'warehouse', name: 'Frankfurt Major Hub', description: 'Transit through main distribution hub', estimatedTime: '2024-01-17T14:00:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [4.9041, 52.3676] }, properties: { kind: 'event', type: 'delivery', name: 'Amsterdam Delivery Center', description: 'Final destination delivery', estimatedTime: '2024-01-18T15:00:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [11.5820, 48.1351] }, properties: { kind: 'vehicle', name: 'Current vehicle position' } }
+    ]
+  },
+  {
+    type: 'FeatureCollection',
+    trackingNumber: 'TRK321654987',
+    status: 'DELIVERED',
+    serviceType: 'FULL_TRUCKLOAD',
+    origin: 'Gdansk, Poland',
+    destination: 'Stockholm, Sweden',
+    estimatedDelivery: '2024-01-14T12:00:00',
+    actualDelivery: '2024-01-14T11:00:00',
+    updates: [
+      { id: '1', timestamp: new Date('2024-01-10T08:00:00'), status: 'PICKUP_SCHEDULED', location: 'Gdansk, Poland', description: 'Pickup scheduled from port', estimatedTime: '2024-01-10T10:00:00' },
+      { id: '2', timestamp: new Date('2024-01-10T10:00:00'), status: 'PICKED_UP', location: 'Gdansk, Poland', description: 'Cargo loaded and departed', estimatedTime: '2024-01-10T10:00:00', actualTime: '2024-01-10T10:00:00' },
+      { id: '3', timestamp: new Date('2024-01-12T14:00:00'), status: 'IN_TRANSIT', location: 'Copenhagen, Denmark', description: 'Crossed border into Denmark', estimatedTime: '2024-01-12T15:00:00', actualTime: '2024-01-12T14:00:00' },
+      { id: '4', timestamp: new Date('2024-01-14T11:00:00'), status: 'DELIVERED', location: 'Stockholm, Sweden', description: 'Successfully delivered to warehouse', estimatedTime: '2024-01-14T12:00:00', actualTime: '2024-01-14T11:00:00' }
+    ],
+    features: [
+      { type: 'Feature', geometry: { type: 'LineString', coordinates: [[18.6466, 54.3520], [12.5683, 55.6761], [13.1910, 55.7047], [11.9746, 57.7089], [18.0686, 59.3293]] }, properties: { kind: 'route', name: 'Gdansk, Poland → Stockholm, Sweden', waypoints: ['Gdansk, Poland', 'Copenhagen, Denmark', 'Malmö, Sweden', 'Gothenburg, Sweden', 'Stockholm, Sweden'] } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [18.6466, 54.3520] }, properties: { kind: 'event', type: 'pickup', name: 'Gdansk Port Terminal', description: 'Cargo loaded from port facility', estimatedTime: '2024-01-10T10:00:00', actualTime: '2024-01-10T10:00:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [17.0000, 54.8000] }, properties: { kind: 'event', type: 'refuel', name: 'Polish Highway Station', description: 'Refueling stop completed', estimatedTime: '2024-01-10T13:00:00', actualTime: '2024-01-10T12:45:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [12.5683, 55.6761] }, properties: { kind: 'event', type: 'customs', name: 'Copenhagen Border Control', description: 'Border crossing completed', estimatedTime: '2024-01-12T10:00:00', actualTime: '2024-01-12T09:30:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [13.1910, 55.7047] }, properties: { kind: 'event', type: 'warehouse', name: 'Malmö Transit Terminal', description: 'Transit through terminal', estimatedTime: '2024-01-12T16:00:00', actualTime: '2024-01-12T15:45:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [12.8000, 56.5000] }, properties: { kind: 'event', type: 'rest', name: 'Swedish Rest Area', description: 'Mandatory rest stop completed', estimatedTime: '2024-01-13T20:00:00', actualTime: '2024-01-13T20:00:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [11.9746, 57.7089] }, properties: { kind: 'event', type: 'refuel', name: 'Gothenburg Service Station', description: 'Final refuel before destination', estimatedTime: '2024-01-14T08:00:00', actualTime: '2024-01-14T07:45:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [18.0686, 59.3293] }, properties: { kind: 'event', type: 'delivery', name: 'Stockholm Distribution Center', description: 'Delivered successfully', estimatedTime: '2024-01-14T12:00:00', actualTime: '2024-01-14T11:00:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [18.0686, 59.3293] }, properties: { kind: 'vehicle', name: 'Current vehicle position' } }
+    ]
+  },
+  {
+    type: 'FeatureCollection',
+    trackingNumber: 'TRK654987321',
+    status: 'IN_TRANSIT',
+    serviceType: 'LESS_THAN_TRUCKLOAD',
+    origin: 'Bratislava, Slovakia',
+    destination: 'Milan, Italy',
+    estimatedDelivery: '2024-01-16T18:00:00',
+    updates: [
+      { id: '1', timestamp: new Date('2024-01-14T09:00:00'), status: 'PICKUP_SCHEDULED', location: 'Bratislava, Slovakia', description: 'LTL pickup scheduled', estimatedTime: '2024-01-14T11:00:00' },
+      { id: '2', timestamp: new Date('2024-01-14T11:00:00'), status: 'PICKED_UP', location: 'Bratislava, Slovakia', description: 'Cargo consolidated and loaded', estimatedTime: '2024-01-14T11:00:00', actualTime: '2024-01-14T11:15:00' },
+      { id: '3', timestamp: new Date('2024-01-15T16:00:00'), status: 'IN_TRANSIT', location: 'Bolzano, Italy', description: 'Crossed Alps, entering Italy', estimatedTime: '2024-01-15T16:00:00', actualTime: '2024-01-15T15:45:00' }
+    ],
+    features: [
+      { type: 'Feature', geometry: { type: 'LineString', coordinates: [[17.1077, 48.1486], [16.3738, 48.2082], [11.4041, 47.2692], [11.1217, 46.0748], [9.1900, 45.4642]] }, properties: { kind: 'route', name: 'Bratislava, Slovakia → Milan, Italy', waypoints: ['Bratislava, Slovakia', 'Vienna, Austria', 'Innsbruck, Austria', 'Bolzano, Italy', 'Milan, Italy'] } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [17.1077, 48.1486] }, properties: { kind: 'event', type: 'pickup', name: 'Bratislava Consolidation Hub', description: 'LTL cargo consolidated and loaded', estimatedTime: '2024-01-14T11:00:00', actualTime: '2024-01-14T11:15:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [16.3738, 48.2082] }, properties: { kind: 'event', type: 'warehouse', name: 'Vienna Sorting Terminal', description: 'Cargo sorted and processed', estimatedTime: '2024-01-14T14:00:00', actualTime: '2024-01-14T13:45:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [13.0000, 47.8000] }, properties: { kind: 'event', type: 'refuel', name: 'Alpine Service Station', description: 'Mountain route refuel completed', estimatedTime: '2024-01-15T10:00:00', actualTime: '2024-01-15T10:20:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [11.4041, 47.2692] }, properties: { kind: 'event', type: 'rest', name: 'Innsbruck Alpine Rest Stop', description: 'Alpine route rest area', estimatedTime: '2024-01-15T14:00:00', actualTime: '2024-01-15T14:00:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [11.1217, 46.0748] }, properties: { kind: 'event', type: 'current', name: 'Bolzano Border Crossing', description: 'Crossed into Italy - customs cleared', estimatedTime: '2024-01-15T16:00:00', actualTime: '2024-01-15T15:45:00', isCompleted: true } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [9.1900, 45.4642] }, properties: { kind: 'event', type: 'delivery', name: 'Milan Distribution Center', description: 'Final destination delivery', estimatedTime: '2024-01-16T18:00:00', isCompleted: false } },
+      { type: 'Feature', geometry: { type: 'Point', coordinates: [11.1217, 46.0748] }, properties: { kind: 'vehicle', name: 'Current vehicle position' } }
+    ]
+  }
+]);
+
+// Wstawianie danych dla companies (firmy korzystające z portalu)
+db.companies.insertMany([
+  {
+    id: '1',
+    name: 'Deliveroo Logistics Sp. z o.o.',
+    taxId: 'PL1234567890',
+    industry: 'AUTOMOTIVE',
+    accountTier: 'ENTERPRISE',
+    address: { city: 'Warsaw', country: 'Poland', street: 'ul. Logistyczna 123', postalCode: '00-001' },
+    contactEmail: 'office@deliveroo-logistics.example',
+    contactPhone: '+48123456789',
+    isActive: true,
+    createdAt: new Date('2023-06-01')
+  },
+  {
+    id: '2',
+    name: 'NordFresh Foods AB',
+    taxId: 'SE556677889901',
+    industry: 'FOOD_AND_BEVERAGE',
+    accountTier: 'STANDARD',
+    address: { city: 'Stockholm', country: 'Sweden', street: 'Hamngatan 12', postalCode: '111 47' },
+    contactEmail: 'logistics@nordfresh.example',
+    contactPhone: '+46812345678',
+    isActive: true,
+    createdAt: new Date('2023-09-15')
+  },
+  {
+    id: '3',
+    name: 'MediPharm GmbH',
+    taxId: 'DE811569876',
+    industry: 'PHARMACEUTICAL',
+    accountTier: 'PREMIUM',
+    address: { city: 'Berlin', country: 'Germany', street: 'Hauptstraße 456', postalCode: '10115' },
+    contactEmail: 'supply@medipharm.example',
+    contactPhone: '+49123456789',
+    isActive: false,
+    createdAt: new Date('2024-01-05')
+  }
+]);
+
+// Wstawianie danych dla users (użytkownicy portalu powiązani z firmami)
+db.users.insertMany([
+  {
+    id: '1',
+    companyId: '1',
+    email: 'john.doe@deliveroo-logistics.example',
+    firstName: 'John',
+    lastName: 'Doe',
+    role: 'ADMIN',
+    isActive: true,
+    lastLoginAt: new Date('2024-01-18T07:45:00'),
+    createdAt: new Date('2023-06-01')
+  },
+  {
+    id: '2',
+    companyId: '1',
+    email: 'anna.kowalski@deliveroo-logistics.example',
+    firstName: 'Anna',
+    lastName: 'Kowalski',
+    role: 'OPERATOR',
+    isActive: true,
+    lastLoginAt: new Date('2024-01-17T12:30:00'),
+    createdAt: new Date('2023-07-12')
+  },
+  {
+    id: '3',
+    companyId: '2',
+    email: 'erik.lindberg@nordfresh.example',
+    firstName: 'Erik',
+    lastName: 'Lindberg',
+    role: 'VIEWER',
+    isActive: true,
+    lastLoginAt: new Date('2024-01-16T09:10:00'),
+    createdAt: new Date('2023-09-15')
+  }
+]);
+
+// Wstawianie danych dla notifications (powiadomienia o zmianach statusu zleceń)
+db.notifications.insertMany([
+  {
+    userId: '1',
+    type: 'STATUS_UPDATE',
+    title: 'Shipment in transit',
+    message: 'TR-2024-001 (Warsaw → Berlin) is now in transit.',
+    relatedRequest: 'TR-2024-001',
+    severity: 'INFO',
+    isRead: false,
+    createdAt: new Date('2024-01-15T14:00:00')
+  },
+  {
+    userId: '1',
+    type: 'STATUS_UPDATE',
+    title: 'Shipment delivered',
+    message: 'TR-2024-002 (Krakow → Vienna) was delivered ahead of schedule.',
+    relatedRequest: 'TR-2024-002',
+    severity: 'SUCCESS',
+    isRead: true,
+    createdAt: new Date('2024-01-13T09:05:00')
+  },
+  {
+    userId: '2',
+    type: 'WAREHOUSING',
+    title: 'Cargo received',
+    message: 'WH-2024-002 cargo received at Cold Storage B-5.',
+    relatedRequest: 'WH-2024-002',
+    severity: 'INFO',
+    isRead: false,
+    createdAt: new Date('2024-01-18T15:05:00')
+  },
+  {
+    userId: '3',
+    type: 'BILLING',
+    title: 'New invoice issued',
+    message: 'Invoice INV-2024-002 for WH-2024-002 has been issued.',
+    relatedRequest: 'WH-2024-002',
+    severity: 'WARNING',
+    isRead: false,
+    createdAt: new Date('2024-01-19T08:00:00')
+  }
+]);
+
+// Wstawianie danych dla invoices (faktury za zlecenia transportowe i magazynowe)
+db.invoices.insertMany([
+  {
+    invoiceNumber: 'INV-2024-001',
+    companyId: '1',
+    relatedRequest: 'TR-2024-002',
+    type: 'TRANSPORTATION',
+    status: 'PAID',
+    currency: 'EUR',
+    lineItems: [
+      { description: 'Express delivery Krakow → Vienna', quantity: 1, unitPrice: 720, amount: 720 },
+      { description: 'Cargo insurance', quantity: 1, unitPrice: 95, amount: 95 }
+    ],
+    subtotal: 815,
+    taxRate: 0.23,
+    taxAmount: 187.45,
+    total: 1002.45,
+    issueDate: new Date('2024-01-13'),
+    dueDate: new Date('2024-01-27'),
+    paidAt: new Date('2024-01-20')
+  },
+  {
+    invoiceNumber: 'INV-2024-002',
+    companyId: '1',
+    relatedRequest: 'WH-2024-002',
+    type: 'WAREHOUSING',
+    status: 'ISSUED',
+    currency: 'EUR',
+    lineItems: [
+      { description: 'Refrigerated storage (14 days)', quantity: 14, unitPrice: 35, amount: 490 },
+      { description: 'Quality control service', quantity: 1, unitPrice: 120, amount: 120 }
+    ],
+    subtotal: 610,
+    taxRate: 0.23,
+    taxAmount: 140.3,
+    total: 750.3,
+    issueDate: new Date('2024-01-19'),
+    dueDate: new Date('2024-02-02'),
+    paidAt: null
+  },
+  {
+    invoiceNumber: 'INV-2024-003',
+    companyId: '3',
+    relatedRequest: 'WH-2024-003',
+    type: 'WAREHOUSING',
+    status: 'OVERDUE',
+    currency: 'EUR',
+    lineItems: [
+      { description: 'Climate-controlled storage (1 month)', quantity: 1, unitPrice: 1850, amount: 1850 },
+      { description: 'Maximum security surcharge', quantity: 1, unitPrice: 400, amount: 400 }
+    ],
+    subtotal: 2250,
+    taxRate: 0.19,
+    taxAmount: 427.5,
+    total: 2677.5,
+    issueDate: new Date('2024-01-22'),
+    dueDate: new Date('2024-02-05'),
+    paidAt: null
+  }
+]);
+
 // Tworzenie indeksów
 db.recent_requests.createIndex({ "date": -1 });
 db.recent_requests.createIndex({ "id": 1 }, { unique: true });
@@ -578,6 +917,7 @@ db.transportation_requests.createIndex({ "status": 1 });
 db.transportation_requests.createIndex({ "priority": 1 });
 db.transportation_requests.createIndex({ "createdAt": -1 });
 db.transportation_requests.createIndex({ "serviceType": 1 });
+db.transportation_requests.createIndex({ "companyId": 1, "status": 1, "createdAt": -1 });
 
 // Indeksy dla warehousing_requests
 db.warehousing_requests.createIndex({ "requestNumber": 1 }, { unique: true });
@@ -585,5 +925,31 @@ db.warehousing_requests.createIndex({ "status": 1 });
 db.warehousing_requests.createIndex({ "priority": 1 });
 db.warehousing_requests.createIndex({ "createdAt": -1 });
 db.warehousing_requests.createIndex({ "storageType": 1 });
+db.warehousing_requests.createIndex({ "companyId": 1, "status": 1, "createdAt": -1 });
+
+// Indeksy dla tracking_data (GeoJSON)
+db.tracking_data.createIndex({ "trackingNumber": 1 }, { unique: true });
+db.tracking_data.createIndex({ "features.geometry": "2dsphere" });
+
+// Indeksy dla companies
+db.companies.createIndex({ "id": 1 }, { unique: true });
+db.companies.createIndex({ "taxId": 1 }, { unique: true });
+db.companies.createIndex({ "accountTier": 1 });
+
+// Indeksy dla users
+db.users.createIndex({ "id": 1 }, { unique: true });
+db.users.createIndex({ "email": 1 }, { unique: true });
+db.users.createIndex({ "companyId": 1 });
+
+// Indeksy dla notifications
+db.notifications.createIndex({ "userId": 1, "createdAt": -1 });
+db.notifications.createIndex({ "isRead": 1 });
+db.notifications.createIndex({ "relatedRequest": 1 });
+
+// Indeksy dla invoices
+db.invoices.createIndex({ "invoiceNumber": 1 }, { unique: true });
+db.invoices.createIndex({ "companyId": 1 });
+db.invoices.createIndex({ "status": 1 });
+db.invoices.createIndex({ "dueDate": 1 });
 
 print('MONGO INITIALIZATION FINISHED - All data seeded successfully');

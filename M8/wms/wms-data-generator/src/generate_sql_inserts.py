@@ -11,7 +11,7 @@ from src.generators.contractors import generate_contractors_data
 from src.generators.employees import generate_employees_data
 from src.generators.payments import generate_payments_data
 from src.generators.storage import generate_storage_data
-from src.generators.enums import ROLES, STORAGE_EVENT_TYPES, roles_insert_sql, storage_event_types_insert_sql
+from src.generators.enums import ROLES, STORAGE_EVENT_TYPES, CATEGORIES, roles_insert_sql, storage_event_types_insert_sql, categories_insert_sql
 
 fake = Faker()
 
@@ -45,6 +45,11 @@ def generate_sql_inserts():
     warehouse_structure_result = generate_warehouse_structure()
     result.merge_with(warehouse_structure_result)
 
+    # --- Cargo Categories (dictionary; must precede storage_record inserts) ---
+    result.add_data('categories', CATEGORIES)
+    result.add_line("\n-- Cargo Categories")
+    result.add_line(categories_insert_sql())
+
     # --- Storage (includes Storage Requests, Reservations, Records, and Event History) ---
     storage_result = generate_storage_data(
         result.data['customers'], 
@@ -55,5 +60,13 @@ def generate_sql_inserts():
     # --- Payments ---
     payments_result = generate_payments_data(result.data['customers'], result.data['storage_records'])
     result.merge_with(payments_result)
+
+    # --- Sync SERIAL sequence so API inserts (e.g. POST /storage/cargo) don't collide
+    #     with the explicit ids used by the bulk INSERTs above. ---
+    result.add_line("\n-- Sync sequences after bulk load")
+    result.add_line(
+        "SELECT setval(pg_get_serial_sequence('storage_record','storage_record_id'), "
+        "(SELECT COALESCE(MAX(storage_record_id), 1) FROM storage_record));"
+    )
 
     return result

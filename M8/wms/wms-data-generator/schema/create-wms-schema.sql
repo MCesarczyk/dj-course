@@ -19,6 +19,8 @@ DROP TABLE IF EXISTS payment CASCADE;
 DROP TABLE IF EXISTS storage_event_type CASCADE;
 DROP TABLE IF EXISTS storage_event_history CASCADE;
 DROP TABLE IF EXISTS employee_warehouse CASCADE;
+DROP TABLE IF EXISTS category CASCADE;
+DROP TABLE IF EXISTS storage_metadata_history CASCADE;
 
 -- LOCATIONS
 CREATE TABLE location (
@@ -198,6 +200,15 @@ CREATE TABLE storage_reservation (
 
 CREATE INDEX idx_reservation_status_filter ON storage_reservation(status);
 
+-- CARGO CATEGORIES (assortment dictionary, e.g. Electronics, Chemicals)
+CREATE TABLE category (
+    category_id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT
+);
+
+CREATE UNIQUE INDEX idx_category_name ON category(name);
+
 -- STORAGE RECORDS
 CREATE TABLE storage_record (
     storage_record_id SERIAL PRIMARY KEY,
@@ -210,6 +221,19 @@ CREATE TABLE storage_record (
     cargo_weight NUMERIC NOT NULL,
     cargo_volume NUMERIC NOT NULL
 );
+
+-- Flexible cargo "technical passport": assortment category + dynamic attributes (JSONB).
+-- category_id is nullable so legacy/bulk records without a category remain valid.
+ALTER TABLE storage_record ADD COLUMN category_id INTEGER REFERENCES category(category_id);
+ALTER TABLE storage_record ADD COLUMN metadata JSONB NOT NULL DEFAULT '{}';
+
+-- JSONB indexes for cargo metadata access patterns.
+-- GIN (jsonb_path_ops): containment search, e.g. metadata @> '{"fragile": true}'.
+CREATE INDEX idx_storage_record_metadata_gin ON storage_record USING GIN (metadata jsonb_path_ops);
+-- Expression index: exact-match stats by a scalar attribute, e.g. metadata->>'firmware_version' = '1.2.1'.
+CREATE INDEX idx_storage_record_firmware ON storage_record ((metadata->>'firmware_version'));
+-- Expression index: numeric reports over a dynamic attribute, e.g. (metadata->>'volume')::numeric.
+CREATE INDEX idx_storage_record_volume ON storage_record (((metadata->>'volume')::numeric));
 
 -- PAYMENTS
 CREATE TABLE payment (
@@ -241,3 +265,42 @@ CREATE TABLE storage_event_history (
     employee_id INTEGER REFERENCES employee(employee_id),
     details JSONB
 );
+
+-- STORAGE METADATA HISTORY (audit log: snapshot of cargo metadata before/after each change)
+CREATE TABLE storage_metadata_history (
+    history_id SERIAL PRIMARY KEY,
+    storage_record_id INTEGER NOT NULL REFERENCES storage_record(storage_record_id),
+    changed_at TIMESTAMP NOT NULL DEFAULT now(),
+    old_metadata JSONB,
+    new_metadata JSONB,
+    employee_id INTEGER REFERENCES employee(employee_id)
+);
+
+-- History lookup per cargo, newest first (endpoint: GET /storage/cargo/{id}/history).
+CREATE INDEX idx_storage_metadata_history_record ON storage_metadata_history (storage_record_id, changed_at DESC);
+
+-- AUDIT TRIGGER: snapshot metadata before/after on every change to storage_record.metadata.
+-- "Who" is read from session setting wms.employee_id (set by the API via SET LOCAL); NULL if unset.
+CREATE OR REPLACE FUNCTION log_storage_metadata_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.metadata IS DISTINCT FROM OLD.metadata THEN
+        INSERT INTO storage_metadata_history (
+            storage_record_id, changed_at, old_metadata, new_metadata, employee_id
+        ) VALUES (
+            OLD.storage_record_id,
+            now(),
+            OLD.metadata,
+            NEW.metadata,
+            NULLIF(current_setting('wms.employee_id', true), '')::INTEGER
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_storage_record_metadata_audit ON storage_record;
+CREATE TRIGGER trg_storage_record_metadata_audit
+    AFTER UPDATE OF metadata ON storage_record
+    FOR EACH ROW
+    EXECUTE FUNCTION log_storage_metadata_change();

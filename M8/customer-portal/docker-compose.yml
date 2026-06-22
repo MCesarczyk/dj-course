@@ -38,9 +38,122 @@ services:
       - cp-mongodb
     restart: unless-stopped
 
+  # ──────────────────────────────────────────────────────────────
+  # OBSERVABILITY STACK
+  # Wszystkie serwisy na sieci `deliveroo-network`, więc widzą się
+  # po nazwach kontenerów (np. http://cp:3000/metrics, loki:3100).
+  # ──────────────────────────────────────────────────────────────
+
+  # Prometheus — pull-based scraper metryk + baza szeregów czasowych (TSDB).
+  # Sam odpytuje targety (cp, node-exporter, mongodb-exporter) co interwał.
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: cp-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - deliveroo-network
+    restart: unless-stopped
+
+  # node-exporter — telemetria MASZYNY (host), nie aplikacji:
+  # CPU, RAM, dysk, sieć. Na macOS "host" = lekka VM Docker Desktop.
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: cp-node-exporter
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - deliveroo-network
+    restart: unless-stopped
+
+  # mongodb-exporter — tłumaczy wewnętrzne statystyki Mongo (serverStatus,
+  # połączenia, operacje, latencje) na format Prometheus. Łączy się do cp-mongodb.
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.41.2
+    container_name: cp-mongodb-exporter
+    ports:
+      - "9216:9216"
+    command:
+      - '--mongodb.uri=mongodb://root:example@cp-mongodb:27017/admin?authSource=admin'
+      - '--collect-all'
+      - '--compatible-mode'
+    networks:
+      - deliveroo-network
+    depends_on:
+      - cp-mongodb
+    restart: unless-stopped
+
+  # Loki — magazyn logów (indeksuje etykiety, nie pełny tekst).
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: cp-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - deliveroo-network
+    restart: unless-stopped
+
+  # Promtail — agent: czyta stdout kontenerów (docker) i wypycha logi do Loki.
+  promtail:
+    image: grafana/promtail:3.1.1
+    container_name: cp-promtail
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - deliveroo-network
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  # Grafana — warstwa wizualizacji. Sama nic nie przechowuje, tylko
+  # odpytuje Prometheus (metryki) i Loki (logi). Datasources + dashboardy
+  # wstrzykiwane przez provisioning (pliki w observability/grafana).
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: cp-grafana
+    ports:
+      - "3030:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - deliveroo-network
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
 networks:
   deliveroo-network:
     driver: bridge
 
 volumes:
   cp-mongodb_data:
+  prometheus_data:
+  loki_data:
+  grafana_data:

@@ -1,0 +1,2 @@
+# TODO (Krok 2): scrape_configs dla cp, node-exporter, mongodb-exporter
+# Placeholder — Prometheus nie wstaje z tym plikiem, serwis startujemy dopiero w Kroku 2.

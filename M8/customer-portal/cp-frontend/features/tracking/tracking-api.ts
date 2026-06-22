@@ -78,6 +78,11 @@ function adaptFeatureCollection(fc: TrackingFeatureCollection): TrackingData {
   }
 }
 
+export async function getAllTracking(): Promise<TrackingData[]> {
+  const list = await $fetch<TrackingFeatureCollection[]>('/api/tracking')
+  return list.map(adaptFeatureCollection)
+}
+
 export async function getTrackingByNumber(trackingNumber: string): Promise<TrackingData | null> {
   try {
     const fc = await $fetch<TrackingFeatureCollection>(

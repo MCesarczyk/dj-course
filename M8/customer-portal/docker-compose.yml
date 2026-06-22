@@ -47,16 +47,17 @@ services:
   # Prometheus — pull-based scraper metryk + baza szeregów czasowych (TSDB).
   # Sam odpytuje targety (cp, node-exporter, mongodb-exporter) co interwał.
   prometheus:
-    image: prom/prometheus:v2.54.1
+    image: prom/prometheus:v3.3.1
     container_name: cp-prometheus
     ports:
       - "9090:9090"
     volumes:
-      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
     networks:
       - deliveroo-network
     restart: unless-stopped
@@ -100,13 +101,13 @@ services:
 
   # Loki — magazyn logów (indeksuje etykiety, nie pełny tekst).
   loki:
-    image: grafana/loki:3.1.1
+    image: grafana/loki:3.5.0
     container_name: cp-loki
     ports:
       - "3100:3100"
     volumes:
-      - ./observability/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
-      - loki_data:/loki
+      - ./loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - deliveroo-network
@@ -114,10 +115,10 @@ services:
 
   # Promtail — agent: czyta stdout kontenerów (docker) i wypycha logi do Loki.
   promtail:
-    image: grafana/promtail:3.1.1
+    image: grafana/promtail:3.5.0
     container_name: cp-promtail
     volumes:
-      - ./observability/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock
     command: -config.file=/etc/promtail/config.yml
@@ -131,7 +132,7 @@ services:
   # odpytuje Prometheus (metryki) i Loki (logi). Datasources + dashboardy
   # wstrzykiwane przez provisioning (pliki w observability/grafana).
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:12.0.0
     container_name: cp-grafana
     ports:
       - "3030:3000"
@@ -139,8 +140,8 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
-      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
-      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
     networks:
       - deliveroo-network
     depends_on:
@@ -154,6 +155,6 @@ networks:
 
 volumes:
   cp-mongodb_data:
-  prometheus_data:
-  loki_data:
-  grafana_data:
+  prometheus-data:
+  loki-data:
+  grafana-data:

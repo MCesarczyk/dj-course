@@ -1,13 +1,16 @@
 # Dashboard provider — Grafana skanuje ten katalog w poszukiwaniu plików .json
 # i automatycznie je ładuje przy starcie.
+# allowUiUpdates: false — dashboardy są zarządzane kodem; zmiany w UI nie nadpisują plików.
 apiVersion: 1
 
 providers:
   - name: customer-portal
+    orgId: 1
     folder: Customer Portal
     type: file
+    updateIntervalSeconds: 10
     disableDeletion: false
-    allowUiUpdates: true
+    allowUiUpdates: false
     options:
       path: /etc/grafana/provisioning/dashboards
       foldersFromFilesStructure: false

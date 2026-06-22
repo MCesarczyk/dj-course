@@ -1,0 +1,17 @@
+# Grafana provisioning — datasources wstrzykiwane przy starcie (zamiast klikać w UI).
+# Adresy po nazwach kontenerów (ta sama sieć deliveroo-network).
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus          # stały uid → dashboardy mogą się do niego odwoływać
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100

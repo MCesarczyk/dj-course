@@ -1,0 +1,13 @@
+# Dashboard provider — Grafana skanuje ten katalog w poszukiwaniu plików .json
+# i automatycznie je ładuje przy starcie.
+apiVersion: 1
+
+providers:
+  - name: customer-portal
+    folder: Customer Portal
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

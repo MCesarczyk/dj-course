@@ -222,7 +222,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_server_duration_millisecond_count{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (http_route, http_method)",
+          "expr": "sum(rate(http_server_duration_milliseconds_count{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (http_route, http_method)",
           "legendFormat": "{{http_method}} {{http_route}}",
           "range": true,
           "refId": "A"

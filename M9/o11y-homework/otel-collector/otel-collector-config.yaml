@@ -70,7 +70,7 @@ processors:
 exporters:
   # METRICS: Endpoint from which Prometheus will scrape ALL application/infrastructure metrics
   prometheus:
-    endpoint: 0.0.0.0:8891
+    endpoint: 0.0.0.0:8890
     # Note: resource_to_telemetry_conversion is enabled by default
     # This converts service.name -> job label, but since Prometheus adds its own job label,
     # the result is exported_job="products-api" (which we use in queries) 

@@ -56,7 +56,7 @@ export function initTelemetry() {
     instrumentations: [
       getNodeAutoInstrumentations({
         '@opentelemetry/instrumentation-pg': {
-          enabled: !!Number(process.env.PG_INSTRUMENTATION_ENABLED),
+          enabled: true,
           requireParentSpan: true,
           addSqlCommenterCommentToQueries: true,
           enhancedDatabaseReporting: true,

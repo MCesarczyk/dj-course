@@ -349,7 +349,7 @@
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.90, sum(rate(http_server_duration_milliseconds_bucket{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (le, http_route))",
-          "legendFormat": "p90 {{route}}",
+          "legendFormat": "p90 {{http_route}}",
           "range": true,
           "refId": "B"
         },
@@ -1266,7 +1266,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(db_client_operation_duration_seconds_bucket{job=\"products-api\",db_system=\"postgresql\"}[$__range])) by (le, db_operation_name))",
+          "expr": "histogram_quantile(0.95, sum(rate(db_client_operation_duration_seconds_bucket{exported_job=\"products-api\",db_system=\"postgresql\"}[$__range])) by (le, db_operation_name))",
           "format": "time_series",
           "legendFormat": "{{db_operation_name}} p95",
           "range": true,

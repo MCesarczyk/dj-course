@@ -337,7 +337,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.5, sum(rate(http_server_duration_milliseconds_sum{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (le, http_route))",
+          "expr": "histogram_quantile(0.5, sum(rate(http_server_duration_milliseconds_bucket{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (le, http_route))",
           "legendFormat": "p50 {{http_route}}",
           "range": true,
           "refId": "A"
@@ -348,7 +348,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.90, sum(rate(http_server_duration_milliseconds_sum{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (le, http_route))",
+          "expr": "histogram_quantile(0.90, sum(rate(http_server_duration_milliseconds_bucket{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (le, http_route))",
           "legendFormat": "p90 {{route}}",
           "range": true,
           "refId": "B"
@@ -359,7 +359,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_milliseconds_sum{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (le, http_route))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_milliseconds_bucket{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (le, http_route))",
           "format": "time_series",
           "legendFormat": "p95 {{http_route}}",
           "range": true,
@@ -371,7 +371,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(http_server_duration_milliseconds_sum{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (le, http_route))",
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_duration_milliseconds_bucket{http_route=~\"$route\", http_method=~\"$method\"}[$__range])) by (le, http_route))",
           "legendFormat": "p99 {{http_route}}",
           "range": true,
           "refId": "D"

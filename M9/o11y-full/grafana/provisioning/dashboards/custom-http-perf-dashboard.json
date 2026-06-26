@@ -7,13 +7,58 @@
   "preload": false,
   "schemaVersion": 41,
   "tags": ["custom", "http", "errors"],
-  "templating": { "list": [] },
+  "templating": {
+    "list": [
+      {
+        "name": "route",
+        "label": "HTTP route",
+        "description": "Filtruj panele po trasie HTTP. 'All' (domyślnie) = bez filtra. Wartości pobierane z metryk (label_values).",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "definition": "label_values(http_server_duration_milliseconds_count{exported_job=\"products-api\"}, http_route)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(http_server_duration_milliseconds_count{exported_job=\"products-api\"}, http_route)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": { "text": ["All"], "value": ["$__all"] },
+        "options": [],
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0
+      },
+      {
+        "name": "method",
+        "label": "HTTP method",
+        "description": "Filtruj panele po metodzie HTTP. 'All' (domyślnie) = bez filtra.",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "definition": "label_values(http_server_duration_milliseconds_count{exported_job=\"products-api\"}, http_method)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(http_server_duration_milliseconds_count{exported_job=\"products-api\"}, http_method)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": { "text": ["All"], "value": ["$__all"] },
+        "options": [],
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0
+      }
+    ]
+  },
   "time": { "from": "now-15m", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "(Custom) HTTP Performance & Errors",
   "uid": "custom-http-perf",
-  "version": 3,
+  "version": 4,
   "panels": [
     {
       "id": 1,
@@ -49,7 +94,7 @@
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
           "editorMode": "code",
-          "expr": "sum(increase(http_server_duration_milliseconds_bucket{exported_job=\"products-api\"}[$__rate_interval])) by (le)",
+          "expr": "sum(increase(http_server_duration_milliseconds_bucket{exported_job=\"products-api\",http_route=~\"$route\",http_method=~\"$method\"}[$__rate_interval])) by (le)",
           "format": "heatmap",
           "legendFormat": "{{le}}",
           "range": true
@@ -197,7 +242,7 @@
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
           "editorMode": "code",
-          "expr": "topk(10, histogram_quantile(0.95, sum(rate(http_server_duration_milliseconds_bucket{exported_job=\"products-api\"}[$__range])) by (le, http_route, http_method)) >= 0)",
+          "expr": "topk(10, histogram_quantile(0.95, sum(rate(http_server_duration_milliseconds_bucket{exported_job=\"products-api\",http_route=~\"$route\",http_method=~\"$method\"}[$__range])) by (le, http_route, http_method)) >= 0)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",

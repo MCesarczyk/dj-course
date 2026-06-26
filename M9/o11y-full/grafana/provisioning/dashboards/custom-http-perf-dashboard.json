@@ -13,7 +13,7 @@
   "timezone": "",
   "title": "(Custom) HTTP Performance & Errors",
   "uid": "custom-http-perf",
-  "version": 2,
+  "version": 3,
   "panels": [
     {
       "id": 1,
@@ -216,6 +216,80 @@
               "Value": "p95 latency (ms)"
             }
           }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "PostgreSQL Connection Pool — liczba połączeń w puli (db_client_connection_count)",
+      "description": "Liczba połączeń w puli klienta PostgreSQL wg stanu: used = aktualnie używane, idle = bezczynne (wolne w puli). 'waiting' = żądania oczekujące na zwolnienie połączenia (db_client_connection_pending_requests) — utrzymujące się >0 oznacza, że pula jest za mała. Źródło: @opentelemetry/instrumentation-pg (OTel semconv).",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 18 },
+      "pluginVersion": "12.0.0",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "used" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "idle" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "waiting (pending)" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["last", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "hideZeros": false, "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+          "editorMode": "code",
+          "expr": "db_client_connection_count{exported_job=\"products-api\"}",
+          "legendFormat": "{{db_client_connection_state}}",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+          "editorMode": "code",
+          "expr": "db_client_connection_pending_requests{exported_job=\"products-api\"}",
+          "legendFormat": "waiting (pending)",
+          "range": true
         }
       ]
     }

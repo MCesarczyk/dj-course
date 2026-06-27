@@ -175,7 +175,7 @@ services:
     ports:
       - "4317:4317"  # gRPC
       - "4318:4318"  # HTTP
-      - "8891:8891"  # collector Prometheus exporter scrape port
+      - "8890:8890"  # collector Prometheus exporter scrape port
       - "8889:8889"  # collector internal metrics endpoint
     depends_on:
       - postgres-exporter

@@ -20,7 +20,24 @@ const parseConnectionString = (url: string) => {
 
 const dbConfig = parseConnectionString(process.env.DATABASE_URL!);
 
-const pool = new Pool(dbConfig);
+// ── Troubleshooting (Zadanie 8) ────────────────────────────────────────────────
+// BUG: podczas stress testu "massive" w dashboardzie NIE pojawiały się błędy.
+// Przyczyna: pula pg miała domyślne ustawienia (max=10, connectionTimeoutMillis=0
+// => "czekaj w nieskończoność"). Przy przeciążeniu zapytania kolejkowały się bez
+// końca zamiast zawodzić, więc saturacja objawiała się TYLKO jako client-side
+// timeouty (ECONNRESET/ETIMEDOUT u klienta) — serwer nigdy nie zwracał HTTP 5xx,
+// a panele błędów (filtr http_status_code=~"5..") nie miały czego pokazać.
+//
+// FIX: pula zawodzi szybko, gdy jest wysycona — przeciążenie staje się błędem 5xx,
+// który łapie catch w routerze (res.status(500)) i instrumentacja zapisuje go z
+// etykietą http_status_code=500 na trasach /products* => błędy są widoczne w Grafanie.
+const pool = new Pool({
+  ...dbConfig,
+  max: 3,                        // mała, ograniczona pula — szybka saturacja pod obciążeniem
+                                 // (z load-sheddingiem nadmiar jest odrzucany jako 503, a nie
+                                 //  kolejkowany w nieskończoność, blokując połączenia z bazą)
+  connectionTimeoutMillis: 1000, // gdy pula jest wysycona, oczekiwanie >1s => odrzucenie => 500
+});
 
 // Initialize a tracer for database operations
 const tracer = trace.getTracer('database');

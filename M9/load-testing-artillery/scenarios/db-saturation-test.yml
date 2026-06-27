@@ -1,0 +1,27 @@
+config:
+  target: "http://localhost:3000"
+  # Weryfikacja fixu (Zadanie 8): wysycenie 10-połączeniowej puli pg DB-bound
+  # endpointem (/orders/delivered = ciężkie zapytanie z podzapytaniem, ale MAŁA
+  # odpowiedź -> brak blokowania event-loopu i transferów 4MB, więc Colima-safe).
+  # Po fixie connectionTimeoutMillis przeciążenie puli => HTTP 500 widoczne w Grafanie.
+  phases:
+    - name: "Ramp to DB saturation"
+      duration: 15
+      arrivalRate: 100
+      rampTo: 400
+      maxVusers: 800
+    - name: "Sustain DB saturation"
+      duration: 40
+      arrivalRate: 400
+      maxVusers: 800
+    - name: "Ramp down"
+      duration: 10
+      arrivalRate: 400
+      rampTo: 10
+      maxVusers: 800
+
+scenarios:
+  - name: "Hammer heavy DB query (small response)"
+    flow:
+      - get:
+          url: "/orders/delivered"

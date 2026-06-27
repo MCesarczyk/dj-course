@@ -89,9 +89,16 @@ exporters:
 
 service:
   # DIAGNOSTIC METRICS: Exposed on a separate port, which Prometheus scrapes DIRECTLY
+  # NOTE: `metrics.address` was deprecated (collector >=0.123) and no longer starts the
+  # server. Use a pull/prometheus reader instead so the endpoint actually binds on :8889.
   telemetry:
     metrics:
-      address: 0.0.0.0:8889 
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8889
       
   pipelines:
     metrics:

@@ -72,6 +72,41 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// ── Troubleshooting (Zadanie 8): load shedding (concurrency limit) ─────────────
+// BUG: podczas stress testu "massive" w dashboardzie NIE pojawiały się błędy.
+// Przyczyna: przy przeciążeniu serwer NIE zwracał błędów HTTP 5xx — żądania wisiały
+// (kolejkując się po połączenie z pulą pg / blokując event-loop) aż KLIENT rezygnował
+// (ECONNRESET/ETIMEDOUT po stronie klienta). Takie awarie połączeniowe NIE tworzą
+// metryki http_server_duration z kodem 5xx, więc panele błędów (filtr
+// http_status_code=~"5..") nie miały czego pokazać — mimo że system był przeciążony.
+//
+// FIX: load shedding na podstawie liczby równoczesnych żądań (sprawdzenie SYNCHRONICZNE
+// na wejściu — działa nawet gdy event-loop jest pod presją, w przeciwieństwie do timera).
+// Gdy w obróbce jest > MAX_INFLIGHT żądań, nadmiar jest natychmiast odrzucany kodem 503.
+// 503 to prawidłowy błąd serwera — instrumentacja zapisuje go z http_status_code=503 =>
+// przeciążenie staje się WIDOCZNE w Grafanie zamiast cichego degradowania się.
+const MAX_INFLIGHT_REQUESTS = 5; // ~powyżej puli pg (3); nadmiar równoczesnych żądań => shed
+let inFlightRequests = 0;
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (isBlacklistedPath(req.path)) return next();
+
+  if (inFlightRequests >= MAX_INFLIGHT_REQUESTS) {
+    logger.warn('Load shedding - too many concurrent requests', {
+      in_flight: inFlightRequests,
+      limit: MAX_INFLIGHT_REQUESTS,
+      http: { method: req.method, path: req.path },
+    });
+    return res.status(503).json({ error: 'Service overloaded, try again later' });
+  }
+
+  inFlightRequests++;
+  let released = false;
+  const release = () => { if (released) return; released = true; inFlightRequests--; };
+  res.on('finish', release);
+  res.on('close', release);
+  next();
+});
+
 // Serve static files (public is at project root, __dirname is dist/ when compiled)
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

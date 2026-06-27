@@ -16,15 +16,9 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@vueuse/nuxt',
     '@artmizu/nuxt-prometheus',
-    'nuxt3-winston-log',
     // '@nuxtjs/storybook',
   ],
 
-  nuxt3WinstonLog: {
-    maxSize: "1024m",
-    maxFiles: "14d",
-  },
-  
   // Component auto-import configuration
   components: [
     {

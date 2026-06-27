@@ -1,0 +1,48 @@
+config:
+  target: "http://localhost:3000"
+  # "massive-lite": te same endpointy co product-massive-test.yml, ale bezpieczna
+  # dla Colimy skala. Cel: wysycić 10-połączeniową pulę pg, by przeciążenie
+  # objawiło się jako HTTP 500 (po fixie connectionTimeoutMillis) i było widoczne
+  # w dashboardzie błędów Grafany.
+  phases:
+    - name: "Ramp to saturation"
+      duration: 20
+      arrivalRate: 40
+      rampTo: 120
+      maxVusers: 1500
+    - name: "Sustain saturation"
+      duration: 40
+      arrivalRate: 120
+      maxVusers: 1500
+    - name: "Ramp down"
+      duration: 10
+      arrivalRate: 120
+      rampTo: 10
+      maxVusers: 1500
+  variables:
+    productId: [1, 2, 3, 4, 5]
+
+scenarios:
+  # Te same operacje co massive: ciężkie GET-y trzymają połączenia z puli.
+  - name: "Browse + analytics (heavy, holds pool)"
+    flow:
+      - get:
+          url: "/products"
+      - get:
+          url: "/orders/delivered"
+      - get:
+          url: "/products/{{ productId }}"
+  - name: "Create and manage product lifecycle"
+    flow:
+      - post:
+          url: "/products"
+          json:
+            name: "Massive Lite Product"
+            price: 9.99
+          capture:
+            - json: "$.id"
+              as: createdProductId
+      - get:
+          url: "/products/{{ createdProductId }}"
+      - delete:
+          url: "/products/{{ createdProductId }}"

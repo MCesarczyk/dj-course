@@ -1,0 +1,47 @@
+# Promtail — agent zbierający logi. Model PUSH: czyta stdout kontenerów
+# (przez Docker API na docker.sock) i wypycha do Loki.
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml      # gdzie skończył czytać (żeby nie dublować po restarcie)
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # zbieramy logi TYLKO z kontenerów naszego stacku (cp-*),
+      # pomijamy niezwiązane projekty na tej samej maszynie (wms, backend, postgres...)
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/cp-.*'
+        action: keep
+      # nazwa kontenera (Docker daje ją z wiodącym "/", obcinamy)
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: container
+      # stdout vs stderr
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: stream
+    pipeline_stages:
+      # nasze logi aplikacyjne to JSON winstona — wyciągamy pola
+      - json:
+          expressions:
+            level: level
+            service: service
+            scope: scope
+      # promujemy nisko-kardynalne pola na etykiety (filtrowalne w Grafanie)
+      - labels:
+          level:
+          service:
+      # użyj timestampu z logu (jeśli jest), zamiast czasu odbioru
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05'
+          action_on_failure: skip

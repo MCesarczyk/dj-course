@@ -707,7 +707,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "# http_server_duration_milliseconds_count{http_status_code=~'[45]..', http_route=~\"$route\", http_method=~\"$method\"}\n# rate(http_server_duration_milliseconds_count{http_status_code=~'[45]..', http_route=~\"$route\", http_method=~\"$method\"}[$__range])\n# sum(rate(http_server_duration_milliseconds_count{http_status_code=~'[45]..', http_route=~\"$route\", http_method=~\"$method\"}[$__range]))\n\nsum(rate(http_server_duration_milliseconds_count{http_status_code=~'[45]..', http_route=~\"$route\", http_method=~\"$method\"}[$__range]))\n/\nsum(rate(http_server_duration_milliseconds_count{http_route=~\"$route\", http_method=~\"$method\"}[$__range]))\n*\n100",
+          "expr": "# http_server_duration_milliseconds_count{http_status_code=~'[45]..', http_route=~\"$route\", http_method=~\"$method\"}\n# rate(http_server_duration_milliseconds_count{http_status_code=~'[45]..', http_route=~\"$route\", http_method=~\"$method\"}[$__range])\n# sum(rate(http_server_duration_milliseconds_count{http_status_code=~'[45]..', http_route=~\"$route\", http_method=~\"$method\"}[$__range]))\n\n(\nsum(rate(http_server_duration_milliseconds_count{http_status_code=~'[45]..', http_route=~\"$route\", http_method=~\"$method\"}[$__range]))\n/\nsum(rate(http_server_duration_milliseconds_count{http_route=~\"$route\", http_method=~\"$method\"}[$__range]))\n*\n100\n)\n>= 0 or vector(0)",
           "format": "time_series",
           "legendFormat": "__auto",
           "range": true,

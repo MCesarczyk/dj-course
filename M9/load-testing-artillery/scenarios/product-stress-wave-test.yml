@@ -1,0 +1,159 @@
+config:
+  target: "http://localhost:3000"
+  # UWAGA: lokalnie port 3000 (localhost) bywa "przesłonięty" przez hostowy dev-server.
+  # Uruchamiaj z nadpisaniem targetu na adres LAN, np.:
+  #   npm run test:wave:report
+  # lub:
+  #   artillery run --overrides '{"config":{"target":"http://192.168.0.151:3000"}}' scenarios/product-stress-wave-test.yml
+  phases:
+    # ───────────────────────────────────────────────────────────────────────
+    # Długi (~9 min), wielofazowy test z "falami": ruch rośnie, opada,
+    # znowu rośnie (mocniej), opada do doliny, po czym uderza najwyższym
+    # spike'em - i wygasa. Trzy eskalujące szczyty: 25 -> 45 -> 70 u/s.
+    # ───────────────────────────────────────────────────────────────────────
+
+    - name: "00 Rozgrzewka - cichy start"
+      duration: 45
+      arrivalRate: 2
+      rampTo: 5
+      maxVusers: 2000
+
+    - name: "01 Fala 1 - narastanie"
+      duration: 60
+      arrivalRate: 5
+      rampTo: 25
+      maxVusers: 2000
+
+    - name: "02 Fala 1 - szczyt (hold)"
+      duration: 40
+      arrivalRate: 25
+      maxVusers: 2000
+
+    - name: "03 Spadek po fali 1"
+      duration: 40
+      arrivalRate: 25
+      rampTo: 8
+      maxVusers: 2000
+
+    - name: "04 Dolina 1 - niski ruch"
+      duration: 30
+      arrivalRate: 8
+      maxVusers: 2000
+
+    - name: "05 Fala 2 - silniejsze narastanie"
+      duration: 70
+      arrivalRate: 8
+      rampTo: 45
+      maxVusers: 2000
+
+    - name: "06 Fala 2 - szczyt (hold)"
+      duration: 45
+      arrivalRate: 45
+      maxVusers: 2000
+
+    - name: "07 Ostry spadek"
+      duration: 35
+      arrivalRate: 45
+      rampTo: 10
+      maxVusers: 2000
+
+    - name: "08 Dolina 2 - gleboki spadek"
+      duration: 40
+      arrivalRate: 5
+      maxVusers: 2000
+
+    - name: "09 Fala 3 - blyskawiczny spike (najwyzszy)"
+      duration: 50
+      arrivalRate: 5
+      rampTo: 70
+      maxVusers: 2000
+
+    - name: "10 Fala 3 - szczyt maksymalny (hold)"
+      duration: 30
+      arrivalRate: 70
+      maxVusers: 2000
+
+    - name: "11 Wygaszanie - dlugi ramp down"
+      duration: 60
+      arrivalRate: 70
+      rampTo: 2
+      maxVusers: 2000
+
+  variables:
+    productId:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+    categoryId:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+
+scenarios:
+  # Najczestszy ruch: przegladanie katalogu i kart produktow.
+  - name: "Browse products collection"
+    weight: 4
+    flow:
+      - get:
+          url: "/products"
+      - think: 2
+      - get:
+          url: "/products/{{ productId }}"
+      - think: 1
+
+  # Ciezkie zapytania analityczne (JOIN-y, agregacje, podzapytania) -
+  # mocno obciazaja Postgresa i pule polaczen.
+  - name: "Analytics dashboards (heavy queries)"
+    weight: 3
+    flow:
+      - get:
+          url: "/top/products-by-category/{{ categoryId }}"
+      - think: 1
+      - get:
+          url: "/top/customers-by-total-spent"
+      - think: 1
+      - get:
+          url: "/orders/delivered"
+      - think: 2
+
+  # Pelny cykl zycia produktu: utworzenie -> odczyt -> usuniecie.
+  - name: "Create and manage product lifecycle"
+    weight: 2
+    flow:
+      - post:
+          url: "/products"
+          json:
+            name: "Wave Stress Product"
+            price: 49.99
+            stock: 100
+            category_id: 3
+          capture:
+            - json: "$.id"
+              as: createdProductId
+      - think: 1
+      - get:
+          url: "/products/{{ createdProductId }}"
+      - think: 1
+      - delete:
+          url: "/products/{{ createdProductId }}"
+
+  # Niewielka domieszka bledow - aby na dashboardzie bylo widac error rate
+  # podazajacy za ksztaltem fal (przy wyzszym ruchu wiecej bledow).
+  - name: "Error sprinkle"
+    weight: 1
+    flow:
+      - get:
+          url: "/inject-error"
+      - think: 1
+      - get:
+          url: "/products/999999999"
+      - think: 1
+      - get:
+          url: "/error"

@@ -1,104 +1,75 @@
 /**
- * Logger utility for server-side logging
- * Uses winston through nuxt3-winston-log module
- * 
- * nuxt3-winston-log automatically creates winston logger instance
- * Logs are written to files in logs/ directory and console
+ * Structured JSON logger for the server side.
+ *
+ * Built on winston directly (we dropped nuxt3-winston-log because its format was
+ * hardcoded text and it monkeypatched console globally).
+ *
+ * Every log line is a single JSON object written to stdout, e.g.:
+ *   {"level":"info","timestamp":"2026-06-22 10:00:00","service":"customer-portal",
+ *    "scope":"API:transportation:create","message":"Created transportation request: TR123"}
+ *
+ * stdout is what Docker captures and Promtail ships to Loki, so JSON here means
+ * we can filter by level / scope / service in Grafana.
  */
+import * as winston from 'winston'
 
-// Try to get winston logger from nuxt3-winston-log
-function getWinstonLogger() {
-  try {
-    // nuxt3-winston-log exposes logger through useLogger() or global
-    if (typeof useLogger !== 'undefined') {
-      return useLogger()
-    }
-    // Alternative: check if logger is available globally
-    if ((globalThis as any).winstonLogger) {
-      return (globalThis as any).winstonLogger
-    }
-  } catch (e) {
-    // Logger not available, will use fallback
-  }
-  return null
-}
+const { createLogger, format, transports } = winston
+
+// Single shared instance across the whole Nitro server runtime.
+const winstonLogger = createLogger({
+  level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'development' ? 'debug' : 'info'),
+  // service label lets Loki/Grafana distinguish this app from other containers
+  defaultMeta: { service: 'customer-portal' },
+  format: format.combine(
+    format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    format.errors({ stack: true }),
+    format.json()
+  ),
+  transports: [
+    // stdout — the source Promtail reads
+    new transports.Console()
+  ]
+})
 
 export const logger = {
   info: (message: string, meta?: Record<string, any>) => {
-    const winstonLogger = getWinstonLogger()
-    if (winstonLogger) {
-      winstonLogger.info(message, meta || {})
-      return
-    }
-    // Fallback to structured console logging
-    if (meta) {
-      console.log(`[INFO] ${message}`, meta)
-    } else {
-      console.log(`[INFO] ${message}`)
-    }
+    winstonLogger.info(message, meta || {})
   },
 
   error: (message: string, error?: Error | any, meta?: Record<string, any>) => {
-    const winstonLogger = getWinstonLogger()
-    if (winstonLogger) {
-      winstonLogger.error(message, { error: error?.message || error, stack: error?.stack, ...meta })
-      return
-    }
-    // Fallback to structured console logging
-    if (error) {
-      console.error(`[ERROR] ${message}`, error, meta || '')
-    } else {
-      console.error(`[ERROR] ${message}`, meta || '')
-    }
+    winstonLogger.error(message, {
+      err_message: error?.message ?? (error !== undefined ? String(error) : undefined),
+      stack: error?.stack,
+      ...meta
+    })
   },
 
   warn: (message: string, meta?: Record<string, any>) => {
-    const winstonLogger = getWinstonLogger()
-    if (winstonLogger) {
-      winstonLogger.warn(message, meta || {})
-      return
-    }
-    // Fallback to structured console logging
-    if (meta) {
-      console.warn(`[WARN] ${message}`, meta)
-    } else {
-      console.warn(`[WARN] ${message}`)
-    }
+    winstonLogger.warn(message, meta || {})
   },
 
   debug: (message: string, meta?: Record<string, any>) => {
-    const winstonLogger = getWinstonLogger()
-    if (winstonLogger) {
-      winstonLogger.debug(message, meta || {})
-      return
-    }
-    // Fallback to structured console logging (only in development)
-    if (process.env.NODE_ENV === 'development') {
-      if (meta) {
-        console.debug(`[DEBUG] ${message}`, meta)
-      } else {
-        console.debug(`[DEBUG] ${message}`)
-      }
-    }
+    winstonLogger.debug(message, meta || {})
   }
 }
 
 /**
- * Create a scoped logger with a prefix
+ * Create a scoped logger. The scope is attached as a structured `scope` field
+ * (not prefixed into the message) so it can be filtered on directly in Grafana.
  */
 export function createScopedLogger(scope: string) {
   return {
     info: (message: string, meta?: Record<string, any>) => {
-      logger.info(`[${scope}] ${message}`, meta)
+      logger.info(message, { scope, ...meta })
     },
     error: (message: string, error?: Error | any, meta?: Record<string, any>) => {
-      logger.error(`[${scope}] ${message}`, error, meta)
+      logger.error(message, error, { scope, ...meta })
     },
     warn: (message: string, meta?: Record<string, any>) => {
-      logger.warn(`[${scope}] ${message}`, meta)
+      logger.warn(message, { scope, ...meta })
     },
     debug: (message: string, meta?: Record<string, any>) => {
-      logger.debug(`[${scope}] ${message}`, meta)
+      logger.debug(message, { scope, ...meta })
     }
   }
 }

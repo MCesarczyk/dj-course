@@ -1,0 +1,31 @@
+# Prometheus — model PULL: ten plik to lista "kogo i jak często odpytywać".
+# Adresy = nazwy kontenerów + porty WEWNĘTRZNE (ta sama sieć deliveroo-network),
+# więc cp to "cp:3000", a nie "localhost:4003".
+
+global:
+  scrape_interval: 15s      # jak często odpytywać każdy target
+  evaluation_interval: 15s
+
+scrape_configs:
+  # 1) Sam Prometheus — dobra praktyka, monitoruje samego siebie.
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 2) Aplikacja Customer Portal — endpoint /metrics z @artmizu/nuxt-prometheus.
+  - job_name: customer-portal
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['cp:3000']
+        labels:
+          service: customer-portal
+
+  # 3) node-exporter — telemetria maszyny (CPU, RAM, dysk, sieć).
+  - job_name: node-exporter
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # 4) mongodb-exporter — statystyki MongoDB w formacie Prometheus.
+  - job_name: mongodb-exporter
+    static_configs:
+      - targets: ['mongodb-exporter:9216']

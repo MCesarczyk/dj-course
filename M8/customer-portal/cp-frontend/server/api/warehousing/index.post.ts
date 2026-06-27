@@ -1,5 +1,6 @@
 import { WarehousingRequest } from './WarehousingRequest.model';
 import { createScopedLogger } from '~/server/utils/logger';
+import { warehousingRequestsCreatedTotal } from '~/server/utils/metrics';
 
 const logger = createScopedLogger('API:warehousing:create');
 
@@ -39,7 +40,8 @@ export default defineEventHandler(async (event) => {
         });
         
         await newRequest.save();
-        
+        warehousingRequestsCreatedTotal.inc();
+
         logger.info(`Created warehousing request: ${requestNumber}`);
         
         const requestData = newRequest.toObject();

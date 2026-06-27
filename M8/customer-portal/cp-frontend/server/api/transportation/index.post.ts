@@ -1,5 +1,6 @@
 import { TransportationRequest } from './TransportationRequest.model';
 import { createScopedLogger } from '~/server/utils/logger';
+import { transportationRequestsCreatedTotal } from '~/server/utils/metrics';
 import type { Error as MongooseError } from 'mongoose';
 
 const logger = createScopedLogger('API:transportation:create');
@@ -41,7 +42,8 @@ export default defineEventHandler(async (event) => {
         
         // Mongoose validates automatically during save() based on schema
         await newRequest.save();
-        
+        transportationRequestsCreatedTotal.inc();
+
         logger.info(`Created transportation request: ${requestNumber}`);
         
         const requestData = newRequest.toObject();

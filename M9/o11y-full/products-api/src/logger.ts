@@ -67,14 +67,19 @@ function emitLog(
     attributes: flattenedAttributes,
   });
 
-  // Also log to console for local debugging
-  const logEntry = {
-    timestamp: new Date().toISOString(),
-    level: severityText,
-    message,
-    ...flattenedAttributes,
-  };
-  console.log(JSON.stringify(logEntry));
+  // Also log to console for local debugging.
+  // Troubleshooting (Zadanie 8): synchroniczny console.log(JSON.stringify(...)) na KAŻDY
+  // log (a logujemy każde żądanie) blokuje event-loop pod obciążeniem -> serwer przestaje
+  // być responsywny i nie zdąża nawet zwrócić błędów 5xx (timery/handlery się opóźniają).
+  // Logi i tak płyną do Loki przez OTel, więc duplikat na konsoli włączamy tylko opt-in.
+  if (process.env.CONSOLE_LOG === '1') {
+    console.log(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: severityText,
+      message,
+      ...flattenedAttributes,
+    }));
+  }
 }
 
 // Export logger interface compatible with Winston API

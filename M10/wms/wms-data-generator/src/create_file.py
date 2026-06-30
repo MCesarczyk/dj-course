@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from src.generate_sql_inserts import generate_sql_inserts
+from src.generators.sequences import sequence_resync_sql
 from src.config import VERBOSE
 
 banner = """
@@ -41,6 +42,9 @@ def create_sql_file():
         + create_table_sql.strip()
         + "\n\n"
         + "\n".join(result.lines)
+        + "\n\n"
+        + sequence_resync_sql()
+        + "\n"
     )
     stats = result.stats
 

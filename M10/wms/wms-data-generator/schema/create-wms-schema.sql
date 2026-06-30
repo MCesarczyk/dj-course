@@ -34,7 +34,8 @@ CREATE TABLE warehouse (
     warehouse_id SERIAL PRIMARY KEY,
     location_id INTEGER NOT NULL REFERENCES location(location_id),
     name TEXT NOT NULL,
-    description TEXT NOT NULL
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED','MAINTENANCE','INACTIVE'))
 );
 -- Basic FK index only
 CREATE INDEX idx_warehouse_location_id ON warehouse(location_id);
@@ -44,7 +45,8 @@ CREATE TABLE zone (
     zone_id SERIAL PRIMARY KEY,
     warehouse_id INTEGER NOT NULL REFERENCES warehouse(warehouse_id),
     name TEXT NOT NULL,
-    description TEXT NOT NULL
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED','MAINTENANCE','INACTIVE'))
 );
 CREATE INDEX idx_zone_warehouse_id ON zone(warehouse_id);
 
@@ -54,7 +56,8 @@ CREATE TABLE aisle (
     zone_id INTEGER NOT NULL REFERENCES zone(zone_id),
     label TEXT NOT NULL,
     width INTEGER NOT NULL,
-    width_unit TEXT NOT NULL
+    width_unit TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED','MAINTENANCE','INACTIVE'))
 );
 CREATE INDEX idx_aisle_zone_id ON aisle(zone_id);
 
@@ -64,7 +67,8 @@ CREATE TABLE rack (
     aisle_id INTEGER NOT NULL REFERENCES aisle(aisle_id),
     label TEXT NOT NULL,
     max_height INTEGER NOT NULL,
-    height_unit TEXT NOT NULL
+    height_unit TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED','MAINTENANCE','INACTIVE'))
 );
 CREATE INDEX idx_rack_aisle_id ON rack(aisle_id);
 
@@ -74,7 +78,8 @@ CREATE TABLE shelf (
     rack_id INTEGER NOT NULL REFERENCES rack(rack_id),
     level TEXT NOT NULL,
     max_weight NUMERIC NOT NULL,
-    max_volume NUMERIC NOT NULL
+    max_volume NUMERIC NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED','MAINTENANCE','INACTIVE'))
 );
 CREATE INDEX idx_shelf_rack_id ON shelf(rack_id);
 

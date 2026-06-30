@@ -131,6 +131,418 @@ paths:
                 items:
                   $ref: '#/components/schemas/EmployeeListItem'
 
+  # --- Warehouse structure CRUD (Magazyn / Strefa / Rząd / Szafa / Półka) ---
+  /warehouses:
+    get:
+      summary: List warehouses
+      operationId: listWarehouses
+      tags: [WarehouseStructure]
+      parameters:
+        - name: includeInactive
+          in: query
+          required: false
+          description: Include soft-deleted (INACTIVE) warehouses
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of warehouses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Warehouse'
+    post:
+      summary: Create warehouse (with its location)
+      operationId: createWarehouse
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseCreate'
+      responses:
+        '201':
+          description: Created warehouse
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /warehouses/{warehouse_id}:
+    parameters:
+      - name: warehouse_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      summary: Warehouse details
+      operationId: getWarehouse
+      tags: [WarehouseStructure]
+      responses:
+        '200':
+          description: Warehouse
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      summary: Update warehouse (name/description/status)
+      operationId: updateWarehouse
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseUpdate'
+      responses:
+        '200':
+          description: Updated warehouse
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+        '400': { description: Invalid request body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      summary: Soft-delete warehouse (status -> INACTIVE)
+      description: Blocked with 409 while the warehouse still has active zones.
+      operationId: deleteWarehouse
+      tags: [WarehouseStructure]
+      responses:
+        '204': { description: Soft-deleted }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Has active children, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /warehouses/{warehouse_id}/zones:
+    parameters:
+      - name: warehouse_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: List zones of a warehouse
+      operationId: listWarehouseZones
+      tags: [WarehouseStructure]
+      parameters:
+        - name: includeInactive
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: List of zones
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Zone' }
+        '404': { description: Warehouse not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    post:
+      summary: Create zone in a warehouse
+      operationId: createWarehouseZone
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZoneCreate' }
+      responses:
+        '201':
+          description: Created zone
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Zone' }
+        '400': { description: Invalid request body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Warehouse not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /zones/{zone_id}:
+    parameters:
+      - name: zone_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: Zone details
+      operationId: getZone
+      tags: [WarehouseStructure]
+      responses:
+        '200': { description: Zone, content: { application/json: { schema: { $ref: '#/components/schemas/Zone' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    patch:
+      summary: Update zone
+      operationId: updateZone
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZoneUpdate' }
+      responses:
+        '200': { description: Updated zone, content: { application/json: { schema: { $ref: '#/components/schemas/Zone' } } } }
+        '400': { description: Invalid request body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      summary: Soft-delete zone (blocked 409 if active aisles)
+      operationId: deleteZone
+      tags: [WarehouseStructure]
+      responses:
+        '204': { description: Soft-deleted }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Has active children, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /zones/{zone_id}/aisles:
+    parameters:
+      - name: zone_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: List aisles of a zone
+      operationId: listZoneAisles
+      tags: [WarehouseStructure]
+      parameters:
+        - name: includeInactive
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: List of aisles
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Aisle' } }
+        '404': { description: Zone not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    post:
+      summary: Create aisle in a zone
+      operationId: createZoneAisle
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AisleCreate' }
+      responses:
+        '201': { description: Created aisle, content: { application/json: { schema: { $ref: '#/components/schemas/Aisle' } } } }
+        '400': { description: Invalid request body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Zone not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /aisles/{aisle_id}:
+    parameters:
+      - name: aisle_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: Aisle details
+      operationId: getAisle
+      tags: [WarehouseStructure]
+      responses:
+        '200': { description: Aisle, content: { application/json: { schema: { $ref: '#/components/schemas/Aisle' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    patch:
+      summary: Update aisle
+      operationId: updateAisle
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AisleUpdate' }
+      responses:
+        '200': { description: Updated aisle, content: { application/json: { schema: { $ref: '#/components/schemas/Aisle' } } } }
+        '400': { description: Invalid request body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      summary: Soft-delete aisle (blocked 409 if active racks)
+      operationId: deleteAisle
+      tags: [WarehouseStructure]
+      responses:
+        '204': { description: Soft-deleted }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Has active children, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /aisles/{aisle_id}/racks:
+    parameters:
+      - name: aisle_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: List racks of an aisle
+      operationId: listAisleRacks
+      tags: [WarehouseStructure]
+      parameters:
+        - name: includeInactive
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: List of racks
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Rack' } }
+        '404': { description: Aisle not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    post:
+      summary: Create rack in an aisle
+      operationId: createAisleRack
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RackCreate' }
+      responses:
+        '201': { description: Created rack, content: { application/json: { schema: { $ref: '#/components/schemas/Rack' } } } }
+        '400': { description: Invalid request body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Aisle not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /racks/{rack_id}:
+    parameters:
+      - name: rack_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: Rack details
+      operationId: getRack
+      tags: [WarehouseStructure]
+      responses:
+        '200': { description: Rack, content: { application/json: { schema: { $ref: '#/components/schemas/Rack' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    patch:
+      summary: Update rack
+      operationId: updateRack
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RackUpdate' }
+      responses:
+        '200': { description: Updated rack, content: { application/json: { schema: { $ref: '#/components/schemas/Rack' } } } }
+        '400': { description: Invalid request body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      summary: Soft-delete rack (blocked 409 if active shelves)
+      operationId: deleteRack
+      tags: [WarehouseStructure]
+      responses:
+        '204': { description: Soft-deleted }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Has active children, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /racks/{rack_id}/shelves:
+    parameters:
+      - name: rack_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: List shelves of a rack (with occupancy)
+      operationId: listRackShelves
+      tags: [WarehouseStructure]
+      parameters:
+        - name: includeInactive
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: List of shelves
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Shelf' } }
+        '404': { description: Rack not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    post:
+      summary: Create shelf in a rack
+      operationId: createRackShelf
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShelfCreate' }
+      responses:
+        '201': { description: Created shelf, content: { application/json: { schema: { $ref: '#/components/schemas/Shelf' } } } }
+        '400': { description: Invalid request body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Rack not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /racks/{rack_id}/shelves:bulk:
+    parameters:
+      - name: rack_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      summary: Bulk-provision N identical shelves in a rack
+      operationId: bulkCreateRackShelves
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShelfBulkCreate' }
+      responses:
+        '201':
+          description: Created shelves
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Shelf' } }
+        '400': { description: Invalid request body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Rack not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /shelves/{shelf_id}:
+    parameters:
+      - name: shelf_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: Shelf details (capacity + live occupancy + locationCode)
+      operationId: getShelf
+      tags: [WarehouseStructure]
+      responses:
+        '200': { description: Shelf, content: { application/json: { schema: { $ref: '#/components/schemas/Shelf' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    patch:
+      summary: Update shelf
+      operationId: updateShelf
+      tags: [WarehouseStructure]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShelfUpdate' }
+      responses:
+        '200': { description: Updated shelf, content: { application/json: { schema: { $ref: '#/components/schemas/Shelf' } } } }
+        '400': { description: Invalid request body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      summary: Soft-delete shelf (blocked 409 if active reservations/open records)
+      operationId: deleteShelf
+      tags: [WarehouseStructure]
+      responses:
+        '204': { description: Soft-deleted }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Has active reservations or open storage records, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
   # --- Contractors ---
   /contractors:
     get:
@@ -512,6 +924,171 @@ components:
         external_reference:
           type: string
           nullable: true
+
+    # --- Warehouse structure ---
+    StructureStatus:
+      type: string
+      enum: [ACTIVE, BLOCKED, MAINTENANCE, INACTIVE]
+      description: |
+        Lifecycle status. ACTIVE = in service; BLOCKED = temporarily unavailable;
+        MAINTENANCE = out for repair; INACTIVE = soft-deleted (set by DELETE).
+
+    LocationInfo:
+      type: object
+      required: [address, city, postalCode, country]
+      properties:
+        address: { type: string }
+        city: { type: string }
+        postalCode: { type: string }
+        country: { type: string }
+
+    Warehouse:
+      type: object
+      required: [id, name, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/StructureStatus' }
+        location: { $ref: '#/components/schemas/LocationInfo' }
+        zoneCount: { type: integer, nullable: true, description: Active zones in this warehouse }
+
+    WarehouseCreate:
+      type: object
+      required: [name, description, location]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        location: { $ref: '#/components/schemas/LocationInfo' }
+
+    WarehouseUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/StructureStatus' }
+
+    Zone:
+      type: object
+      required: [id, warehouseId, name, status]
+      properties:
+        id: { type: string }
+        warehouseId: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/StructureStatus' }
+        aisleCount: { type: integer, nullable: true }
+
+    ZoneCreate:
+      type: object
+      required: [name, description]
+      properties:
+        name: { type: string }
+        description: { type: string }
+
+    ZoneUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/StructureStatus' }
+
+    Aisle:
+      type: object
+      required: [id, zoneId, label, width, widthUnit, status]
+      properties:
+        id: { type: string }
+        zoneId: { type: string }
+        label: { type: string }
+        width: { type: integer }
+        widthUnit: { type: string }
+        status: { $ref: '#/components/schemas/StructureStatus' }
+        rackCount: { type: integer, nullable: true }
+
+    AisleCreate:
+      type: object
+      required: [label, width, widthUnit]
+      properties:
+        label: { type: string }
+        width: { type: integer, minimum: 1 }
+        widthUnit: { type: string }
+
+    AisleUpdate:
+      type: object
+      properties:
+        label: { type: string }
+        width: { type: integer, minimum: 1 }
+        widthUnit: { type: string }
+        status: { $ref: '#/components/schemas/StructureStatus' }
+
+    Rack:
+      type: object
+      required: [id, aisleId, label, maxHeight, heightUnit, status]
+      properties:
+        id: { type: string }
+        aisleId: { type: string }
+        label: { type: string }
+        maxHeight: { type: integer }
+        heightUnit: { type: string }
+        status: { $ref: '#/components/schemas/StructureStatus' }
+        shelfCount: { type: integer, nullable: true }
+
+    RackCreate:
+      type: object
+      required: [label, maxHeight, heightUnit]
+      properties:
+        label: { type: string }
+        maxHeight: { type: integer, minimum: 1 }
+        heightUnit: { type: string }
+
+    RackUpdate:
+      type: object
+      properties:
+        label: { type: string }
+        maxHeight: { type: integer, minimum: 1 }
+        heightUnit: { type: string }
+        status: { $ref: '#/components/schemas/StructureStatus' }
+
+    Shelf:
+      type: object
+      required: [id, rackId, level, status, maxWeight, maxVolume]
+      properties:
+        id: { type: string }
+        rackId: { type: string }
+        level: { type: string }
+        locationCode: { type: string, nullable: true, description: 'Human-readable address: zone-aisle-rack-level' }
+        status: { $ref: '#/components/schemas/StructureStatus' }
+        maxWeight: { type: number, description: Nominal weight capacity }
+        maxVolume: { type: number, description: Nominal volume capacity }
+        reservedWeight: { type: number, description: Sum of ACTIVE reservations }
+        reservedVolume: { type: number }
+        availableWeight: { type: number, description: maxWeight - reservedWeight }
+        availableVolume: { type: number }
+
+    ShelfCreate:
+      type: object
+      required: [level, maxWeight, maxVolume]
+      properties:
+        level: { type: string }
+        maxWeight: { type: number, exclusiveMinimum: 0 }
+        maxVolume: { type: number, exclusiveMinimum: 0 }
+
+    ShelfBulkCreate:
+      type: object
+      required: [count, maxWeight, maxVolume]
+      properties:
+        count: { type: integer, minimum: 1, maximum: 100 }
+        maxWeight: { type: number, exclusiveMinimum: 0 }
+        maxVolume: { type: number, exclusiveMinimum: 0 }
+        levelPrefix: { type: string, default: 'L', description: 'Levels generated as {prefix}{1..count}' }
+
+    ShelfUpdate:
+      type: object
+      properties:
+        level: { type: string }
+        maxWeight: { type: number, exclusiveMinimum: 0 }
+        maxVolume: { type: number, exclusiveMinimum: 0 }
+        status: { $ref: '#/components/schemas/StructureStatus' }
 
     # --- Errors ---
     Error:

@@ -52,7 +52,7 @@ Content-Type: application/json
 }
 
 ### Update brand
-PUT {{brandsUrl}}/{{createBrand.response.body.$.id}}
+PUT {{brandsUrl}}/{{createBrand.id}}
 Content-Type: application/json
 
 {
@@ -60,7 +60,7 @@ Content-Type: application/json
 }
 
 ### Delete brand
-DELETE {{brandsUrl}}/{{createBrand.response.body.$.id}}
+DELETE {{brandsUrl}}/{{createBrand.id}}
 
 ### Method not allowed on collection — 405
 PATCH {{brandsUrl}}
@@ -142,7 +142,7 @@ Content-Type: application/json
 }
 
 ### Update model
-PUT {{modelsUrl}}/{{createTractorModel.response.body.$.id}}
+PUT {{modelsUrl}}/{{createTractorModel.id}}
 Content-Type: application/json
 
 {
@@ -150,7 +150,7 @@ Content-Type: application/json
 }
 
 ### Delete model
-DELETE {{modelsUrl}}/{{createTrailerModel.response.body.$.id}}
+DELETE {{modelsUrl}}/{{createTrailerModel.id}}
 
 ###
 # ─── Vehicles (egzemplarze) ──────────────────────────────────────────────────
@@ -253,7 +253,7 @@ Content-Type: application/json
 }
 
 ### Update vehicle (change mileage & status)
-PUT {{vehiclesUrl}}/{{createTractor.response.body.$.id}}
+PUT {{vehiclesUrl}}/{{createTractor.id}}
 Content-Type: application/json
 
 {
@@ -262,7 +262,7 @@ Content-Type: application/json
 }
 
 ### Delete vehicle
-DELETE {{vehiclesUrl}}/{{createTrailer.response.body.$.id}}
+DELETE {{vehiclesUrl}}/{{createTrailer.id}}
 
 ### Method not allowed on item — 405
 PATCH {{vehiclesUrl}}/1
@@ -299,7 +299,7 @@ Content-Type: application/json
 }
 
 ### Delete a document
-DELETE {{vehiclesUrl}}/1/documents/{{createDoc.response.body.$.id}}
+DELETE {{vehiclesUrl}}/1/documents/{{createDoc.id}}
 
 ### Delete missing document — 404
 DELETE {{vehiclesUrl}}/1/documents/{{missingId}}

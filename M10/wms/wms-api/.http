@@ -81,6 +81,53 @@ GET {{host}}/storage/{{storage_record_id}}/events
 Accept: application/json
 
 ########################################################
+### Storage operations (przyjęcie / przesunięcie / wydanie)
+########################################################
+
+@request_id = 1
+@target_shelf_id = 5
+
+@reservation_id = 26
+
+### Przyjęcie realizujące rezerwację (cargo domyślnie z rezerwacji)
+POST {{host}}/storage/reservations/{{reservation_id}}/fulfill
+Content-Type: application/json
+
+{ "cargoDescription": "Palety zgodne z rezerwacją" }
+
+### Przyjęcie: umieść towar na półce (właściciel z requestu)
+POST {{host}}/storage/receipts
+Content-Type: application/json
+
+{
+    "requestId": "{{request_id}}",
+    "shelfId": "{{shelf_id}}",
+    "cargoDescription": "Palety z kawą",
+    "cargoWeight": 80,
+    "cargoVolume": 0.9
+}
+
+### Szczegóły rekordu składowania
+GET {{host}}/storage/{{storage_record_id}}
+Accept: application/json
+
+### Przesunięcie na inną półkę
+POST {{host}}/storage/{{storage_record_id}}/move
+Content-Type: application/json
+
+{ "targetShelfId": "{{target_shelf_id}}", "note": "konsolidacja" }
+
+### Wydanie z magazynu
+POST {{host}}/storage/{{storage_record_id}}/dispatch
+Content-Type: application/json
+
+{ "note": "wydano kurierowi" }
+
+### Ścieżka audytu (RECEIVED -> MOVED -> DISPATCHED)
+GET {{host}}/storage/{{storage_record_id}}/events
+Accept: application/json
+
+########################################################
 ### Warehouse structure CRUD (Magazyn/Strefa/Rząd/Szafa/Półka)
 ########################################################
 

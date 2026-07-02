@@ -58,6 +58,106 @@ paths:
                 items:
                   $ref: '#/components/schemas/StorageEvent'
 
+  # --- Storage operations (receipt / move / dispatch) ---
+  /storage/receipts:
+    post:
+      summary: Receive goods onto a shelf (przyjęcie)
+      description: Creates a storage record against a request; owner is derived from the request. Logs a RECEIVED event.
+      operationId: receiveGoods
+      tags: [StorageOperations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReceiptCreate' }
+      responses:
+        '201': { description: Created storage record, content: { application/json: { schema: { $ref: '#/components/schemas/StorageRecord' } } } }
+        '400': { description: Invalid body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Request or shelf not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Shelf not ACTIVE / wrong warehouse / capacity exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /storage/{record_id}:
+    parameters:
+      - name: record_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: Storage record details
+      operationId: getStorageRecord
+      tags: [StorageOperations]
+      responses:
+        '200': { description: Storage record, content: { application/json: { schema: { $ref: '#/components/schemas/StorageRecord' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /storage/reservations/{reservation_id}/fulfill:
+    parameters:
+      - name: reservation_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      summary: Receive goods against a reservation (przyjęcie realizujące rezerwację)
+      description: >-
+        Converts an ACTIVE reservation into stored goods: creates a storage record on
+        the reserved shelf (owner/request from the reservation), marks the reservation
+        FULFILLED, and logs a RECEIVED event. Cargo defaults to the reserved amounts.
+      operationId: fulfillReservation
+      tags: [StorageOperations]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReservationFulfill' }
+      responses:
+        '201': { description: Created storage record, content: { application/json: { schema: { $ref: '#/components/schemas/StorageRecord' } } } }
+        '400': { description: Invalid body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Reservation or shelf not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Reservation not ACTIVE / shelf not ACTIVE / exceeds reserved / capacity, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /storage/{record_id}/move:
+    parameters:
+      - name: record_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      summary: Move stored goods to another shelf (przesunięcie)
+      description: Relocates an open record within the same warehouse. Logs a MOVED event.
+      operationId: moveGoods
+      tags: [StorageOperations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MoveRequest' }
+      responses:
+        '200': { description: Updated record, content: { application/json: { schema: { $ref: '#/components/schemas/StorageRecord' } } } }
+        '400': { description: Invalid body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Record or target shelf not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Already dispatched / same shelf / not ACTIVE / cross-warehouse / capacity, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /storage/{record_id}/dispatch:
+    parameters:
+      - name: record_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      summary: Dispatch goods from the warehouse (wydanie)
+      description: Closes an open record (sets exit date). Logs a DISPATCHED event.
+      operationId: dispatchGoods
+      tags: [StorageOperations]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DispatchRequest' }
+      responses:
+        '200': { description: Dispatched record, content: { application/json: { schema: { $ref: '#/components/schemas/StorageRecord' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Already dispatched, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
   # --- Employees ---
   /employees:
     get:
@@ -1201,6 +1301,57 @@ components:
         zones:
           type: array
           items: { $ref: '#/components/schemas/ZoneInventory' }
+
+    # --- Storage operations ---
+    ReceiptCreate:
+      type: object
+      required: [requestId, shelfId, cargoDescription, cargoWeight, cargoVolume]
+      properties:
+        requestId: { type: string }
+        shelfId: { type: string }
+        cargoDescription: { type: string }
+        cargoWeight: { type: number, exclusiveMinimum: 0 }
+        cargoVolume: { type: number, exclusiveMinimum: 0 }
+        entryDate: { type: string, format: date-time, nullable: true, description: Defaults to now }
+
+    ReservationFulfill:
+      type: object
+      description: All fields optional; cargo defaults to the reserved amounts and must not exceed them.
+      properties:
+        cargoDescription: { type: string, nullable: true }
+        cargoWeight: { type: number, exclusiveMinimum: 0, nullable: true }
+        cargoVolume: { type: number, exclusiveMinimum: 0, nullable: true }
+        entryDate: { type: string, format: date-time, nullable: true }
+
+    MoveRequest:
+      type: object
+      required: [targetShelfId]
+      properties:
+        targetShelfId: { type: string }
+        note: { type: string, nullable: true }
+
+    DispatchRequest:
+      type: object
+      properties:
+        exitDate: { type: string, format: date-time, nullable: true, description: Defaults to now }
+        note: { type: string, nullable: true }
+
+    StorageRecord:
+      type: object
+      required: [recordId, requestId, partyId, shelfId, cargoWeight, cargoVolume, status]
+      properties:
+        recordId: { type: string }
+        requestId: { type: string }
+        partyId: { type: string }
+        partyName: { type: string, nullable: true }
+        shelfId: { type: string }
+        locationCode: { type: string, nullable: true }
+        cargoDescription: { type: string, nullable: true }
+        cargoWeight: { type: number }
+        cargoVolume: { type: number }
+        entryDate: { type: string, format: date-time, nullable: true }
+        exitDate: { type: string, format: date-time, nullable: true }
+        status: { type: string, enum: [STORED, DISPATCHED] }
 
     # --- Errors ---
     Error:

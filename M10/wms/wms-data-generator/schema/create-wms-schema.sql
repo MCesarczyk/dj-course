@@ -194,7 +194,7 @@ CREATE TABLE storage_reservation (
     reserved_volume NUMERIC NOT NULL,
     reserved_from TIMESTAMP NOT NULL,
     reserved_until TIMESTAMP NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('PENDING','ACTIVE','EXPIRED','CANCELLED')) DEFAULT 'PENDING'
+    status TEXT NOT NULL CHECK (status IN ('PENDING','ACTIVE','EXPIRED','CANCELLED','FULFILLED')) DEFAULT 'PENDING'
 );
 CREATE INDEX idx_storage_reservation_request_id ON storage_reservation(request_id);
 CREATE INDEX idx_storage_reservation_party_id ON storage_reservation(party_id);

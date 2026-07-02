@@ -9,24 +9,142 @@ import {
   text,
   timestamp,
   date,
+  jsonb,
   index,
   foreignKey,
   unique,
+  check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-// ─── vehicles ────────────────────────────────────────────────────────────────
-// Property names match vehicles.queries.ts (snake_case preserved intentionally)
-export const vehicles = pgTable('vehicles', {
-  id: integer('id').primaryKey(),
-  make: varchar('make', { length: 50 }),
-  model: varchar('model', { length: 50 }).notNull(),
-  year: integer('year'),
-  fuel_tank_capacity: decimal('fuel_tank_capacity', { precision: 5, scale: 1 }),
-});
+// ─── vehicle_brands (marki) ──────────────────────────────────────────────────
+export const vehicleBrands = pgTable('vehicle_brands', {
+  id: serial('id').primaryKey().notNull(),
+  name: varchar('name', { length: 80 }).notNull(),
+  country: varchar('country', { length: 80 }),
+}, (table) => [unique('vehicle_brands_name_key').on(table.name)]);
+
+export type VehicleBrand = typeof vehicleBrands.$inferSelect;
+export type NewVehicleBrand = typeof vehicleBrands.$inferInsert;
+
+// ─── vehicle_models (modele) ─────────────────────────────────────────────────
+// Rozróżnia ciągniki siodłowe (TRACTOR_UNIT) od naczep (SEMI_TRAILER) oraz —
+// dla naczep — ich rodzaj (trailer_type: reefer/curtain/isotherm/tipper/…).
+export const vehicleModels = pgTable(
+  'vehicle_models',
+  {
+    id: serial('id').primaryKey().notNull(),
+    brandId: integer('brand_id').notNull(),
+    name: varchar('name', { length: 120 }).notNull(),
+    kind: varchar('kind', { length: 20 }).notNull(),
+    trailerType: varchar('trailer_type', { length: 30 }),
+  },
+  (table) => [
+    index('idx_vehicle_models_brand').on(table.brandId),
+    index('idx_vehicle_models_kind').on(table.kind),
+    foreignKey({
+      columns: [table.brandId],
+      foreignColumns: [vehicleBrands.id],
+      name: 'vehicle_models_brand_id_fkey',
+    }).onDelete('cascade'),
+    unique('uq_vehicle_model').on(table.brandId, table.name),
+    check('chk_vehicle_model_kind', sql`${table.kind} IN ('TRACTOR_UNIT', 'SEMI_TRAILER')`),
+    check(
+      'chk_vehicle_model_trailer_type',
+      sql`(${table.kind} = 'SEMI_TRAILER' AND ${table.trailerType} IS NOT NULL) OR (${table.kind} = 'TRACTOR_UNIT' AND ${table.trailerType} IS NULL)`
+    ),
+  ]
+);
+
+export type VehicleModel = typeof vehicleModels.$inferSelect;
+export type NewVehicleModel = typeof vehicleModels.$inferInsert;
+
+// ─── vehicles (egzemplarze) ──────────────────────────────────────────────────
+// Property names match vehicles.queries.ts (snake_case preserved intentionally).
+// Rozbudowa addytywna: legacy make/model/year/fuel_tank_capacity pozostają,
+// nowe pola (katalog, rejestracja, przebieg, specs jsonb) są opcjonalne.
+export const vehicles = pgTable(
+  'vehicles',
+  {
+    id: integer('id').primaryKey(),
+    make: varchar('make', { length: 50 }),
+    model: varchar('model', { length: 50 }).notNull(),
+    year: integer('year'),
+    fuel_tank_capacity: decimal('fuel_tank_capacity', { precision: 5, scale: 1 }),
+    model_id: integer('model_id'),
+    kind: varchar('kind', { length: 20 }),
+    registration_number: varchar('registration_number', { length: 20 }),
+    vin: varchar('vin', { length: 17 }),
+    first_registration_date: date('first_registration_date'),
+    mileage_km: integer('mileage_km'),
+    status: varchar('status', { length: 20 }).default('active'),
+    specs: jsonb('specs'),
+  },
+  (table) => [
+    index('idx_vehicles_model').on(table.model_id),
+    index('idx_vehicles_kind').on(table.kind),
+    foreignKey({
+      columns: [table.model_id],
+      foreignColumns: [vehicleModels.id],
+      name: 'vehicles_model_id_fkey',
+    }),
+    check('chk_vehicle_kind', sql`${table.kind} IS NULL OR ${table.kind} IN ('TRACTOR_UNIT', 'SEMI_TRAILER')`),
+  ]
+);
 
 export type Vehicle = typeof vehicles.$inferSelect;
 export type NewVehicle = typeof vehicles.$inferInsert;
+
+// ─── vehicle_documents (dokumenty egzemplarza) ───────────────────────────────
+export const vehicleDocuments = pgTable(
+  'vehicle_documents',
+  {
+    id: serial('id').primaryKey().notNull(),
+    vehicleId: integer('vehicle_id').notNull(),
+    docType: varchar('doc_type', { length: 40 }).notNull(),
+    documentNumber: varchar('document_number', { length: 60 }),
+    issueDate: date('issue_date'),
+    expiryDate: date('expiry_date'),
+    fileUrl: text('file_url'),
+    notes: text('notes'),
+  },
+  (table) => [
+    index('idx_vehicle_documents_vehicle').on(table.vehicleId),
+    index('idx_vehicle_documents_expiry').on(table.expiryDate),
+    foreignKey({
+      columns: [table.vehicleId],
+      foreignColumns: [vehicles.id],
+      name: 'vehicle_documents_vehicle_id_fkey',
+    }).onDelete('cascade'),
+  ]
+);
+
+export type VehicleDocument = typeof vehicleDocuments.$inferSelect;
+export type NewVehicleDocument = typeof vehicleDocuments.$inferInsert;
+
+// ─── vehicle_history_events (krótka historia egzemplarza) ────────────────────
+export const vehicleHistoryEvents = pgTable(
+  'vehicle_history_events',
+  {
+    id: serial('id').primaryKey().notNull(),
+    vehicleId: integer('vehicle_id').notNull(),
+    eventType: varchar('event_type', { length: 40 }).notNull(),
+    eventDate: date('event_date').notNull(),
+    mileageKm: integer('mileage_km'),
+    description: text('description'),
+  },
+  (table) => [
+    index('idx_vehicle_history_vehicle').on(table.vehicleId),
+    foreignKey({
+      columns: [table.vehicleId],
+      foreignColumns: [vehicles.id],
+      name: 'vehicle_history_events_vehicle_id_fkey',
+    }).onDelete('cascade'),
+  ]
+);
+
+export type VehicleHistoryEvent = typeof vehicleHistoryEvents.$inferSelect;
+export type NewVehicleHistoryEvent = typeof vehicleHistoryEvents.$inferInsert;
 
 // ─── drivers ─────────────────────────────────────────────────────────────────
 export const drivers = pgTable('drivers', {

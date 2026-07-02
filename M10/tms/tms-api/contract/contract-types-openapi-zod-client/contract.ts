@@ -66,6 +66,14 @@ const Vehicle = z
     model: z.string().max(50),
     year: z.number().int().nullish(),
     fuel_tank_capacity: z.string().nullish(),
+    model_id: z.number().int().nullish(),
+    kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).nullish(),
+    registration_number: z.string().max(20).nullish(),
+    vin: z.string().max(17).nullish(),
+    first_registration_date: z.string().nullish(),
+    mileage_km: z.number().int().nullish(),
+    status: z.string().max(20).nullish(),
+    specs: z.object({}).partial().passthrough().nullish(),
   })
   .passthrough();
 const VehicleListResponse = z
@@ -73,18 +81,175 @@ const VehicleListResponse = z
   .passthrough();
 const VehicleCreateInput = z
   .object({
-    make: z.string().max(50).nullish(),
-    model: z.string().max(50),
-    year: z.number().int().nullish(),
-    fuel_tank_capacity: z.number().gt(0).nullish(),
-  })
-  .passthrough();
-const VehicleUpdateInput = z
-  .object({
     make: z.string().max(50).nullable(),
-    model: z.string().max(50),
+    model: z.string().max(50).nullable(),
     year: z.number().int().nullable(),
     fuel_tank_capacity: z.number().gt(0).nullable(),
+    model_id: z.number().int().nullable(),
+    kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).nullable(),
+    registration_number: z.string().max(20).nullable(),
+    vin: z.string().max(17).nullable(),
+    first_registration_date: z.string().nullable(),
+    mileage_km: z.number().int().gte(0).nullable(),
+    status: z.string().max(20).nullable(),
+    specs: z.object({}).partial().passthrough().nullable(),
+  })
+  .partial()
+  .passthrough();
+const VehicleKind = z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]);
+const VehicleModel = z
+  .object({
+    id: z.number().int(),
+    brandId: z.number().int(),
+    name: z.string().max(120),
+    kind: VehicleKind,
+    trailerType: z
+      .enum([
+        "reefer",
+        "curtain",
+        "isotherm",
+        "tipper",
+        "platform",
+        "tank",
+        "container",
+      ])
+      .nullish(),
+  })
+  .passthrough();
+const VehicleBrand = z
+  .object({
+    id: z.number().int(),
+    name: z.string().max(80),
+    country: z.string().max(80).nullish(),
+  })
+  .passthrough();
+const VehicleDocument = z
+  .object({
+    id: z.number().int(),
+    vehicle_id: z.number().int(),
+    doc_type: z.string(),
+    document_number: z.string().max(60).nullish(),
+    issue_date: z.string().nullish(),
+    expiry_date: z.string().nullish(),
+    file_url: z.string().nullish(),
+    notes: z.string().nullish(),
+  })
+  .passthrough();
+const VehicleHistoryEvent = z
+  .object({
+    id: z.number().int(),
+    vehicle_id: z.number().int(),
+    event_type: z.string(),
+    event_date: z.string(),
+    mileage_km: z.number().int().nullish(),
+    description: z.string().nullish(),
+  })
+  .passthrough();
+const VehicleDetail = Vehicle.and(
+  z
+    .object({
+      model: VehicleModel,
+      brand: VehicleBrand,
+      documents: z.array(VehicleDocument),
+      history: z.array(VehicleHistoryEvent),
+    })
+    .partial()
+    .passthrough()
+);
+const VehicleUpdateInput = VehicleCreateInput;
+const VehicleDocumentListResponse = z
+  .object({ data: z.array(VehicleDocument) })
+  .passthrough();
+const VehicleDocumentCreateInput = z
+  .object({
+    doc_type: z.enum([
+      "registration_certificate",
+      "insurance_oc",
+      "insurance_ac",
+      "technical_inspection",
+      "tachograph",
+      "atp_certificate",
+      "other",
+    ]),
+    document_number: z.string().max(60).nullish(),
+    issue_date: z.string().nullish(),
+    expiry_date: z.string().nullish(),
+    file_url: z.string().nullish(),
+    notes: z.string().nullish(),
+  })
+  .passthrough();
+const VehicleHistoryListResponse = z
+  .object({ data: z.array(VehicleHistoryEvent) })
+  .passthrough();
+const VehicleHistoryEventCreateInput = z
+  .object({
+    event_type: z.enum([
+      "purchase",
+      "inspection",
+      "repair",
+      "accident",
+      "mileage_reading",
+      "status_change",
+      "sold",
+    ]),
+    event_date: z.string(),
+    mileage_km: z.number().int().gte(0).nullish(),
+    description: z.string().nullish(),
+  })
+  .passthrough();
+const VehicleBrandListResponse = z
+  .object({ data: z.array(VehicleBrand), pagination: Pagination })
+  .passthrough();
+const VehicleBrandCreateInput = z
+  .object({
+    name: z.string().min(1).max(80),
+    country: z.string().max(80).nullish(),
+  })
+  .passthrough();
+const VehicleBrandUpdateInput = z
+  .object({
+    name: z.string().min(1).max(80),
+    country: z.string().max(80).nullable(),
+  })
+  .partial()
+  .passthrough();
+const VehicleModelListResponse = z
+  .object({ data: z.array(VehicleModel), pagination: Pagination })
+  .passthrough();
+const VehicleModelCreateInput = z
+  .object({
+    brandId: z.number().int(),
+    name: z.string().min(1).max(120),
+    kind: VehicleKind,
+    trailerType: z
+      .enum([
+        "reefer",
+        "curtain",
+        "isotherm",
+        "tipper",
+        "platform",
+        "tank",
+        "container",
+      ])
+      .nullish(),
+  })
+  .passthrough();
+const VehicleModelUpdateInput = z
+  .object({
+    brandId: z.number().int(),
+    name: z.string().min(1).max(120),
+    kind: VehicleKind,
+    trailerType: z
+      .enum([
+        "reefer",
+        "curtain",
+        "isotherm",
+        "tipper",
+        "platform",
+        "tank",
+        "container",
+      ])
+      .nullable(),
   })
   .partial()
   .passthrough();
@@ -255,7 +420,23 @@ export const schemas = {
   Vehicle,
   VehicleListResponse,
   VehicleCreateInput,
+  VehicleKind,
+  VehicleModel,
+  VehicleBrand,
+  VehicleDocument,
+  VehicleHistoryEvent,
+  VehicleDetail,
   VehicleUpdateInput,
+  VehicleDocumentListResponse,
+  VehicleDocumentCreateInput,
+  VehicleHistoryListResponse,
+  VehicleHistoryEventCreateInput,
+  VehicleBrandListResponse,
+  VehicleBrandCreateInput,
+  VehicleBrandUpdateInput,
+  VehicleModelListResponse,
+  VehicleModelCreateInput,
+  VehicleModelUpdateInput,
   DriverListItem,
   DriverCreateInput,
   DriverLicense,
@@ -337,9 +518,47 @@ export const endpointParams = {
     body: z.object({ driver_id: z.number().int() }).passthrough(),
     id: z.number().int(),
   },
+  getVehicleBrands: {
+    page: z.string().optional().default("1"),
+    limit: z.string().optional().default("20"),
+  },
+  createVehicleBrand: {
+    body: VehicleBrandCreateInput,
+  },
+  getVehicleBrandById: {
+    id: z.number().int(),
+  },
+  updateVehicleBrand: {
+    body: VehicleBrandUpdateInput,
+    id: z.number().int(),
+  },
+  deleteVehicleBrand: {
+    id: z.number().int(),
+  },
+  getVehicleModels: {
+    page: z.string().optional().default("1"),
+    limit: z.string().optional().default("20"),
+    brandId: z.string().optional(),
+    kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).optional(),
+  },
+  createVehicleModel: {
+    body: VehicleModelCreateInput,
+  },
+  getVehicleModelById: {
+    id: z.number().int(),
+  },
+  updateVehicleModel: {
+    body: VehicleModelUpdateInput,
+    id: z.number().int(),
+  },
+  deleteVehicleModel: {
+    id: z.number().int(),
+  },
   getVehicles: {
     page: z.string().optional().default("1"),
     limit: z.string().optional().default("20"),
+    kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).optional(),
+    modelId: z.string().optional(),
   },
   createVehicle: {
     body: VehicleCreateInput,
@@ -352,6 +571,24 @@ export const endpointParams = {
     id: z.number().int(),
   },
   deleteVehicle: {
+    id: z.number().int(),
+  },
+  getVehicleDocuments: {
+    id: z.number().int(),
+  },
+  createVehicleDocument: {
+    body: VehicleDocumentCreateInput,
+    id: z.number().int(),
+  },
+  deleteVehicleDocument: {
+    id: z.number().int(),
+    docId: z.number().int(),
+  },
+  getVehicleHistory: {
+    id: z.number().int(),
+  },
+  createVehicleHistoryEvent: {
+    body: VehicleHistoryEventCreateInput,
     id: z.number().int(),
   },
 };
@@ -395,14 +632,43 @@ export const queryParams = {
     })
     .strict(),
   assignDriverToOrder: z.object({}).strict(),
+  getVehicleBrands: z
+    .object({
+      page: z.string().optional().default("1"),
+      limit: z.string().optional().default("20"),
+    })
+    .strict(),
+  createVehicleBrand: z.object({}).strict(),
+  getVehicleBrandById: z.object({}).strict(),
+  updateVehicleBrand: z.object({}).strict(),
+  deleteVehicleBrand: z.object({}).strict(),
+  getVehicleModels: z
+    .object({
+      page: z.string().optional().default("1"),
+      limit: z.string().optional().default("20"),
+      brandId: z.string().optional(),
+      kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).optional(),
+    })
+    .strict(),
+  createVehicleModel: z.object({}).strict(),
+  getVehicleModelById: z.object({}).strict(),
+  updateVehicleModel: z.object({}).strict(),
+  deleteVehicleModel: z.object({}).strict(),
   getVehicles: z
     .object({
       page: z.string().optional().default("1"),
       limit: z.string().optional().default("20"),
+      kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).optional(),
+      modelId: z.string().optional(),
     })
     .strict(),
   createVehicle: z.object({}).strict(),
   getVehicleById: z.object({}).strict(),
   updateVehicle: z.object({}).strict(),
   deleteVehicle: z.object({}).strict(),
+  getVehicleDocuments: z.object({}).strict(),
+  createVehicleDocument: z.object({}).strict(),
+  deleteVehicleDocument: z.object({}).strict(),
+  getVehicleHistory: z.object({}).strict(),
+  createVehicleHistoryEvent: z.object({}).strict(),
 };

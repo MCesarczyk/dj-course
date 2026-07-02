@@ -1,0 +1,191 @@
+# Vehicle brands (marki) – paths and schemas
+paths:
+  /vehicle-brands:
+    get:
+      summary: List vehicle brands
+      description: Returns a paginated list of vehicle brands (marki).
+      operationId: getVehicleBrands
+      tags:
+        - VehicleBrands
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PageParam'
+        - $ref: '../../contract/entry.yaml#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Paginated list of vehicle brands
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleBrandListResponse'
+              example:
+                data:
+                  - id: 1
+                    name: Volvo
+                    country: Sweden
+                  - id: 2
+                    name: Krone
+                    country: Germany
+                pagination:
+                  page: 1
+                  limit: 20
+                  total: 12
+                  totalPages: 1
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+    post:
+      summary: Create a vehicle brand
+      operationId: createVehicleBrand
+      tags:
+        - VehicleBrands
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleBrandCreateInput'
+            example:
+              name: Scania
+              country: Sweden
+      responses:
+        '201':
+          description: Vehicle brand created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleBrand'
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '409':
+          $ref: '../../contract/entry.yaml#/components/responses/Conflict'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+  /vehicle-brands/{id}:
+    get:
+      summary: Get vehicle brand by ID
+      operationId: getVehicleBrandById
+      tags:
+        - VehicleBrands
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+      responses:
+        '200':
+          description: Vehicle brand found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleBrand'
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+    put:
+      summary: Update a vehicle brand
+      operationId: updateVehicleBrand
+      tags:
+        - VehicleBrands
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleBrandUpdateInput'
+            example:
+              country: Sweden
+      responses:
+        '200':
+          description: Vehicle brand updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleBrand'
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '../../contract/entry.yaml#/components/responses/Conflict'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+    delete:
+      summary: Delete a vehicle brand
+      operationId: deleteVehicleBrand
+      tags:
+        - VehicleBrands
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+      responses:
+        '204':
+          description: Vehicle brand deleted
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    VehicleBrand:
+      type: object
+      description: A vehicle brand (marka).
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          maxLength: 80
+          example: Volvo
+        country:
+          type: string
+          nullable: true
+          maxLength: 80
+          example: Sweden
+    VehicleBrandListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleBrand'
+        pagination:
+          $ref: '../../contract/entry.yaml#/components/schemas/Pagination'
+    VehicleBrandCreateInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+          example: Scania
+        country:
+          type: string
+          nullable: true
+          maxLength: 80
+          example: Sweden
+    VehicleBrandUpdateInput:
+      type: object
+      description: Partial update — only provided fields are changed.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        country:
+          type: string
+          nullable: true
+          maxLength: 80

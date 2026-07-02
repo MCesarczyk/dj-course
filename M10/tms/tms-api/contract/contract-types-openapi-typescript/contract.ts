@@ -104,6 +104,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/vehicles/{id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List vehicle documents
+         * @description Returns documents (dokumenty) attached to a vehicle.
+         */
+        get: operations["getVehicleDocuments"];
+        put?: never;
+        /** Add a vehicle document */
+        post: operations["createVehicleDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vehicles/{id}/documents/{docId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a vehicle document */
+        delete: operations["deleteVehicleDocument"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vehicles/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List vehicle history events
+         * @description Returns the short history (krótka historia) of a vehicle.
+         */
+        get: operations["getVehicleHistory"];
+        put?: never;
+        /** Add a vehicle history event */
+        post: operations["createVehicleHistoryEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vehicle-brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List vehicle brands
+         * @description Returns a paginated list of vehicle brands (marki).
+         */
+        get: operations["getVehicleBrands"];
+        put?: never;
+        /** Create a vehicle brand */
+        post: operations["createVehicleBrand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vehicle-brands/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get vehicle brand by ID */
+        get: operations["getVehicleBrandById"];
+        /** Update a vehicle brand */
+        put: operations["updateVehicleBrand"];
+        post?: never;
+        /** Delete a vehicle brand */
+        delete: operations["deleteVehicleBrand"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vehicle-models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List vehicle models
+         * @description Returns a paginated list of vehicle models (modele). Each model belongs to a brand and is either a TRACTOR_UNIT (ciągnik siodłowy) or a SEMI_TRAILER (naczepa) — for trailers, `trailerType` describes the body kind.
+         */
+        get: operations["getVehicleModels"];
+        put?: never;
+        /** Create a vehicle model */
+        post: operations["createVehicleModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vehicle-models/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get vehicle model by ID */
+        get: operations["getVehicleModelById"];
+        /** Update a vehicle model */
+        put: operations["updateVehicleModel"];
+        post?: never;
+        /** Delete a vehicle model */
+        delete: operations["deleteVehicleModel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/drivers": {
         parameters: {
             query?: never;
@@ -559,6 +698,11 @@ export interface components {
              */
             version: number;
         };
+        /**
+         * @description Rozróżnienie ciągnik siodłowy vs naczepa.
+         * @enum {string}
+         */
+        VehicleKind: "TRACTOR_UNIT" | "SEMI_TRAILER";
         /** @description A single vehicle record as returned by the API. */
         Vehicle: {
             /**
@@ -586,59 +730,252 @@ export interface components {
              * @example 51.1
              */
             fuel_tank_capacity?: string | null;
+            /**
+             * @description Reference to a catalog model (vehicle_models.id)
+             * @example 3
+             */
+            model_id?: number | null;
+            /**
+             * @description Rozróżnienie ciągnik siodłowy / naczepa (zdenormalizowane pod filtr)
+             * @enum {string|null}
+             */
+            kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | null;
+            /**
+             * @description Numer rejestracyjny
+             * @example WA 12345
+             */
+            registration_number?: string | null;
+            /**
+             * @description Numer VIN
+             * @example YV2RT40A8FB123456
+             */
+            vin?: string | null;
+            /**
+             * Format: date
+             * @description Data pierwszej rejestracji
+             * @example 2021-03-15
+             */
+            first_registration_date?: string | null;
+            /**
+             * @description Przebieg w kilometrach
+             * @example 145000
+             */
+            mileage_km?: number | null;
+            /**
+             * @description Status egzemplarza
+             * @example active
+             */
+            status?: string | null;
+            /**
+             * @description Techniczne atrybuty zależne od typu (JSONB).
+             *     Ciągnik: {power_kw, euro_norm, axles, fuel_type};
+             *     naczepa: {euro_pallets, volume_m3, interior_height_m, has_tail_lift, has_refrigeration}.
+             * @example {
+             *       "power_kw": 331,
+             *       "euro_norm": "EURO6",
+             *       "axles": 2
+             *     }
+             */
+            specs?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** @description Paginated list of vehicles. */
         VehicleListResponse: {
             data: components["schemas"]["Vehicle"][];
             pagination: components["schemas"]["Pagination"];
         };
-        /** @description Payload for creating a new vehicle. Only `model` is required. */
+        /** @description Payload for creating a new vehicle instance (egzemplarz). All fields are optional — use legacy make/model or link a catalog model via model_id. */
         VehicleCreateInput: {
-            /**
-             * @description Vehicle manufacturer / brand
-             * @example Toyota
-             */
+            /** @example Volvo */
             make?: string | null;
-            /**
-             * @description Vehicle model name
-             * @example Corolla
-             */
-            model: string;
-            /**
-             * @description Manufacturing year
-             * @example 2024
-             */
+            /** @example FH 500 */
+            model?: string | null;
+            /** @example 2024 */
             year?: number | null;
             /**
              * Format: float
-             * @description Fuel tank capacity in litres (positive number)
-             * @example 55
+             * @example 600
              */
             fuel_tank_capacity?: number | null;
+            /** @example 3 */
+            model_id?: number | null;
+            /** @enum {string|null} */
+            kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | null;
+            /** @example WA 12345 */
+            registration_number?: string | null;
+            /** @example YV2RT40A8FB123456 */
+            vin?: string | null;
+            /**
+             * Format: date
+             * @example 2021-03-15
+             */
+            first_registration_date?: string | null;
+            /** @example 145000 */
+            mileage_km?: number | null;
+            /** @example active */
+            status?: string | null;
+            /**
+             * @example {
+             *       "power_kw": 331,
+             *       "euro_norm": "EURO6",
+             *       "axles": 2
+             *     }
+             */
+            specs?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** @description A vehicle model (model pojazdu). */
+        VehicleModel: {
+            /** @example 1 */
+            id: number;
+            /** @example 1 */
+            brandId: number;
+            /** @example Scania R450 */
+            name: string;
+            kind: components["schemas"]["VehicleKind"];
+            /**
+             * @description Wymagane dla SEMI_TRAILER, puste dla TRACTOR_UNIT.
+             * @enum {string|null}
+             */
+            trailerType?: "reefer" | "curtain" | "isotherm" | "tipper" | "platform" | "tank" | "container" | null;
+        };
+        /** @description A vehicle brand (marka). */
+        VehicleBrand: {
+            /** @example 1 */
+            id: number;
+            /** @example Volvo */
+            name: string;
+            /** @example Sweden */
+            country?: string | null;
+        };
+        /** @description A document (dokument) attached to a vehicle. */
+        VehicleDocument: {
+            /** @example 1 */
+            id: number;
+            /** @example 3 */
+            vehicle_id: number;
+            /**
+             * @description registration_certificate | insurance_oc | insurance_ac | technical_inspection | tachograph | atp_certificate | other
+             * @example insurance_oc
+             */
+            doc_type: string;
+            /** @example OC/2026/12345 */
+            document_number?: string | null;
+            /**
+             * Format: date
+             * @example 2026-01-01
+             */
+            issue_date?: string | null;
+            /**
+             * Format: date
+             * @example 2026-12-31
+             */
+            expiry_date?: string | null;
+            file_url?: string | null;
+            notes?: string | null;
+        };
+        /** @description A single history event (zdarzenie historii) of a vehicle. */
+        VehicleHistoryEvent: {
+            /** @example 1 */
+            id: number;
+            /** @example 3 */
+            vehicle_id: number;
+            /**
+             * @description purchase | inspection | repair | accident | mileage_reading | status_change | sold
+             * @example inspection
+             */
+            event_type: string;
+            /**
+             * Format: date
+             * @example 2026-05-10
+             */
+            event_date: string;
+            /** @example 145000 */
+            mileage_km?: number | null;
+            /** @example Badanie techniczne — wynik pozytywny */
+            description?: string | null;
+        };
+        /** @description A vehicle instance with its catalog (model + brand) and nested documents and history. Returned by GET /vehicles/{id}. */
+        VehicleDetail: components["schemas"]["Vehicle"] & {
+            model?: components["schemas"]["VehicleModel"];
+            brand?: components["schemas"]["VehicleBrand"];
+            documents?: components["schemas"]["VehicleDocument"][];
+            history?: components["schemas"]["VehicleHistoryEvent"][];
         };
         /** @description Payload for updating an existing vehicle. All fields are optional (partial update). Provide only the fields you want to change. */
-        VehicleUpdateInput: {
+        VehicleUpdateInput: components["schemas"]["VehicleCreateInput"];
+        VehicleDocumentListResponse: {
+            data: components["schemas"]["VehicleDocument"][];
+        };
+        VehicleDocumentCreateInput: {
             /**
-             * @description Vehicle manufacturer / brand
-             * @example Toyota
+             * @example insurance_oc
+             * @enum {string}
              */
-            make?: string | null;
+            doc_type: "registration_certificate" | "insurance_oc" | "insurance_ac" | "technical_inspection" | "tachograph" | "atp_certificate" | "other";
+            document_number?: string | null;
+            /** Format: date */
+            issue_date?: string | null;
+            /** Format: date */
+            expiry_date?: string | null;
+            file_url?: string | null;
+            notes?: string | null;
+        };
+        VehicleHistoryListResponse: {
+            data: components["schemas"]["VehicleHistoryEvent"][];
+        };
+        VehicleHistoryEventCreateInput: {
             /**
-             * @description Vehicle model name
-             * @example Camry
+             * @example inspection
+             * @enum {string}
              */
-            model?: string;
+            event_type: "purchase" | "inspection" | "repair" | "accident" | "mileage_reading" | "status_change" | "sold";
             /**
-             * @description Manufacturing year
-             * @example 2025
+             * Format: date
+             * @example 2026-05-10
              */
-            year?: number | null;
-            /**
-             * Format: float
-             * @description Fuel tank capacity in litres (positive number)
-             * @example 60
-             */
-            fuel_tank_capacity?: number | null;
+            event_date: string;
+            /** @example 145000 */
+            mileage_km?: number | null;
+            description?: string | null;
+        };
+        VehicleBrandListResponse: {
+            data: components["schemas"]["VehicleBrand"][];
+            pagination: components["schemas"]["Pagination"];
+        };
+        VehicleBrandCreateInput: {
+            /** @example Scania */
+            name: string;
+            /** @example Sweden */
+            country?: string | null;
+        };
+        /** @description Partial update — only provided fields are changed. */
+        VehicleBrandUpdateInput: {
+            name?: string;
+            country?: string | null;
+        };
+        VehicleModelListResponse: {
+            data: components["schemas"]["VehicleModel"][];
+            pagination: components["schemas"]["Pagination"];
+        };
+        VehicleModelCreateInput: {
+            /** @example 1 */
+            brandId: number;
+            /** @example Volvo FH 500 */
+            name: string;
+            kind: components["schemas"]["VehicleKind"];
+            /** @enum {string|null} */
+            trailerType?: "reefer" | "curtain" | "isotherm" | "tipper" | "platform" | "tank" | "container" | null;
+        };
+        /** @description Partial update — only provided fields are changed. */
+        VehicleModelUpdateInput: {
+            brandId?: number;
+            name?: string;
+            kind?: components["schemas"]["VehicleKind"];
+            /** @enum {string|null} */
+            trailerType?: "reefer" | "curtain" | "isotherm" | "tipper" | "platform" | "tank" | "container" | null;
         };
         /** @description A single driver record as returned in list and create responses. */
         DriverListItem: {
@@ -1139,6 +1476,24 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
+        /** @description The requested resource was not found. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description The request conflicts with the current state (e.g. duplicate or referenced resource). */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
     };
     parameters: {
         /**
@@ -1456,6 +1811,13 @@ export interface operations {
                  * @example 20
                  */
                 limit?: components["parameters"]["LimitParam"];
+                /** @description Filter by kind (TRACTOR_UNIT or SEMI_TRAILER) */
+                kind?: components["schemas"]["VehicleKind"];
+                /**
+                 * @description Filter by catalog model id
+                 * @example 1
+                 */
+                modelId?: string;
             };
             header?: never;
             path?: never;
@@ -1568,22 +1930,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Vehicle found */
+            /** @description Vehicle found (with catalog, documents and history) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "id": 1,
-                     *       "make": "Suzuki",
-                     *       "model": "S4",
-                     *       "year": 2021,
-                     *       "fuel_tank_capacity": "51.1"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["Vehicle"];
+                    "application/json": components["schemas"]["VehicleDetail"];
                 };
             };
             /** @description The provided ID is missing or has an invalid format. */
@@ -1728,6 +2081,550 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getVehicleDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of vehicle documents */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleDocumentListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createVehicleDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "doc_type": "insurance_oc",
+                 *       "document_number": "OC/2026/12345",
+                 *       "issue_date": "2026-01-01",
+                 *       "expiry_date": "2026-12-31"
+                 *     }
+                 */
+                "application/json": components["schemas"]["VehicleDocumentCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Document created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleDocument"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    deleteVehicleDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+                /**
+                 * @description Document identifier
+                 * @example 1
+                 */
+                docId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getVehicleHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of vehicle history events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleHistoryListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createVehicleHistoryEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "event_type": "inspection",
+                 *       "event_date": "2026-05-10",
+                 *       "mileage_km": 145000,
+                 *       "description": "Badanie techniczne — wynik pozytywny"
+                 *     }
+                 */
+                "application/json": components["schemas"]["VehicleHistoryEventCreateInput"];
+            };
+        };
+        responses: {
+            /** @description History event created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleHistoryEvent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getVehicleBrands: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Page number (1-based)
+                 * @example 1
+                 */
+                page?: components["parameters"]["PageParam"];
+                /**
+                 * @description Number of items per page (max 100)
+                 * @example 20
+                 */
+                limit?: components["parameters"]["LimitParam"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated list of vehicle brands */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "data": [
+                     *         {
+                     *           "id": 1,
+                     *           "name": "Volvo",
+                     *           "country": "Sweden"
+                     *         },
+                     *         {
+                     *           "id": 2,
+                     *           "name": "Krone",
+                     *           "country": "Germany"
+                     *         }
+                     *       ],
+                     *       "pagination": {
+                     *         "page": 1,
+                     *         "limit": 20,
+                     *         "total": 12,
+                     *         "totalPages": 1
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["VehicleBrandListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createVehicleBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "name": "Scania",
+                 *       "country": "Sweden"
+                 *     }
+                 */
+                "application/json": components["schemas"]["VehicleBrandCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Vehicle brand created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleBrand"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getVehicleBrandById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vehicle brand found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleBrand"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    updateVehicleBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "country": "Sweden"
+                 *     }
+                 */
+                "application/json": components["schemas"]["VehicleBrandUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description Vehicle brand updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleBrand"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    deleteVehicleBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vehicle brand deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getVehicleModels: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Page number (1-based)
+                 * @example 1
+                 */
+                page?: components["parameters"]["PageParam"];
+                /**
+                 * @description Number of items per page (max 100)
+                 * @example 20
+                 */
+                limit?: components["parameters"]["LimitParam"];
+                /**
+                 * @description Filter by brand id
+                 * @example 1
+                 */
+                brandId?: string;
+                /** @description Filter by kind (TRACTOR_UNIT or SEMI_TRAILER) */
+                kind?: components["schemas"]["VehicleKind"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated list of vehicle models */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "data": [
+                     *         {
+                     *           "id": 1,
+                     *           "brandId": 1,
+                     *           "name": "Scania R450",
+                     *           "kind": "TRACTOR_UNIT",
+                     *           "trailerType": null
+                     *         },
+                     *         {
+                     *           "id": 2,
+                     *           "brandId": 2,
+                     *           "name": "Krone Cool Liner",
+                     *           "kind": "SEMI_TRAILER",
+                     *           "trailerType": "reefer"
+                     *         }
+                     *       ],
+                     *       "pagination": {
+                     *         "page": 1,
+                     *         "limit": 20,
+                     *         "total": 30,
+                     *         "totalPages": 2
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["VehicleModelListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createVehicleModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VehicleModelCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Vehicle model created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleModel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getVehicleModelById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vehicle model found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleModel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    updateVehicleModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "name": "Volvo FH 540"
+                 *     }
+                 */
+                "application/json": components["schemas"]["VehicleModelUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description Vehicle model updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleModel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    deleteVehicleModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Numeric resource identifier
+                 * @example 1
+                 */
+                id: components["parameters"]["PathIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vehicle model deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["InternalServerError"];
         };
     };

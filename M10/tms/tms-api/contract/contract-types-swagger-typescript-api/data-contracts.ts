@@ -28,6 +28,9 @@ export type WeightUnit = "KG" | "TONNE" | "LB";
 /** Supported trailer types */
 export type TrailerType = "standard-curtainside" | "mega" | "reefer";
 
+/** Rozróżnienie ciągnik siodłowy vs naczepa. */
+export type VehicleKind = "TRACTOR_UNIT" | "SEMI_TRAILER";
+
 /** Pagination metadata attached to list responses. */
 export interface Pagination {
   /**
@@ -267,6 +270,49 @@ export interface Vehicle {
    * @example "51.1"
    */
   fuel_tank_capacity?: string | null;
+  /**
+   * Reference to a catalog model (vehicle_models.id)
+   * @example 3
+   */
+  model_id?: number | null;
+  /** Rozróżnienie ciągnik siodłowy / naczepa (zdenormalizowane pod filtr) */
+  kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | null;
+  /**
+   * Numer rejestracyjny
+   * @maxLength 20
+   * @example "WA 12345"
+   */
+  registration_number?: string | null;
+  /**
+   * Numer VIN
+   * @maxLength 17
+   * @example "YV2RT40A8FB123456"
+   */
+  vin?: string | null;
+  /**
+   * Data pierwszej rejestracji
+   * @format date
+   * @example "2021-03-15"
+   */
+  first_registration_date?: string | null;
+  /**
+   * Przebieg w kilometrach
+   * @example 145000
+   */
+  mileage_km?: number | null;
+  /**
+   * Status egzemplarza
+   * @maxLength 20
+   * @example "active"
+   */
+  status?: string | null;
+  /**
+   * Techniczne atrybuty zależne od typu (JSONB).
+   * Ciągnik: {power_kw, euro_norm, axles, fuel_type};
+   * naczepa: {euro_pallets, volume_m3, interior_height_m, has_tail_lift, has_refrigeration}.
+   * @example {"power_kw":331,"euro_norm":"EURO6","axles":2}
+   */
+  specs?: Record<string, any>;
 }
 
 /** Paginated list of vehicles. */
@@ -276,62 +322,294 @@ export interface VehicleListResponse {
   pagination: Pagination;
 }
 
-/** Payload for creating a new vehicle. Only `model` is required. */
+/** Payload for creating a new vehicle instance (egzemplarz). All fields are optional — use legacy make/model or link a catalog model via model_id. */
 export interface VehicleCreateInput {
   /**
-   * Vehicle manufacturer / brand
    * @maxLength 50
-   * @example "Toyota"
+   * @example "Volvo"
    */
   make?: string | null;
   /**
-   * Vehicle model name
    * @maxLength 50
-   * @example "Corolla"
+   * @example "FH 500"
    */
-  model: string;
-  /**
-   * Manufacturing year
-   * @example 2024
-   */
+  model?: string | null;
+  /** @example 2024 */
   year?: number | null;
   /**
-   * Fuel tank capacity in litres (positive number)
    * @format float
    * @min 0
    * @exclusiveMin true
-   * @example 55
+   * @example 600
    */
   fuel_tank_capacity?: number | null;
+  /** @example 3 */
+  model_id?: number | null;
+  kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | null;
+  /**
+   * @maxLength 20
+   * @example "WA 12345"
+   */
+  registration_number?: string | null;
+  /**
+   * @maxLength 17
+   * @example "YV2RT40A8FB123456"
+   */
+  vin?: string | null;
+  /**
+   * @format date
+   * @example "2021-03-15"
+   */
+  first_registration_date?: string | null;
+  /**
+   * @min 0
+   * @example 145000
+   */
+  mileage_km?: number | null;
+  /**
+   * @maxLength 20
+   * @example "active"
+   */
+  status?: string | null;
+  /** @example {"power_kw":331,"euro_norm":"EURO6","axles":2} */
+  specs?: Record<string, any>;
 }
 
+/** A vehicle model (model pojazdu). */
+export interface VehicleModel {
+  /** @example 1 */
+  id: number;
+  /** @example 1 */
+  brandId: number;
+  /**
+   * @maxLength 120
+   * @example "Scania R450"
+   */
+  name: string;
+  /** Rozróżnienie ciągnik siodłowy vs naczepa. */
+  kind: VehicleKind;
+  /** Wymagane dla SEMI_TRAILER, puste dla TRACTOR_UNIT. */
+  trailerType?:
+    | "reefer"
+    | "curtain"
+    | "isotherm"
+    | "tipper"
+    | "platform"
+    | "tank"
+    | "container"
+    | null;
+}
+
+/** A vehicle brand (marka). */
+export interface VehicleBrand {
+  /** @example 1 */
+  id: number;
+  /**
+   * @maxLength 80
+   * @example "Volvo"
+   */
+  name: string;
+  /**
+   * @maxLength 80
+   * @example "Sweden"
+   */
+  country?: string | null;
+}
+
+/** A document (dokument) attached to a vehicle. */
+export interface VehicleDocument {
+  /** @example 1 */
+  id: number;
+  /** @example 3 */
+  vehicle_id: number;
+  /**
+   * registration_certificate | insurance_oc | insurance_ac | technical_inspection | tachograph | atp_certificate | other
+   * @example "insurance_oc"
+   */
+  doc_type: string;
+  /**
+   * @maxLength 60
+   * @example "OC/2026/12345"
+   */
+  document_number?: string | null;
+  /**
+   * @format date
+   * @example "2026-01-01"
+   */
+  issue_date?: string | null;
+  /**
+   * @format date
+   * @example "2026-12-31"
+   */
+  expiry_date?: string | null;
+  file_url?: string | null;
+  notes?: string | null;
+}
+
+/** A single history event (zdarzenie historii) of a vehicle. */
+export interface VehicleHistoryEvent {
+  /** @example 1 */
+  id: number;
+  /** @example 3 */
+  vehicle_id: number;
+  /**
+   * purchase | inspection | repair | accident | mileage_reading | status_change | sold
+   * @example "inspection"
+   */
+  event_type: string;
+  /**
+   * @format date
+   * @example "2026-05-10"
+   */
+  event_date: string;
+  /** @example 145000 */
+  mileage_km?: number | null;
+  /** @example "Badanie techniczne — wynik pozytywny" */
+  description?: string | null;
+}
+
+/** A vehicle instance with its catalog (model + brand) and nested documents and history. Returned by GET /vehicles/{id}. */
+export type VehicleDetail = Vehicle & {
+  /** A vehicle model (model pojazdu). */
+  model?: VehicleModel;
+  /** A vehicle brand (marka). */
+  brand?: VehicleBrand;
+  documents?: VehicleDocument[];
+  history?: VehicleHistoryEvent[];
+};
+
 /** Payload for updating an existing vehicle. All fields are optional (partial update). Provide only the fields you want to change. */
-export interface VehicleUpdateInput {
+export type VehicleUpdateInput = VehicleCreateInput;
+
+export interface VehicleDocumentListResponse {
+  data: VehicleDocument[];
+}
+
+export interface VehicleDocumentCreateInput {
+  /** @example "insurance_oc" */
+  doc_type:
+    | "registration_certificate"
+    | "insurance_oc"
+    | "insurance_ac"
+    | "technical_inspection"
+    | "tachograph"
+    | "atp_certificate"
+    | "other";
+  /** @maxLength 60 */
+  document_number?: string | null;
+  /** @format date */
+  issue_date?: string | null;
+  /** @format date */
+  expiry_date?: string | null;
+  file_url?: string | null;
+  notes?: string | null;
+}
+
+export interface VehicleHistoryListResponse {
+  data: VehicleHistoryEvent[];
+}
+
+export interface VehicleHistoryEventCreateInput {
+  /** @example "inspection" */
+  event_type:
+    | "purchase"
+    | "inspection"
+    | "repair"
+    | "accident"
+    | "mileage_reading"
+    | "status_change"
+    | "sold";
   /**
-   * Vehicle manufacturer / brand
-   * @maxLength 50
-   * @example "Toyota"
+   * @format date
+   * @example "2026-05-10"
    */
-  make?: string | null;
+  event_date: string;
   /**
-   * Vehicle model name
-   * @maxLength 50
-   * @example "Camry"
-   */
-  model?: string;
-  /**
-   * Manufacturing year
-   * @example 2025
-   */
-  year?: number | null;
-  /**
-   * Fuel tank capacity in litres (positive number)
-   * @format float
    * @min 0
-   * @exclusiveMin true
-   * @example 60
+   * @example 145000
    */
-  fuel_tank_capacity?: number | null;
+  mileage_km?: number | null;
+  description?: string | null;
+}
+
+export interface VehicleBrandListResponse {
+  data: VehicleBrand[];
+  /** Pagination metadata attached to list responses. */
+  pagination: Pagination;
+}
+
+export interface VehicleBrandCreateInput {
+  /**
+   * @minLength 1
+   * @maxLength 80
+   * @example "Scania"
+   */
+  name: string;
+  /**
+   * @maxLength 80
+   * @example "Sweden"
+   */
+  country?: string | null;
+}
+
+/** Partial update — only provided fields are changed. */
+export interface VehicleBrandUpdateInput {
+  /**
+   * @minLength 1
+   * @maxLength 80
+   */
+  name?: string;
+  /** @maxLength 80 */
+  country?: string | null;
+}
+
+export interface VehicleModelListResponse {
+  data: VehicleModel[];
+  /** Pagination metadata attached to list responses. */
+  pagination: Pagination;
+}
+
+export interface VehicleModelCreateInput {
+  /** @example 1 */
+  brandId: number;
+  /**
+   * @minLength 1
+   * @maxLength 120
+   * @example "Volvo FH 500"
+   */
+  name: string;
+  /** Rozróżnienie ciągnik siodłowy vs naczepa. */
+  kind: VehicleKind;
+  trailerType?:
+    | "reefer"
+    | "curtain"
+    | "isotherm"
+    | "tipper"
+    | "platform"
+    | "tank"
+    | "container"
+    | null;
+}
+
+/** Partial update — only provided fields are changed. */
+export interface VehicleModelUpdateInput {
+  brandId?: number;
+  /**
+   * @minLength 1
+   * @maxLength 120
+   */
+  name?: string;
+  /** Rozróżnienie ciągnik siodłowy vs naczepa. */
+  kind?: VehicleKind;
+  trailerType?:
+    | "reefer"
+    | "curtain"
+    | "isotherm"
+    | "tipper"
+    | "platform"
+    | "tank"
+    | "container"
+    | null;
 }
 
 /** A single driver record as returned in list and create responses. */

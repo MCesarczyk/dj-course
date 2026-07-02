@@ -8,223 +8,160 @@ import {
   updateVehicle,
   deleteVehicle,
 } from './vehicles.queries';
+import {
+  vehicleCreateInputSchema,
+  vehicleUpdateInputSchema,
+  vehicleKindSchema,
+} from './vehicles.dto';
+import subresourcesRouter from './vehicle-subresources.routes';
 import logger from '../logger';
-import { parsePositiveInt, parsePathId } from '../shared/query-parsers';
+import { parsePositiveInt, parsePathId, parseOptionalQueryString } from '../shared/query-parsers';
+import { pgErrorCode as pgCode } from '../shared/pg-error';
 import { ErrorResponse } from '../types/data-contracts';
-import { Vehicles } from '../types/VehiclesRoute';
-import { queryParams } from '../zod/contract';
 
 const router = express.Router();
 
-router.get(
-  '/',
-  async (
-    req: Request<
-      Vehicles.GetVehicles.RequestParams,
-      Vehicles.GetVehicles.ResponseBody | ErrorResponse,
-      Vehicles.GetVehicles.RequestBody,
-      Vehicles.GetVehicles.RequestQuery
-    >,
-    res: Response<Vehicles.GetVehicles.ResponseBody | ErrorResponse>,
-  ) => {
-    try {
-      const queryValidation = queryParams.getVehicles.safeParse(req.query);
-      if (!queryValidation.success) {
-        return res.status(400).json({ error: queryValidation.error.issues.map(i => i.message).join(', ') });
-      }
+const formatZodError = (issues: { message: string }[]) =>
+  issues.map((i) => i.message).join(', ');
 
-      const page = parsePositiveInt(req.query.page, 1);
-      const limit = Math.min(parsePositiveInt(req.query.limit, 20), 100);
-      const offset = (page - 1) * limit;
+router.get('/', async (req: Request, res: Response<unknown | ErrorResponse>) => {
+  try {
+    const page = parsePositiveInt(req.query.page, 1);
+    const limit = Math.min(parsePositiveInt(req.query.limit, 20), 100);
+    const offset = (page - 1) * limit;
 
-      const result = await getVehicles({ limit, offset });
-      const totalPages = Math.ceil(result.total / limit);
+    const kindRaw = parseOptionalQueryString(req.query.kind);
+    if (kindRaw !== undefined && !vehicleKindSchema.safeParse(kindRaw).success) {
+      return res.status(400).json({ error: 'kind must be TRACTOR_UNIT or SEMI_TRAILER' });
+    }
 
-      const responseBody: Vehicles.GetVehicles.ResponseBody = {
-        data: result.rows,
-        pagination: {
-          page,
-          limit,
-          total: result.total,
-          totalPages,
-        },
-      };
+    const modelIdRaw = parseOptionalQueryString(req.query.modelId);
+    const modelId = modelIdRaw !== undefined ? parsePositiveInt(modelIdRaw, 0) : undefined;
+    if (modelIdRaw !== undefined && !modelId) {
+      return res.status(400).json({ error: 'modelId must be a positive integer' });
+    }
 
-      logger.info('Retrieved vehicles', {
-        vehicle_count: result.rows.length,
-        operation: 'get_all_vehicles',
-      });
-      res.json(responseBody);
-    } catch (error: unknown) {
-      const err = error as Error;
-      logger.error('Failed to fetch vehicles', {
-        error: { message: err.message, stack: err.stack },
-        operation: 'get_all_vehicles',
-      });
-      res.status(500).json({ error: 'Failed to fetch vehicles' });
-    }
-  },
-);
+    const result = await getVehicles({ limit, offset, kind: kindRaw, modelId });
+    const totalPages = Math.ceil(result.total / limit);
 
-router.get(
-  '/:id',
-  async (
-    req: Request<
-      Vehicles.GetVehicleById.RequestParams,
-      Vehicles.GetVehicleById.ResponseBody | ErrorResponse,
-      Vehicles.GetVehicleById.RequestBody,
-      Vehicles.GetVehicleById.RequestQuery
-    >,
-    res: Response<Vehicles.GetVehicleById.ResponseBody | ErrorResponse>,
-  ) => {
-    const id = parsePathId(req.params.id);
-    if (id === null) {
-      return res.status(400).json({ error: 'Vehicle ID must be a positive integer' });
-    }
-    try {
-      const vehicle = await getVehicleById(String(id));
-      if (!vehicle) {
-        return res.status(404).json({ error: 'Vehicle not found' });
-      }
-      logger.info('Retrieved vehicle', {
-        vehicle_id: vehicle.id,
-        operation: 'get_vehicle_by_id',
-      });
-      res.json(vehicle);
-    } catch (error: unknown) {
-      const err = error as Error;
-      logger.error('Failed to fetch vehicle by id', {
-        error: { message: err.message, stack: err.stack },
-        vehicle_id: id,
-        operation: 'get_vehicle_by_id',
-      });
-      res.status(500).json({ error: 'Failed to fetch vehicle by id' });
-    }
-  },
-);
+    logger.info('Retrieved vehicles', {
+      vehicle_count: result.rows.length,
+      operation: 'get_all_vehicles',
+    });
+    res.json({
+      data: result.rows,
+      pagination: { page, limit, total: result.total, totalPages },
+    });
+  } catch (error: unknown) {
+    const err = error as Error;
+    logger.error('Failed to fetch vehicles', {
+      error: { message: err.message, stack: err.stack },
+      operation: 'get_all_vehicles',
+    });
+    res.status(500).json({ error: 'Failed to fetch vehicles' });
+  }
+});
 
-router.post(
-  '/',
-  async (
-    req: Request<
-      Vehicles.CreateVehicle.RequestParams,
-      Vehicles.CreateVehicle.ResponseBody | ErrorResponse,
-      Vehicles.CreateVehicle.RequestBody,
-      Vehicles.CreateVehicle.RequestQuery
-    >,
-    res: Response<Vehicles.CreateVehicle.ResponseBody | ErrorResponse>,
-  ) => {
-    const body = req.body;
-    if (!body || typeof body !== 'object') {
-      return res.status(400).json({ error: 'Invalid request body' });
+router.get('/:id', async (req: Request, res: Response<unknown | ErrorResponse>) => {
+  const id = parsePathId(req.params.id);
+  if (id === null) {
+    return res.status(400).json({ error: 'Vehicle ID must be a positive integer' });
+  }
+  try {
+    const vehicle = await getVehicleById(id);
+    if (!vehicle) {
+      return res.status(404).json({ error: 'Vehicle not found' });
     }
-    if (!body.model || typeof body.model !== 'string') {
-      return res.status(400).json({ error: 'model is required and must be a string' });
-    }
-    if (body.year !== undefined && body.year !== null && !Number.isInteger(body.year)) {
-      return res.status(400).json({ error: 'year must be an integer' });
-    }
-    try {
-      const vehicle = await createVehicle({
-        make: body.make ?? undefined,
-        model: body.model ?? undefined,
-        year: body.year ?? undefined,
-        fuel_tank_capacity: body.fuel_tank_capacity ?? undefined,
-      });
-      logger.info('Vehicle created', { vehicle_id: vehicle.id });
-      res.status(201).json(vehicle);
-    } catch (err: unknown) {
-      const error = err as Error;
-      logger.error('Failed to create vehicle', {
-        error: { message: error.message, stack: error.stack },
-        operation: 'create_vehicle',
-      });
-      res.status(500).json({ error: 'Failed to create vehicle' });
-    }
-  },
-);
+    logger.info('Retrieved vehicle', { vehicle_id: vehicle.id, operation: 'get_vehicle_by_id' });
+    res.json(vehicle);
+  } catch (error: unknown) {
+    const err = error as Error;
+    logger.error('Failed to fetch vehicle by id', {
+      error: { message: err.message, stack: err.stack },
+      vehicle_id: id,
+      operation: 'get_vehicle_by_id',
+    });
+    res.status(500).json({ error: 'Failed to fetch vehicle by id' });
+  }
+});
 
-router.put(
-  '/:id',
-  async (
-    req: Request<
-      Vehicles.UpdateVehicle.RequestParams,
-      Vehicles.UpdateVehicle.ResponseBody | ErrorResponse,
-      Vehicles.UpdateVehicle.RequestBody,
-      Vehicles.UpdateVehicle.RequestQuery
-    >,
-    res: Response<Vehicles.UpdateVehicle.ResponseBody | ErrorResponse>,
-  ) => {
-    const id = parsePathId(req.params.id);
-    if (id === null) {
-      return res.status(400).json({ error: 'Vehicle ID must be a positive integer' });
+router.post('/', async (req: Request, res: Response<unknown | ErrorResponse>) => {
+  const parsed = vehicleCreateInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: formatZodError(parsed.error.issues) });
+  }
+  try {
+    const vehicle = await createVehicle(parsed.data);
+    logger.info('Vehicle created', { vehicle_id: vehicle.id });
+    res.status(201).json(vehicle);
+  } catch (error: unknown) {
+    if (pgCode(error) === '23503') {
+      return res.status(400).json({ error: 'Referenced vehicle model does not exist' });
     }
-    const body = req.body;
-    if (!body || typeof body !== 'object') {
-      return res.status(400).json({ error: 'Invalid request body' });
-    }
-    if (body.year !== undefined && body.year !== null && !Number.isInteger(body.year)) {
-      return res.status(400).json({ error: 'year must be an integer' });
-    }
-    try {
-      const vehicle = await updateVehicle(String(id), {
-        make: body.make ?? undefined,
-        model: body.model ?? undefined,
-        year: body.year ?? undefined,
-        fuel_tank_capacity: body.fuel_tank_capacity ?? undefined,
-      });
-      if (!vehicle) {
-        return res.status(404).json({
-          error: 'Vehicle not found or invalid data',
-        });
-      }
-      logger.info('Vehicle updated', { vehicle_id: vehicle.id });
-      res.json(vehicle);
-    } catch (err: unknown) {
-      const error = err as Error;
-      logger.error('Failed to update vehicle', {
-        error: { message: error.message, stack: error.stack },
-        vehicle_id: id,
-        operation: 'update_vehicle',
-      });
-      res.status(500).json({ error: 'Failed to update vehicle' });
-    }
-  },
-);
+    const err = error as Error;
+    logger.error('Failed to create vehicle', {
+      error: { message: err.message, stack: err.stack },
+      operation: 'create_vehicle',
+    });
+    res.status(500).json({ error: 'Failed to create vehicle' });
+  }
+});
 
-router.delete(
-  '/:id',
-  async (
-    req: Request<
-      Vehicles.DeleteVehicle.RequestParams,
-      Vehicles.DeleteVehicle.ResponseBody | ErrorResponse,
-      Vehicles.DeleteVehicle.RequestBody,
-      Vehicles.DeleteVehicle.RequestQuery
-    >,
-    res: Response<Vehicles.DeleteVehicle.ResponseBody | ErrorResponse>,
-  ) => {
-    const id = parsePathId(req.params.id);
-    if (id === null) {
-      return res.status(400).json({ error: 'Vehicle ID must be a positive integer' });
+router.put('/:id', async (req: Request, res: Response<unknown | ErrorResponse>) => {
+  const id = parsePathId(req.params.id);
+  if (id === null) {
+    return res.status(400).json({ error: 'Vehicle ID must be a positive integer' });
+  }
+  const parsed = vehicleUpdateInputSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: formatZodError(parsed.error.issues) });
+  }
+  try {
+    const vehicle = await updateVehicle(id, parsed.data);
+    if (!vehicle) {
+      return res.status(404).json({ error: 'Vehicle not found or invalid data' });
     }
-    try {
-      const deleted = await deleteVehicle(String(id));
-      if (!deleted) {
-        return res.status(404).json({ error: 'Vehicle not found' });
-      }
-      logger.info('Vehicle deleted', { vehicle_id: id });
-      res.status(204).send();
-    } catch (err: unknown) {
-      const error = err as Error;
-      logger.error('Failed to delete vehicle', {
-        error: { message: error.message, stack: error.stack },
-        vehicle_id: id,
-        operation: 'delete_vehicle',
-      });
-      res.status(500).json({ error: 'Failed to delete vehicle' });
+    logger.info('Vehicle updated', { vehicle_id: vehicle.id });
+    res.json(vehicle);
+  } catch (error: unknown) {
+    if (pgCode(error) === '23503') {
+      return res.status(400).json({ error: 'Referenced vehicle model does not exist' });
     }
-  },
-);
+    const err = error as Error;
+    logger.error('Failed to update vehicle', {
+      error: { message: err.message, stack: err.stack },
+      vehicle_id: id,
+      operation: 'update_vehicle',
+    });
+    res.status(500).json({ error: 'Failed to update vehicle' });
+  }
+});
+
+router.delete('/:id', async (req: Request, res: Response<unknown | ErrorResponse>) => {
+  const id = parsePathId(req.params.id);
+  if (id === null) {
+    return res.status(400).json({ error: 'Vehicle ID must be a positive integer' });
+  }
+  try {
+    const deleted = await deleteVehicle(id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
+    logger.info('Vehicle deleted', { vehicle_id: id });
+    res.status(204).send();
+  } catch (error: unknown) {
+    const err = error as Error;
+    logger.error('Failed to delete vehicle', {
+      error: { message: err.message, stack: err.stack },
+      vehicle_id: id,
+      operation: 'delete_vehicle',
+    });
+    res.status(500).json({ error: 'Failed to delete vehicle' });
+  }
+});
+
+// Nested sub-resources: /vehicles/:id/documents, /vehicles/:id/history
+router.use('/:id', subresourcesRouter);
 
 router.all('/', (_req, res) => res.status(405).set('Allow', 'GET, POST').json({ error: 'Method Not Allowed' }));
 router.all('/:id', (_req, res) => res.status(405).set('Allow', 'GET, PUT, DELETE').json({ error: 'Method Not Allowed' }));

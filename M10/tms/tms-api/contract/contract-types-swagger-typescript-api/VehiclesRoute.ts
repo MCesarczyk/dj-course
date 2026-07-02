@@ -13,6 +13,14 @@
 import {
   Vehicle,
   VehicleCreateInput,
+  VehicleDetail,
+  VehicleDocument,
+  VehicleDocumentCreateInput,
+  VehicleDocumentListResponse,
+  VehicleHistoryEvent,
+  VehicleHistoryEventCreateInput,
+  VehicleHistoryListResponse,
+  VehicleKind,
   VehicleListResponse,
   VehicleUpdateInput,
 } from "./data-contracts";
@@ -43,6 +51,13 @@ export namespace Vehicles {
        * @example "20"
        */
       limit?: string;
+      /** Filter by kind (TRACTOR_UNIT or SEMI_TRAILER) */
+      kind?: VehicleKind;
+      /**
+       * Filter by catalog model id
+       * @example "1"
+       */
+      modelId?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
@@ -73,7 +88,7 @@ export namespace Vehicles {
    * @name GetVehicleById
    * @summary Get vehicle by ID
    * @request GET:/vehicles/{id}
-   * @response `200` `Vehicle` Vehicle found
+   * @response `200` `VehicleDetail` Vehicle found (with catalog, documents and history)
    * @response `400` `ErrorResponse` The provided ID is missing or has an invalid format.
    * @response `404` `ErrorResponse` No vehicle exists with the given ID.
    * @response `500` `ErrorResponse`
@@ -89,7 +104,7 @@ export namespace Vehicles {
     export type RequestQuery = {};
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = Vehicle;
+    export type ResponseBody = VehicleDetail;
   }
 
   /**
@@ -140,5 +155,135 @@ export namespace Vehicles {
     export type RequestBody = never;
     export type RequestHeaders = {};
     export type ResponseBody = void;
+  }
+
+  /**
+   * @description Returns documents (dokumenty) attached to a vehicle.
+   * @tags Vehicles
+   * @name GetVehicleDocuments
+   * @summary List vehicle documents
+   * @request GET:/vehicles/{id}/documents
+   * @response `200` `VehicleDocumentListResponse` List of vehicle documents
+   * @response `400` `ErrorResponse`
+   * @response `404` `ErrorResponse`
+   * @response `500` `ErrorResponse`
+   */
+  export namespace GetVehicleDocuments {
+    export type RequestParams = {
+      /**
+       * Numeric resource identifier
+       * @example 1
+       */
+      id: number;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = VehicleDocumentListResponse;
+  }
+
+  /**
+   * No description
+   * @tags Vehicles
+   * @name CreateVehicleDocument
+   * @summary Add a vehicle document
+   * @request POST:/vehicles/{id}/documents
+   * @response `201` `VehicleDocument` Document created
+   * @response `400` `ErrorResponse`
+   * @response `404` `ErrorResponse`
+   * @response `500` `ErrorResponse`
+   */
+  export namespace CreateVehicleDocument {
+    export type RequestParams = {
+      /**
+       * Numeric resource identifier
+       * @example 1
+       */
+      id: number;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = VehicleDocumentCreateInput;
+    export type RequestHeaders = {};
+    export type ResponseBody = VehicleDocument;
+  }
+
+  /**
+   * No description
+   * @tags Vehicles
+   * @name DeleteVehicleDocument
+   * @summary Delete a vehicle document
+   * @request DELETE:/vehicles/{id}/documents/{docId}
+   * @response `204` `void` Document deleted
+   * @response `400` `ErrorResponse`
+   * @response `404` `ErrorResponse`
+   * @response `500` `ErrorResponse`
+   */
+  export namespace DeleteVehicleDocument {
+    export type RequestParams = {
+      /**
+       * Numeric resource identifier
+       * @example 1
+       */
+      id: number;
+      /**
+       * Document identifier
+       * @example 1
+       */
+      docId: number;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = void;
+  }
+
+  /**
+   * @description Returns the short history (krótka historia) of a vehicle.
+   * @tags Vehicles
+   * @name GetVehicleHistory
+   * @summary List vehicle history events
+   * @request GET:/vehicles/{id}/history
+   * @response `200` `VehicleHistoryListResponse` List of vehicle history events
+   * @response `400` `ErrorResponse`
+   * @response `404` `ErrorResponse`
+   * @response `500` `ErrorResponse`
+   */
+  export namespace GetVehicleHistory {
+    export type RequestParams = {
+      /**
+       * Numeric resource identifier
+       * @example 1
+       */
+      id: number;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = VehicleHistoryListResponse;
+  }
+
+  /**
+   * No description
+   * @tags Vehicles
+   * @name CreateVehicleHistoryEvent
+   * @summary Add a vehicle history event
+   * @request POST:/vehicles/{id}/history
+   * @response `201` `VehicleHistoryEvent` History event created
+   * @response `400` `ErrorResponse`
+   * @response `404` `ErrorResponse`
+   * @response `500` `ErrorResponse`
+   */
+  export namespace CreateVehicleHistoryEvent {
+    export type RequestParams = {
+      /**
+       * Numeric resource identifier
+       * @example 1
+       */
+      id: number;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = VehicleHistoryEventCreateInput;
+    export type RequestHeaders = {};
+    export type ResponseBody = VehicleHistoryEvent;
   }
 }

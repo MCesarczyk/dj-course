@@ -5,31 +5,57 @@
  * Transportation Management System API
  * OpenAPI spec version: 1.0.0
  */
+import type { VehicleCreateInputKind } from './vehicleCreateInputKind';
+import type { VehicleCreateInputSpecs } from './vehicleCreateInputSpecs';
 
 /**
- * Payload for creating a new vehicle. Only `model` is required.
+ * Payload for creating a new vehicle instance (egzemplarz). All fields are optional — use legacy make/model or link a catalog model via model_id.
+
  */
 export interface VehicleCreateInput {
   /**
-   * Vehicle manufacturer / brand
    * @maxLength 50
    * @nullable
    */
   make?: string | null;
   /**
-   * Vehicle model name
    * @maxLength 50
-   */
-  model: string;
-  /**
-   * Manufacturing year
    * @nullable
    */
+  model?: string | null;
+  /** @nullable */
   year?: number | null;
   /**
-   * Fuel tank capacity in litres (positive number)
    * @exclusiveMinimum 0
    * @nullable
    */
   fuel_tank_capacity?: number | null;
+  /** @nullable */
+  model_id?: number | null;
+  /** @nullable */
+  kind?: VehicleCreateInputKind;
+  /**
+   * @maxLength 20
+   * @nullable
+   */
+  registration_number?: string | null;
+  /**
+   * @maxLength 17
+   * @nullable
+   */
+  vin?: string | null;
+  /** @nullable */
+  first_registration_date?: string | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  mileage_km?: number | null;
+  /**
+   * @maxLength 20
+   * @nullable
+   */
+  status?: string | null;
+  /** @nullable */
+  specs?: VehicleCreateInputSpecs;
 }

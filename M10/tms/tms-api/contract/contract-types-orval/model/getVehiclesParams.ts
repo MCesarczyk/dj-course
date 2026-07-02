@@ -7,6 +7,7 @@
  */
 import type { LimitParamParameter } from './limitParamParameter';
 import type { PageParamParameter } from './pageParamParameter';
+import type { VehicleKind } from './vehicleKind';
 
 export type GetVehiclesParams = {
 /**
@@ -17,4 +18,12 @@ page?: PageParamParameter;
  * Number of items per page (max 100)
  */
 limit?: LimitParamParameter;
+/**
+ * Filter by kind (TRACTOR_UNIT or SEMI_TRAILER)
+ */
+kind?: VehicleKind;
+/**
+ * Filter by catalog model id
+ */
+modelId?: string;
 };

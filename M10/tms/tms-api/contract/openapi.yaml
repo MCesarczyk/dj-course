@@ -12,7 +12,11 @@ tags:
   - name: Drivers
     description: Driver records and license management
   - name: Vehicles
-    description: CRUD operations for vehicle records
+    description: CRUD operations for vehicle instances (egzemplarze) + documents & history
+  - name: VehicleBrands
+    description: Vehicle brand catalog (marki)
+  - name: VehicleModels
+    description: Vehicle model catalog (modele) — tractor units vs semi-trailers
   - name: TransportationOrders
     description: Transportation order records and filtering
   - name: Notifications
@@ -211,6 +215,19 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/LimitParam'
+        - name: kind
+          in: query
+          description: Filter by kind (TRACTOR_UNIT or SEMI_TRAILER)
+          required: false
+          schema:
+            $ref: '#/components/schemas/VehicleKind'
+        - name: modelId
+          in: query
+          description: Filter by catalog model id
+          required: false
+          schema:
+            type: string
+          example: '1'
       responses:
         '200':
           description: Paginated list of vehicles
@@ -288,17 +305,11 @@ paths:
         - $ref: '#/components/parameters/PathIdParam'
       responses:
         '200':
-          description: Vehicle found
+          description: Vehicle found (with catalog, documents and history)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Vehicle'
-              example:
-                id: 1
-                make: Suzuki
-                model: S4
-                year: 2021
-                fuel_tank_capacity: '51.1'
+                $ref: '#/components/schemas/VehicleDetail'
         '400':
           description: The provided ID is missing or has an invalid format.
           content:
@@ -388,6 +399,423 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: Vehicle not found
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /vehicles/{id}/documents:
+    get:
+      summary: List vehicle documents
+      description: Returns documents (dokumenty) attached to a vehicle.
+      operationId: getVehicleDocuments
+      tags:
+        - Vehicles
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+      responses:
+        '200':
+          description: List of vehicle documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleDocumentListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Add a vehicle document
+      operationId: createVehicleDocument
+      tags:
+        - Vehicles
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleDocumentCreateInput'
+            example:
+              doc_type: insurance_oc
+              document_number: OC/2026/12345
+              issue_date: '2026-01-01'
+              expiry_date: '2026-12-31'
+      responses:
+        '201':
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /vehicles/{id}/documents/{docId}:
+    delete:
+      summary: Delete a vehicle document
+      operationId: deleteVehicleDocument
+      tags:
+        - Vehicles
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+        - name: docId
+          in: path
+          description: Document identifier
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '204':
+          description: Document deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /vehicles/{id}/history:
+    get:
+      summary: List vehicle history events
+      description: Returns the short history (krótka historia) of a vehicle.
+      operationId: getVehicleHistory
+      tags:
+        - Vehicles
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+      responses:
+        '200':
+          description: List of vehicle history events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleHistoryListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Add a vehicle history event
+      operationId: createVehicleHistoryEvent
+      tags:
+        - Vehicles
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleHistoryEventCreateInput'
+            example:
+              event_type: inspection
+              event_date: '2026-05-10'
+              mileage_km: 145000
+              description: Badanie techniczne — wynik pozytywny
+      responses:
+        '201':
+          description: History event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleHistoryEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /vehicle-brands:
+    get:
+      summary: List vehicle brands
+      description: Returns a paginated list of vehicle brands (marki).
+      operationId: getVehicleBrands
+      tags:
+        - VehicleBrands
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Paginated list of vehicle brands
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleBrandListResponse'
+              example:
+                data:
+                  - id: 1
+                    name: Volvo
+                    country: Sweden
+                  - id: 2
+                    name: Krone
+                    country: Germany
+                pagination:
+                  page: 1
+                  limit: 20
+                  total: 12
+                  totalPages: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Create a vehicle brand
+      operationId: createVehicleBrand
+      tags:
+        - VehicleBrands
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleBrandCreateInput'
+            example:
+              name: Scania
+              country: Sweden
+      responses:
+        '201':
+          description: Vehicle brand created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleBrand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /vehicle-brands/{id}:
+    get:
+      summary: Get vehicle brand by ID
+      operationId: getVehicleBrandById
+      tags:
+        - VehicleBrands
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+      responses:
+        '200':
+          description: Vehicle brand found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleBrand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      summary: Update a vehicle brand
+      operationId: updateVehicleBrand
+      tags:
+        - VehicleBrands
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleBrandUpdateInput'
+            example:
+              country: Sweden
+      responses:
+        '200':
+          description: Vehicle brand updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleBrand'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete a vehicle brand
+      operationId: deleteVehicleBrand
+      tags:
+        - VehicleBrands
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+      responses:
+        '204':
+          description: Vehicle brand deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /vehicle-models:
+    get:
+      summary: List vehicle models
+      description: |
+        Returns a paginated list of vehicle models (modele). Each model belongs to a brand and is either a TRACTOR_UNIT (ciągnik siodłowy) or a SEMI_TRAILER (naczepa) — for trailers, `trailerType` describes the body kind.
+      operationId: getVehicleModels
+      tags:
+        - VehicleModels
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: brandId
+          in: query
+          description: Filter by brand id
+          required: false
+          schema:
+            type: string
+          example: '1'
+        - name: kind
+          in: query
+          description: Filter by kind (TRACTOR_UNIT or SEMI_TRAILER)
+          required: false
+          schema:
+            $ref: '#/components/schemas/VehicleKind'
+      responses:
+        '200':
+          description: Paginated list of vehicle models
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleModelListResponse'
+              example:
+                data:
+                  - id: 1
+                    brandId: 1
+                    name: Scania R450
+                    kind: TRACTOR_UNIT
+                    trailerType: null
+                  - id: 2
+                    brandId: 2
+                    name: Krone Cool Liner
+                    kind: SEMI_TRAILER
+                    trailerType: reefer
+                pagination:
+                  page: 1
+                  limit: 20
+                  total: 30
+                  totalPages: 2
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Create a vehicle model
+      operationId: createVehicleModel
+      tags:
+        - VehicleModels
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleModelCreateInput'
+            examples:
+              tractor:
+                summary: Tractor unit (ciągnik siodłowy)
+                value:
+                  brandId: 1
+                  name: Volvo FH 500
+                  kind: TRACTOR_UNIT
+              trailer:
+                summary: Semi-trailer (naczepa chłodnia)
+                value:
+                  brandId: 2
+                  name: Schmitz SKO 24
+                  kind: SEMI_TRAILER
+                  trailerType: reefer
+      responses:
+        '201':
+          description: Vehicle model created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /vehicle-models/{id}:
+    get:
+      summary: Get vehicle model by ID
+      operationId: getVehicleModelById
+      tags:
+        - VehicleModels
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+      responses:
+        '200':
+          description: Vehicle model found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      summary: Update a vehicle model
+      operationId: updateVehicleModel
+      tags:
+        - VehicleModels
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleModelUpdateInput'
+            example:
+              name: Volvo FH 540
+      responses:
+        '200':
+          description: Vehicle model updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete a vehicle model
+      operationId: deleteVehicleModel
+      tags:
+        - VehicleModels
+      parameters:
+        - $ref: '#/components/parameters/PathIdParam'
+      responses:
+        '204':
+          description: Vehicle model deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /drivers:
@@ -983,6 +1411,18 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: The request conflicts with the current state (e.g. duplicate or referenced resource).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   schemas:
     Pagination:
       type: object
@@ -1210,6 +1650,12 @@ components:
           type: integer
           description: Incremented version number after the update
           example: 2
+    VehicleKind:
+      type: string
+      description: Rozróżnienie ciągnik siodłowy vs naczepa.
+      enum:
+        - TRACTOR_UNIT
+        - SEMI_TRAILER
     Vehicle:
       type: object
       description: A single vehicle record as returned by the API.
@@ -1243,6 +1689,59 @@ components:
           description: |
             Fuel tank capacity in litres. Returned as a decimal string (e.g. "51.1") because Postgres numeric/decimal is serialised as a string by the pg driver.
           example: '51.1'
+        model_id:
+          type: integer
+          nullable: true
+          description: Reference to a catalog model (vehicle_models.id)
+          example: 3
+        kind:
+          type: string
+          nullable: true
+          description: Rozróżnienie ciągnik siodłowy / naczepa (zdenormalizowane pod filtr)
+          enum:
+            - TRACTOR_UNIT
+            - SEMI_TRAILER
+        registration_number:
+          type: string
+          nullable: true
+          maxLength: 20
+          description: Numer rejestracyjny
+          example: WA 12345
+        vin:
+          type: string
+          nullable: true
+          maxLength: 17
+          description: Numer VIN
+          example: YV2RT40A8FB123456
+        first_registration_date:
+          type: string
+          format: date
+          nullable: true
+          description: Data pierwszej rejestracji
+          example: '2021-03-15'
+        mileage_km:
+          type: integer
+          nullable: true
+          description: Przebieg w kilometrach
+          example: 145000
+        status:
+          type: string
+          nullable: true
+          maxLength: 20
+          description: Status egzemplarza
+          example: active
+        specs:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: |
+            Techniczne atrybuty zależne od typu (JSONB).
+            Ciągnik: {power_kw, euro_norm, axles, fuel_type};
+            naczepa: {euro_pallets, volume_m3, interior_height_m, has_tail_lift, has_refrigeration}.
+          example:
+            power_kw: 331
+            euro_norm: EURO6
+            axles: 2
     VehicleListResponse:
       type: object
       description: Paginated list of vehicles.
@@ -1258,25 +1757,22 @@ components:
           $ref: '#/components/schemas/Pagination'
     VehicleCreateInput:
       type: object
-      description: Payload for creating a new vehicle. Only `model` is required.
-      required:
-        - model
+      description: |
+        Payload for creating a new vehicle instance (egzemplarz). All fields are optional — use legacy make/model or link a catalog model via model_id.
       properties:
         make:
           type: string
           nullable: true
           maxLength: 50
-          description: Vehicle manufacturer / brand
-          example: Toyota
+          example: Volvo
         model:
           type: string
+          nullable: true
           maxLength: 50
-          description: Vehicle model name
-          example: Corolla
+          example: FH 500
         year:
           type: integer
           nullable: true
-          description: Manufacturing year
           example: 2024
         fuel_tank_capacity:
           type: number
@@ -1284,37 +1780,379 @@ components:
           nullable: true
           minimum: 0
           exclusiveMinimum: true
-          description: Fuel tank capacity in litres (positive number)
-          example: 55
-    VehicleUpdateInput:
-      type: object
-      description: |
-        Payload for updating an existing vehicle. All fields are optional (partial update). Provide only the fields you want to change.
-      properties:
-        make:
-          type: string
-          nullable: true
-          maxLength: 50
-          description: Vehicle manufacturer / brand
-          example: Toyota
-        model:
-          type: string
-          maxLength: 50
-          description: Vehicle model name
-          example: Camry
-        year:
+          example: 600
+        model_id:
           type: integer
           nullable: true
-          description: Manufacturing year
-          example: 2025
-        fuel_tank_capacity:
-          type: number
-          format: float
+          example: 3
+        kind:
+          type: string
+          nullable: true
+          enum:
+            - TRACTOR_UNIT
+            - SEMI_TRAILER
+        registration_number:
+          type: string
+          nullable: true
+          maxLength: 20
+          example: WA 12345
+        vin:
+          type: string
+          nullable: true
+          maxLength: 17
+          example: YV2RT40A8FB123456
+        first_registration_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2021-03-15'
+        mileage_km:
+          type: integer
           nullable: true
           minimum: 0
-          exclusiveMinimum: true
-          description: Fuel tank capacity in litres (positive number)
-          example: 60
+          example: 145000
+        status:
+          type: string
+          nullable: true
+          maxLength: 20
+          example: active
+        specs:
+          type: object
+          nullable: true
+          additionalProperties: true
+          example:
+            power_kw: 331
+            euro_norm: EURO6
+            axles: 2
+    VehicleModel:
+      type: object
+      description: A vehicle model (model pojazdu).
+      required:
+        - id
+        - brandId
+        - name
+        - kind
+      properties:
+        id:
+          type: integer
+          example: 1
+        brandId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          maxLength: 120
+          example: Scania R450
+        kind:
+          $ref: '#/components/schemas/VehicleKind'
+        trailerType:
+          type: string
+          nullable: true
+          description: Wymagane dla SEMI_TRAILER, puste dla TRACTOR_UNIT.
+          enum:
+            - reefer
+            - curtain
+            - isotherm
+            - tipper
+            - platform
+            - tank
+            - container
+    VehicleBrand:
+      type: object
+      description: A vehicle brand (marka).
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          maxLength: 80
+          example: Volvo
+        country:
+          type: string
+          nullable: true
+          maxLength: 80
+          example: Sweden
+    VehicleDocument:
+      type: object
+      description: A document (dokument) attached to a vehicle.
+      required:
+        - id
+        - vehicle_id
+        - doc_type
+      properties:
+        id:
+          type: integer
+          example: 1
+        vehicle_id:
+          type: integer
+          example: 3
+        doc_type:
+          type: string
+          description: registration_certificate | insurance_oc | insurance_ac | technical_inspection | tachograph | atp_certificate | other
+          example: insurance_oc
+        document_number:
+          type: string
+          nullable: true
+          maxLength: 60
+          example: OC/2026/12345
+        issue_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-01-01'
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-12-31'
+        file_url:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+    VehicleHistoryEvent:
+      type: object
+      description: A single history event (zdarzenie historii) of a vehicle.
+      required:
+        - id
+        - vehicle_id
+        - event_type
+        - event_date
+      properties:
+        id:
+          type: integer
+          example: 1
+        vehicle_id:
+          type: integer
+          example: 3
+        event_type:
+          type: string
+          description: purchase | inspection | repair | accident | mileage_reading | status_change | sold
+          example: inspection
+        event_date:
+          type: string
+          format: date
+          example: '2026-05-10'
+        mileage_km:
+          type: integer
+          nullable: true
+          example: 145000
+        description:
+          type: string
+          nullable: true
+          example: Badanie techniczne — wynik pozytywny
+    VehicleDetail:
+      description: |
+        A vehicle instance with its catalog (model + brand) and nested documents and history. Returned by GET /vehicles/{id}.
+      allOf:
+        - $ref: '#/components/schemas/Vehicle'
+        - type: object
+          properties:
+            model:
+              $ref: '#/components/schemas/VehicleModel'
+            brand:
+              $ref: '#/components/schemas/VehicleBrand'
+            documents:
+              type: array
+              items:
+                $ref: '#/components/schemas/VehicleDocument'
+            history:
+              type: array
+              items:
+                $ref: '#/components/schemas/VehicleHistoryEvent'
+    VehicleUpdateInput:
+      allOf:
+        - $ref: '#/components/schemas/VehicleCreateInput'
+      description: |
+        Payload for updating an existing vehicle. All fields are optional (partial update). Provide only the fields you want to change.
+    VehicleDocumentListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleDocument'
+    VehicleDocumentCreateInput:
+      type: object
+      required:
+        - doc_type
+      properties:
+        doc_type:
+          type: string
+          enum:
+            - registration_certificate
+            - insurance_oc
+            - insurance_ac
+            - technical_inspection
+            - tachograph
+            - atp_certificate
+            - other
+          example: insurance_oc
+        document_number:
+          type: string
+          nullable: true
+          maxLength: 60
+        issue_date:
+          type: string
+          format: date
+          nullable: true
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+        file_url:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+    VehicleHistoryListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleHistoryEvent'
+    VehicleHistoryEventCreateInput:
+      type: object
+      required:
+        - event_type
+        - event_date
+      properties:
+        event_type:
+          type: string
+          enum:
+            - purchase
+            - inspection
+            - repair
+            - accident
+            - mileage_reading
+            - status_change
+            - sold
+          example: inspection
+        event_date:
+          type: string
+          format: date
+          example: '2026-05-10'
+        mileage_km:
+          type: integer
+          nullable: true
+          minimum: 0
+          example: 145000
+        description:
+          type: string
+          nullable: true
+    VehicleBrandListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleBrand'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    VehicleBrandCreateInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+          example: Scania
+        country:
+          type: string
+          nullable: true
+          maxLength: 80
+          example: Sweden
+    VehicleBrandUpdateInput:
+      type: object
+      description: Partial update — only provided fields are changed.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        country:
+          type: string
+          nullable: true
+          maxLength: 80
+    VehicleModelListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleModel'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    VehicleModelCreateInput:
+      type: object
+      required:
+        - brandId
+        - name
+        - kind
+      properties:
+        brandId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Volvo FH 500
+        kind:
+          $ref: '#/components/schemas/VehicleKind'
+        trailerType:
+          type: string
+          nullable: true
+          enum:
+            - reefer
+            - curtain
+            - isotherm
+            - tipper
+            - platform
+            - tank
+            - container
+    VehicleModelUpdateInput:
+      type: object
+      description: Partial update — only provided fields are changed.
+      properties:
+        brandId:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        kind:
+          $ref: '#/components/schemas/VehicleKind'
+        trailerType:
+          type: string
+          nullable: true
+          enum:
+            - reefer
+            - curtain
+            - isotherm
+            - tipper
+            - platform
+            - tank
+            - container
     DriverListItem:
       type: object
       description: A single driver record as returned in list and create responses.

@@ -10,6 +10,19 @@ paths:
       parameters:
         - $ref: '../../contract/entry.yaml#/components/parameters/PageParam'
         - $ref: '../../contract/entry.yaml#/components/parameters/LimitParam'
+        - name: kind
+          in: query
+          description: Filter by kind (TRACTOR_UNIT or SEMI_TRAILER)
+          required: false
+          schema:
+            $ref: '../vehicle-models/vehicle-models-openapi.yaml#/components/schemas/VehicleKind'
+        - name: modelId
+          in: query
+          description: Filter by catalog model id
+          required: false
+          schema:
+            type: string
+          example: '1'
       responses:
         '200':
           description: Paginated list of vehicles
@@ -87,17 +100,11 @@ paths:
         - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
       responses:
         '200':
-          description: Vehicle found
+          description: Vehicle found (with catalog, documents and history)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Vehicle'
-              example:
-                id: 1
-                make: Suzuki
-                model: S4
-                year: 2021
-                fuel_tank_capacity: '51.1'
+                $ref: '#/components/schemas/VehicleDetail'
         '400':
           description: The provided ID is missing or has an invalid format.
           content:
@@ -189,6 +196,136 @@ paths:
                 error: Vehicle not found
         '500':
           $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+  /vehicles/{id}/documents:
+    get:
+      summary: List vehicle documents
+      description: Returns documents (dokumenty) attached to a vehicle.
+      operationId: getVehicleDocuments
+      tags:
+        - Vehicles
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+      responses:
+        '200':
+          description: List of vehicle documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleDocumentListResponse'
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+    post:
+      summary: Add a vehicle document
+      operationId: createVehicleDocument
+      tags:
+        - Vehicles
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleDocumentCreateInput'
+            example:
+              doc_type: insurance_oc
+              document_number: OC/2026/12345
+              issue_date: '2026-01-01'
+              expiry_date: '2026-12-31'
+      responses:
+        '201':
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleDocument'
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+  /vehicles/{id}/documents/{docId}:
+    delete:
+      summary: Delete a vehicle document
+      operationId: deleteVehicleDocument
+      tags:
+        - Vehicles
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+        - name: docId
+          in: path
+          description: Document identifier
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '204':
+          description: Document deleted
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+  /vehicles/{id}/history:
+    get:
+      summary: List vehicle history events
+      description: Returns the short history (krótka historia) of a vehicle.
+      operationId: getVehicleHistory
+      tags:
+        - Vehicles
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+      responses:
+        '200':
+          description: List of vehicle history events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleHistoryListResponse'
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+    post:
+      summary: Add a vehicle history event
+      operationId: createVehicleHistoryEvent
+      tags:
+        - Vehicles
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleHistoryEventCreateInput'
+            example:
+              event_type: inspection
+              event_date: '2026-05-10'
+              mileage_km: 145000
+              description: Badanie techniczne — wynik pozytywny
+      responses:
+        '201':
+          description: History event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleHistoryEvent'
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
 
 components:
   schemas:
@@ -225,6 +362,59 @@ components:
           description: |
             Fuel tank capacity in litres. Returned as a decimal string (e.g. "51.1") because Postgres numeric/decimal is serialised as a string by the pg driver.
           example: '51.1'
+        model_id:
+          type: integer
+          nullable: true
+          description: Reference to a catalog model (vehicle_models.id)
+          example: 3
+        kind:
+          type: string
+          nullable: true
+          description: Rozróżnienie ciągnik siodłowy / naczepa (zdenormalizowane pod filtr)
+          enum:
+            - TRACTOR_UNIT
+            - SEMI_TRAILER
+        registration_number:
+          type: string
+          nullable: true
+          maxLength: 20
+          description: Numer rejestracyjny
+          example: WA 12345
+        vin:
+          type: string
+          nullable: true
+          maxLength: 17
+          description: Numer VIN
+          example: YV2RT40A8FB123456
+        first_registration_date:
+          type: string
+          format: date
+          nullable: true
+          description: Data pierwszej rejestracji
+          example: '2021-03-15'
+        mileage_km:
+          type: integer
+          nullable: true
+          description: Przebieg w kilometrach
+          example: 145000
+        status:
+          type: string
+          nullable: true
+          maxLength: 20
+          description: Status egzemplarza
+          example: active
+        specs:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: |
+            Techniczne atrybuty zależne od typu (JSONB).
+            Ciągnik: {power_kw, euro_norm, axles, fuel_type};
+            naczepa: {euro_pallets, volume_m3, interior_height_m, has_tail_lift, has_refrigeration}.
+          example:
+            power_kw: 331
+            euro_norm: EURO6
+            axles: 2
     VehicleListResponse:
       type: object
       description: Paginated list of vehicles.
@@ -240,25 +430,23 @@ components:
           $ref: '../../contract/entry.yaml#/components/schemas/Pagination'
     VehicleCreateInput:
       type: object
-      description: Payload for creating a new vehicle. Only `model` is required.
-      required:
-        - model
+      description: >
+        Payload for creating a new vehicle instance (egzemplarz). All fields are
+        optional — use legacy make/model or link a catalog model via model_id.
       properties:
         make:
           type: string
           nullable: true
           maxLength: 50
-          description: Vehicle manufacturer / brand
-          example: Toyota
+          example: Volvo
         model:
           type: string
+          nullable: true
           maxLength: 50
-          description: Vehicle model name
-          example: Corolla
+          example: FH 500
         year:
           type: integer
           nullable: true
-          description: Manufacturing year
           example: 2024
         fuel_tank_capacity:
           type: number
@@ -266,34 +454,223 @@ components:
           nullable: true
           minimum: 0
           exclusiveMinimum: true
-          description: Fuel tank capacity in litres (positive number)
-          example: 55
-    VehicleUpdateInput:
-      type: object
-      description: |
-        Payload for updating an existing vehicle. All fields are optional (partial update). Provide only the fields you want to change.
-      properties:
-        make:
-          type: string
-          nullable: true
-          maxLength: 50
-          description: Vehicle manufacturer / brand
-          example: Toyota
-        model:
-          type: string
-          maxLength: 50
-          description: Vehicle model name
-          example: Camry
-        year:
+          example: 600
+        model_id:
           type: integer
           nullable: true
-          description: Manufacturing year
-          example: 2025
-        fuel_tank_capacity:
-          type: number
-          format: float
+          example: 3
+        kind:
+          type: string
+          nullable: true
+          enum:
+            - TRACTOR_UNIT
+            - SEMI_TRAILER
+        registration_number:
+          type: string
+          nullable: true
+          maxLength: 20
+          example: WA 12345
+        vin:
+          type: string
+          nullable: true
+          maxLength: 17
+          example: YV2RT40A8FB123456
+        first_registration_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2021-03-15'
+        mileage_km:
+          type: integer
           nullable: true
           minimum: 0
-          exclusiveMinimum: true
-          description: Fuel tank capacity in litres (positive number)
-          example: 60
+          example: 145000
+        status:
+          type: string
+          nullable: true
+          maxLength: 20
+          example: active
+        specs:
+          type: object
+          nullable: true
+          additionalProperties: true
+          example:
+            power_kw: 331
+            euro_norm: EURO6
+            axles: 2
+    VehicleUpdateInput:
+      allOf:
+        - $ref: '#/components/schemas/VehicleCreateInput'
+      description: |
+        Payload for updating an existing vehicle. All fields are optional (partial update). Provide only the fields you want to change.
+    VehicleDetail:
+      description: >
+        A vehicle instance with its catalog (model + brand) and nested documents
+        and history. Returned by GET /vehicles/{id}.
+      allOf:
+        - $ref: '#/components/schemas/Vehicle'
+        - type: object
+          properties:
+            model:
+              $ref: '../vehicle-models/vehicle-models-openapi.yaml#/components/schemas/VehicleModel'
+            brand:
+              $ref: '../vehicle-brands/vehicle-brands-openapi.yaml#/components/schemas/VehicleBrand'
+            documents:
+              type: array
+              items:
+                $ref: '#/components/schemas/VehicleDocument'
+            history:
+              type: array
+              items:
+                $ref: '#/components/schemas/VehicleHistoryEvent'
+    VehicleDocument:
+      type: object
+      description: A document (dokument) attached to a vehicle.
+      required:
+        - id
+        - vehicle_id
+        - doc_type
+      properties:
+        id:
+          type: integer
+          example: 1
+        vehicle_id:
+          type: integer
+          example: 3
+        doc_type:
+          type: string
+          description: registration_certificate | insurance_oc | insurance_ac | technical_inspection | tachograph | atp_certificate | other
+          example: insurance_oc
+        document_number:
+          type: string
+          nullable: true
+          maxLength: 60
+          example: OC/2026/12345
+        issue_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-01-01'
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-12-31'
+        file_url:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+    VehicleDocumentCreateInput:
+      type: object
+      required:
+        - doc_type
+      properties:
+        doc_type:
+          type: string
+          enum:
+            - registration_certificate
+            - insurance_oc
+            - insurance_ac
+            - technical_inspection
+            - tachograph
+            - atp_certificate
+            - other
+          example: insurance_oc
+        document_number:
+          type: string
+          nullable: true
+          maxLength: 60
+        issue_date:
+          type: string
+          format: date
+          nullable: true
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+        file_url:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+    VehicleDocumentListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleDocument'
+    VehicleHistoryEvent:
+      type: object
+      description: A single history event (zdarzenie historii) of a vehicle.
+      required:
+        - id
+        - vehicle_id
+        - event_type
+        - event_date
+      properties:
+        id:
+          type: integer
+          example: 1
+        vehicle_id:
+          type: integer
+          example: 3
+        event_type:
+          type: string
+          description: purchase | inspection | repair | accident | mileage_reading | status_change | sold
+          example: inspection
+        event_date:
+          type: string
+          format: date
+          example: '2026-05-10'
+        mileage_km:
+          type: integer
+          nullable: true
+          example: 145000
+        description:
+          type: string
+          nullable: true
+          example: Badanie techniczne — wynik pozytywny
+    VehicleHistoryEventCreateInput:
+      type: object
+      required:
+        - event_type
+        - event_date
+      properties:
+        event_type:
+          type: string
+          enum:
+            - purchase
+            - inspection
+            - repair
+            - accident
+            - mileage_reading
+            - status_change
+            - sold
+          example: inspection
+        event_date:
+          type: string
+          format: date
+          example: '2026-05-10'
+        mileage_km:
+          type: integer
+          nullable: true
+          minimum: 0
+          example: 145000
+        description:
+          type: string
+          nullable: true
+    VehicleHistoryListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleHistoryEvent'

@@ -5,6 +5,8 @@
  * Transportation Management System API
  * OpenAPI spec version: 1.0.0
  */
+import type { VehicleKindProperty } from './vehicleKindProperty';
+import type { VehicleSpecs } from './vehicleSpecs';
 
 /**
  * A single vehicle record as returned by the API.
@@ -34,4 +36,50 @@ export interface Vehicle {
    * @nullable
    */
   fuel_tank_capacity?: string | null;
+  /**
+   * Reference to a catalog model (vehicle_models.id)
+   * @nullable
+   */
+  model_id?: number | null;
+  /**
+   * Rozróżnienie ciągnik siodłowy / naczepa (zdenormalizowane pod filtr)
+   * @nullable
+   */
+  kind?: VehicleKindProperty;
+  /**
+   * Numer rejestracyjny
+   * @maxLength 20
+   * @nullable
+   */
+  registration_number?: string | null;
+  /**
+   * Numer VIN
+   * @maxLength 17
+   * @nullable
+   */
+  vin?: string | null;
+  /**
+   * Data pierwszej rejestracji
+   * @nullable
+   */
+  first_registration_date?: string | null;
+  /**
+   * Przebieg w kilometrach
+   * @nullable
+   */
+  mileage_km?: number | null;
+  /**
+   * Status egzemplarza
+   * @maxLength 20
+   * @nullable
+   */
+  status?: string | null;
+  /**
+   * Techniczne atrybuty zależne od typu (JSONB).
+Ciągnik: {power_kw, euro_norm, axles, fuel_type};
+naczepa: {euro_pallets, volume_m3, interior_height_m, has_tail_lift, has_refrigeration}.
+
+   * @nullable
+   */
+  specs?: VehicleSpecs;
 }

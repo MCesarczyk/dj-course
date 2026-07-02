@@ -216,3 +216,31 @@ Content-Type: application/json
 
 ### Soft-delete shelf (409 if active reservations / open records)
 DELETE {{host}}/shelves/{{shelf_id}}
+
+########################################################
+### Inventory state (co realnie leży w magazynie)
+########################################################
+
+### Shelf details now include occupied (physically stored) next to reserved
+GET {{host}}/shelves/{{shelf_id}}
+Accept: application/json
+
+### What is physically stored on a shelf (open storage records)
+GET {{host}}/shelves/{{shelf_id}}/contents
+Accept: application/json
+
+### Warehouse inventory rollup per zone
+GET {{host}}/warehouses/{{warehouse_id}}/inventory
+Accept: application/json
+
+### All currently stored cargo lots in a warehouse
+GET {{host}}/inventory?warehouseId={{warehouse_id}}
+Accept: application/json
+
+### Where is a given customer's cargo?
+GET {{host}}/inventory?partyId={{party_id}}
+Accept: application/json
+
+### Stored cargo in a specific zone
+GET {{host}}/inventory?zoneId={{zone_id}}
+Accept: application/json

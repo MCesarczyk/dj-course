@@ -543,6 +543,63 @@ paths:
         '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '409': { description: Has active reservations or open storage records, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
+  # --- Inventory state (read layer over storage_record) ---
+  /shelves/{shelf_id}/contents:
+    parameters:
+      - name: shelf_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: Cargo lots physically stored on a shelf
+      operationId: getShelfContents
+      tags: [Inventory]
+      responses:
+        '200': { description: Shelf contents, content: { application/json: { schema: { $ref: '#/components/schemas/ShelfContents' } } } }
+        '404': { description: Shelf not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /warehouses/{warehouse_id}/inventory:
+    parameters:
+      - name: warehouse_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      summary: Stored-goods rollup per zone for a warehouse
+      operationId: getWarehouseInventory
+      tags: [Inventory]
+      responses:
+        '200': { description: Inventory rollup, content: { application/json: { schema: { $ref: '#/components/schemas/WarehouseInventory' } } } }
+        '404': { description: Warehouse not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /inventory:
+    get:
+      summary: Currently stored cargo lots (filterable)
+      description: Open storage records, optionally filtered by party / warehouse / zone. Each item carries its locationCode.
+      operationId: listInventory
+      tags: [Inventory]
+      parameters:
+        - name: partyId
+          in: query
+          required: false
+          description: Owner of the cargo (answers "where is customer X's goods?")
+          schema: { type: integer, format: int64 }
+        - name: warehouseId
+          in: query
+          required: false
+          schema: { type: integer, format: int64 }
+        - name: zoneId
+          in: query
+          required: false
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: List of stored cargo lots
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/StorageRecordItem' } }
+        '400': { description: Invalid filter, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
   # --- Contractors ---
   /contractors:
     get:
@@ -1060,10 +1117,13 @@ components:
         status: { $ref: '#/components/schemas/StructureStatus' }
         maxWeight: { type: number, description: Nominal weight capacity }
         maxVolume: { type: number, description: Nominal volume capacity }
-        reservedWeight: { type: number, description: Sum of ACTIVE reservations }
+        reservedWeight: { type: number, description: Booked capacity — sum of ACTIVE reservations }
         reservedVolume: { type: number }
         availableWeight: { type: number, description: maxWeight - reservedWeight }
         availableVolume: { type: number }
+        occupiedWeight: { type: number, description: Physically stored — sum of open storage records }
+        occupiedVolume: { type: number }
+        storedRecordCount: { type: integer, description: Number of cargo lots currently on the shelf }
 
     ShelfCreate:
       type: object
@@ -1089,6 +1149,58 @@ components:
         maxWeight: { type: number, exclusiveMinimum: 0 }
         maxVolume: { type: number, exclusiveMinimum: 0 }
         status: { $ref: '#/components/schemas/StructureStatus' }
+
+    # --- Inventory state ---
+    StorageRecordItem:
+      type: object
+      required: [recordId, partyId, cargoWeight, cargoVolume]
+      description: A single cargo lot currently stored on a shelf.
+      properties:
+        recordId: { type: string }
+        partyId: { type: string, description: Owner (customer) of the cargo }
+        partyName: { type: string, nullable: true }
+        warehouseId: { type: string, nullable: true }
+        shelfId: { type: string, nullable: true }
+        locationCode: { type: string, nullable: true, description: 'zone-aisle-rack-level' }
+        cargoDescription: { type: string, nullable: true }
+        cargoWeight: { type: number }
+        cargoVolume: { type: number }
+        entryDate: { type: string, format: date-time, nullable: true }
+
+    ShelfContents:
+      type: object
+      required: [shelfId, recordCount, occupiedWeight, occupiedVolume, items]
+      properties:
+        shelfId: { type: string }
+        locationCode: { type: string, nullable: true }
+        recordCount: { type: integer }
+        occupiedWeight: { type: number }
+        occupiedVolume: { type: number }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/StorageRecordItem' }
+
+    ZoneInventory:
+      type: object
+      required: [zoneId, zoneName, recordCount, totalWeight, totalVolume]
+      properties:
+        zoneId: { type: string }
+        zoneName: { type: string }
+        recordCount: { type: integer }
+        totalWeight: { type: number }
+        totalVolume: { type: number }
+
+    WarehouseInventory:
+      type: object
+      required: [warehouseId, recordCount, totalWeight, totalVolume, zones]
+      properties:
+        warehouseId: { type: string }
+        recordCount: { type: integer }
+        totalWeight: { type: number }
+        totalVolume: { type: number }
+        zones:
+          type: array
+          items: { $ref: '#/components/schemas/ZoneInventory' }
 
     # --- Errors ---
     Error:

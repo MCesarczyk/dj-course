@@ -28,11 +28,15 @@ class Shelf(StructureModel):
     # Nominal capacity
     max_weight: float = Field(alias="maxWeight")
     max_volume: float = Field(alias="maxVolume")
-    # Live occupancy (sum of ACTIVE reservations)
+    # Booked capacity (sum of ACTIVE reservations)
     reserved_weight: float = Field(default=0, alias="reservedWeight")
     reserved_volume: float = Field(default=0, alias="reservedVolume")
     available_weight: float = Field(default=0, alias="availableWeight")
     available_volume: float = Field(default=0, alias="availableVolume")
+    # Physically stored goods (sum of open storage records, actual_exit_date IS NULL)
+    occupied_weight: float = Field(default=0, alias="occupiedWeight")
+    occupied_volume: float = Field(default=0, alias="occupiedVolume")
+    stored_record_count: int = Field(default=0, alias="storedRecordCount")
 
 
 class ShelfCreate(StructureModel):

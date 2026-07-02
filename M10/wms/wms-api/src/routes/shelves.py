@@ -12,17 +12,24 @@ from sqlalchemy import text
 from application import logger
 from database import db_engine
 from contract.shelf import Shelf, ShelfUpdate
+from contract.inventory import ShelfContents
 from routes.structure_util import parse_body, update_fields, soft_delete
+from routes.inventory import RECORD_ITEM_SELECT, record_item_dict
 
 shelves_bp = Blueprint('shelves_bp', __name__)
 
-# Shelf + location code (zone-aisle-rack-level) + occupancy from ACTIVE reservations.
+# Shelf + location code (zone-aisle-rack-level) + two distinct occupancy views:
+#   reserved  = booked capacity (ACTIVE reservations)
+#   occupied  = goods physically stored (open storage records)
 # Shared with the racks blueprint (nested list/create).
 SHELF_SELECT = '''
     SELECT s.shelf_id AS id, s.rack_id, s.level, s.max_weight, s.max_volume, s.status,
            z.name || '-' || a.label || '-' || r.label || '-' || s.level AS location_code,
            COALESCE(res.reserved_weight, 0) AS reserved_weight,
-           COALESCE(res.reserved_volume, 0) AS reserved_volume
+           COALESCE(res.reserved_volume, 0) AS reserved_volume,
+           COALESCE(occ.occupied_weight, 0) AS occupied_weight,
+           COALESCE(occ.occupied_volume, 0) AS occupied_volume,
+           COALESCE(occ.record_count, 0) AS stored_record_count
     FROM shelf s
     JOIN rack r ON s.rack_id = r.rack_id
     JOIN aisle a ON r.aisle_id = a.aisle_id
@@ -35,6 +42,15 @@ SHELF_SELECT = '''
         WHERE UPPER(status) = 'ACTIVE'  -- seed data uses lowercase; match case-insensitively
         GROUP BY shelf_id
     ) res ON res.shelf_id = s.shelf_id
+    LEFT JOIN (
+        SELECT shelf_id,
+               SUM(cargo_weight) AS occupied_weight,
+               SUM(cargo_volume) AS occupied_volume,
+               COUNT(*) AS record_count
+        FROM storage_record
+        WHERE actual_exit_date IS NULL  -- still stored
+        GROUP BY shelf_id
+    ) occ ON occ.shelf_id = s.shelf_id
 '''
 
 
@@ -50,6 +66,9 @@ def shelf_dict(row):
         reserved_weight=reserved_weight, reserved_volume=reserved_volume,
         available_weight=max_weight - reserved_weight,
         available_volume=max_volume - reserved_volume,
+        occupied_weight=float(row['occupied_weight']),
+        occupied_volume=float(row['occupied_volume']),
+        stored_record_count=int(row['stored_record_count']),
     ).to_dict()
 
 
@@ -61,6 +80,31 @@ def get_shelf(shelf_id):
     if row is None:
         return jsonify({'error': f'Shelf {shelf_id} not found'}), 404
     return jsonify(shelf_dict(row))
+
+
+@shelves_bp.route('/<int:shelf_id>/contents', methods=['GET'])
+def get_shelf_contents(shelf_id):
+    """Cargo lots physically stored on this shelf (open storage records)."""
+    with db_engine.connect() as conn:
+        shelf = conn.execute(text(SHELF_SELECT + ' WHERE s.shelf_id = :id;'),
+                             {'id': shelf_id}).mappings().first()
+        if shelf is None:
+            return jsonify({'error': f'Shelf {shelf_id} not found'}), 404
+        rows = conn.execute(
+            text(RECORD_ITEM_SELECT + ' WHERE sr.actual_exit_date IS NULL AND sr.shelf_id = :id'
+                 ' ORDER BY sr.storage_record_id;'),
+            {'id': shelf_id},
+        ).mappings().all()
+    result = ShelfContents(
+        shelf_id=str(shelf_id),
+        location_code=shelf['location_code'],
+        record_count=int(shelf['stored_record_count']),
+        occupied_weight=float(shelf['occupied_weight']),
+        occupied_volume=float(shelf['occupied_volume']),
+        items=[record_item_dict(r) for r in rows],
+    ).to_dict()
+    logger.info(f"Fetched {len(rows)} stored record(s) for shelf {shelf_id}")
+    return jsonify(result)
 
 
 @shelves_bp.route('/<int:shelf_id>', methods=['PATCH'])

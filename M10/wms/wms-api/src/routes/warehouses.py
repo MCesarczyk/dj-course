@@ -12,6 +12,7 @@ from application import logger
 from database import db_engine
 from contract.warehouse import Warehouse, WarehouseCreate, WarehouseUpdate, LocationInfo
 from contract.zone import Zone, ZoneCreate
+from contract.inventory import WarehouseInventory, ZoneInventory
 from routes.structure_util import parse_body, update_fields, soft_delete
 
 warehouses_bp = Blueprint('warehouses_bp', __name__)
@@ -127,6 +128,48 @@ def delete_warehouse(warehouse_id):
         return jsonify({'error': f'Warehouse {warehouse_id} has active zones; deactivate them first'}), 409
     logger.info(f"Soft-deleted warehouse {warehouse_id} (outcome={outcome})")
     return '', 204
+
+
+# --- Inventory rollup for a warehouse ---
+
+@warehouses_bp.route('/<int:warehouse_id>/inventory', methods=['GET'])
+def get_warehouse_inventory(warehouse_id):
+    """Stored-goods rollup (open storage records) aggregated per active zone."""
+    query = '''
+        SELECT z.zone_id, z.name AS zone_name,
+               COUNT(sr.storage_record_id) AS record_count,
+               COALESCE(SUM(sr.cargo_weight), 0) AS total_weight,
+               COALESCE(SUM(sr.cargo_volume), 0) AS total_volume
+        FROM zone z
+        LEFT JOIN aisle a ON a.zone_id = z.zone_id
+        LEFT JOIN rack r ON r.aisle_id = a.aisle_id
+        LEFT JOIN shelf s ON s.rack_id = r.rack_id
+        LEFT JOIN storage_record sr
+            ON sr.shelf_id = s.shelf_id AND sr.actual_exit_date IS NULL
+        WHERE z.warehouse_id = :id AND z.status <> 'INACTIVE'
+        GROUP BY z.zone_id, z.name
+        ORDER BY z.zone_id;
+    '''
+    with db_engine.connect() as conn:
+        if conn.execute(text('SELECT 1 FROM warehouse WHERE warehouse_id = :id;'),
+                        {'id': warehouse_id}).first() is None:
+            return jsonify({'error': f'Warehouse {warehouse_id} not found'}), 404
+        rows = conn.execute(text(query), {'id': warehouse_id}).mappings().all()
+
+    zones = [ZoneInventory(
+        zone_id=str(r['zone_id']), zone_name=r['zone_name'],
+        record_count=int(r['record_count']),
+        total_weight=float(r['total_weight']), total_volume=float(r['total_volume']),
+    ) for r in rows]
+    result = WarehouseInventory(
+        warehouse_id=str(warehouse_id),
+        record_count=sum(z.record_count for z in zones),
+        total_weight=sum(z.total_weight for z in zones),
+        total_volume=sum(z.total_volume for z in zones),
+        zones=zones,
+    ).to_dict()
+    logger.info(f"Inventory rollup for warehouse {warehouse_id}: {len(zones)} zones")
+    return jsonify(result)
 
 
 # --- Nested: zones of a warehouse ---

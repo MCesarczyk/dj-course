@@ -18,6 +18,7 @@ from routes.zones import zones_bp
 from routes.aisles import aisles_bp
 from routes.racks import racks_bp
 from routes.shelves import shelves_bp
+from routes.inventory import inventory_bp
 
 assert_env_var('SERVICE_NAME')
 SERVICE_NAME = os.environ.get('SERVICE_NAME')
@@ -44,3 +45,4 @@ app.register_blueprint(zones_bp, url_prefix='/zones')
 app.register_blueprint(aisles_bp, url_prefix='/aisles')
 app.register_blueprint(racks_bp, url_prefix='/racks')
 app.register_blueprint(shelves_bp, url_prefix='/shelves')
+app.register_blueprint(inventory_bp, url_prefix='/inventory')

@@ -7,7 +7,6 @@ from logger import logger
 
 # register blueprints
 from routes.health import health_bp
-from routes.warehouse import warehouse_bp
 from routes.payments import payments_bp
 from routes.storage import storage_bp
 from routes.employees import employees_bp
@@ -34,7 +33,6 @@ def log_request():
     # logger.info(f"Request: {request.method} {request.url} {request.headers}")
 
 app.register_blueprint(health_bp, url_prefix='/health')
-app.register_blueprint(warehouse_bp, url_prefix='/warehouse')
 app.register_blueprint(payments_bp, url_prefix='/payments')
 app.register_blueprint(storage_bp, url_prefix='/storage')
 app.register_blueprint(employees_bp, url_prefix='/employees')

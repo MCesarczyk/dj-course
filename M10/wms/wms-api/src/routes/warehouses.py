@@ -130,6 +130,32 @@ def delete_warehouse(warehouse_id):
     return '', 204
 
 
+# --- Employees of a warehouse (replaces the old singular /warehouse/{id}) ---
+
+@warehouses_bp.route('/<int:warehouse_id>/employees', methods=['GET'])
+def list_warehouse_employees(warehouse_id):
+    """Employees assigned to a warehouse, with their roles."""
+    with db_engine.connect() as conn:
+        if conn.execute(text('SELECT 1 FROM warehouse WHERE warehouse_id = :id;'),
+                        {'id': warehouse_id}).first() is None:
+            return jsonify({'error': f'Warehouse {warehouse_id} not found'}), 404
+        rows = conn.execute(text('''
+            SELECT p.party_id AS employee_id, p.name AS employee_name,
+                   p.contact_email AS email, p.contact_phone AS phone,
+                   p.created_at AS hire_date, STRING_AGG(r.name, ', ') AS roles
+            FROM party p
+            JOIN employee_warehouse ew ON p.party_id = ew.party_id
+            JOIN party_role pr ON p.party_id = pr.party_id
+            JOIN role r ON pr.role_id = r.role_id
+            WHERE ew.warehouse_id = :id AND p.data->>'type' = 'employee'
+            GROUP BY p.party_id, p.name, p.contact_email, p.contact_phone, p.created_at
+            ORDER BY p.name;
+        '''), {'id': warehouse_id}).mappings().all()
+    employees = [dict(row) for row in rows]
+    logger.info(f"Fetched {len(employees)} employees for warehouse {warehouse_id}")
+    return jsonify(employees)
+
+
 # --- Inventory rollup for a warehouse ---
 
 @warehouses_bp.route('/<int:warehouse_id>/inventory', methods=['GET'])

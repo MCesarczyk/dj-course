@@ -69,7 +69,7 @@ Accept: application/json
 ########################################################
 
 ### Get employees for warehouse
-GET {{host}}/warehouse/{{warehouse_id}}
+GET {{host}}/warehouses/{{warehouse_id}}/employees
 Accept: application/json
 
 ########################################################
@@ -123,7 +123,27 @@ Content-Type: application/json
 
 { "note": "wydano kurierowi" }
 
-### Ścieżka audytu (RECEIVED -> MOVED -> DISPATCHED)
+### Uszkodzenie: flaga DAMAGED (towar zostaje na półce)
+POST {{host}}/storage/{{storage_record_id}}/damage
+Content-Type: application/json
+
+{ "note": "rozerwane opakowanie" }
+
+### Zaginięcie: write-off LOST (zdejmowane ze stanu)
+POST {{host}}/storage/{{storage_record_id}}/loss
+Content-Type: application/json
+
+{ "note": "brak przy inwentaryzacji" }
+
+### Rejestr rekordów (pełny, z filtrami i statusem)
+GET {{host}}/storage/records?warehouseId={{warehouse_id}}
+Accept: application/json
+
+### Rejestr: tylko uszkodzone
+GET {{host}}/storage/records?status=DAMAGED
+Accept: application/json
+
+### Ścieżka audytu (RECEIVED -> MOVED -> DISPATCHED / DAMAGED / LOST)
 GET {{host}}/storage/{{storage_record_id}}/events
 Accept: application/json
 
@@ -272,8 +292,8 @@ DELETE {{host}}/shelves/{{shelf_id}}
 GET {{host}}/shelves/{{shelf_id}}
 Accept: application/json
 
-### What is physically stored on a shelf (open storage records)
-GET {{host}}/shelves/{{shelf_id}}/contents
+### What is physically stored on a shelf (replaces /shelves/{id}/contents)
+GET {{host}}/inventory?shelfId={{shelf_id}}
 Accept: application/json
 
 ### Warehouse inventory rollup per zone

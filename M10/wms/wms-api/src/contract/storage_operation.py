@@ -60,6 +60,12 @@ class DispatchRequest(StructureModel):
     note: Optional[StrictStr] = None
 
 
+class ConditionReport(StructureModel):
+    """Body for POST /storage/{id}/damage and /loss — an optional operator note."""
+
+    note: Optional[StrictStr] = None
+
+
 class StorageRecord(StructureModel):
     """Full storage-record response (open or closed)."""
 
@@ -74,4 +80,5 @@ class StorageRecord(StructureModel):
     cargo_volume: float = Field(alias="cargoVolume")
     entry_date: Optional[StrictStr] = Field(default=None, alias="entryDate")
     exit_date: Optional[StrictStr] = Field(default=None, alias="exitDate")
-    status: StrictStr  # STORED | DISPATCHED
+    condition: StrictStr = "GOOD"  # GOOD | DAMAGED | LOST
+    status: StrictStr  # STORED | DISPATCHED | DAMAGED | LOST

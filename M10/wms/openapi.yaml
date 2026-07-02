@@ -76,6 +76,30 @@ paths:
         '404': { description: Request or shelf not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '409': { description: Shelf not ACTIVE / wrong warehouse / capacity exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
+  /storage/records:
+    get:
+      summary: Storage-record register (open + closed), filterable
+      description: >-
+        Every storage record with its derived status. Unlike /inventory (current stock only),
+        this includes dispatched/lost records. Filters: partyId, warehouseId, shelfId, status.
+      operationId: listStorageRecords
+      tags: [StorageOperations]
+      parameters:
+        - { name: partyId, in: query, required: false, schema: { type: integer, format: int64 } }
+        - { name: warehouseId, in: query, required: false, schema: { type: integer, format: int64 } }
+        - { name: shelfId, in: query, required: false, schema: { type: integer, format: int64 } }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [STORED, DISPATCHED, DAMAGED, LOST] }
+      responses:
+        '200':
+          description: List of storage records
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/StorageRecord' } }
+        '400': { description: Invalid filter, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
   /storage/{record_id}:
     parameters:
       - name: record_id
@@ -158,6 +182,48 @@ paths:
         '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '409': { description: Already dispatched, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
+  /storage/{record_id}/damage:
+    parameters:
+      - name: record_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      summary: Flag stored goods as damaged (uszkodzenie)
+      description: Sets condition=DAMAGED. Goods stay on the shelf (still occupied). Logs a DAMAGED event.
+      operationId: reportDamage
+      tags: [StorageOperations]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConditionReport' }
+      responses:
+        '200': { description: Updated record, content: { application/json: { schema: { $ref: '#/components/schemas/StorageRecord' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Not on stock, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /storage/{record_id}/loss:
+    parameters:
+      - name: record_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      summary: Write off stored goods as lost (zaginięcie)
+      description: Sets condition=LOST and actual_exit_date — removed from stock, distinct from DISPATCHED. Logs a LOST event.
+      operationId: reportLoss
+      tags: [StorageOperations]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConditionReport' }
+      responses:
+        '200': { description: Updated record, content: { application/json: { schema: { $ref: '#/components/schemas/StorageRecord' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: No longer on stock, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
   # --- Employees ---
   /employees:
     get:
@@ -204,32 +270,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # --- Warehouse ---
-  /warehouse/{warehouse_id}:
-    get:
-      summary: Warehouse employees
-      description: Returns a list of employees assigned to the given warehouse.
-      operationId: getWarehouseEmployees
-      tags:
-        - Warehouse
-      parameters:
-        - name: warehouse_id
-          in: path
-          required: true
-          description: Warehouse ID
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: List of warehouse employees
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/EmployeeListItem'
 
   # --- Warehouse structure CRUD (Magazyn / Strefa / Rząd / Szafa / Półka) ---
   /warehouses:
@@ -644,19 +684,23 @@ paths:
         '409': { description: Has active reservations or open storage records, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   # --- Inventory state (read layer over storage_record) ---
-  /shelves/{shelf_id}/contents:
+  /warehouses/{warehouse_id}/employees:
     parameters:
-      - name: shelf_id
+      - name: warehouse_id
         in: path
         required: true
         schema: { type: integer, format: int64 }
     get:
-      summary: Cargo lots physically stored on a shelf
-      operationId: getShelfContents
-      tags: [Inventory]
+      summary: Employees assigned to a warehouse
+      operationId: getWarehouseEmployees
+      tags: [WarehouseStructure]
       responses:
-        '200': { description: Shelf contents, content: { application/json: { schema: { $ref: '#/components/schemas/ShelfContents' } } } }
-        '404': { description: Shelf not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '200':
+          description: List of warehouse employees
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/EmployeeListItem' } }
+        '404': { description: Warehouse not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   /warehouses/{warehouse_id}/inventory:
     parameters:
@@ -675,7 +719,7 @@ paths:
   /inventory:
     get:
       summary: Currently stored cargo lots (filterable)
-      description: Open storage records, optionally filtered by party / warehouse / zone. Each item carries its locationCode.
+      description: Open storage records, optionally filtered by party / warehouse / zone / shelf. Each item carries its locationCode.
       operationId: listInventory
       tags: [Inventory]
       parameters:
@@ -691,6 +735,11 @@ paths:
         - name: zoneId
           in: query
           required: false
+          schema: { type: integer, format: int64 }
+        - name: shelfId
+          in: query
+          required: false
+          description: Cargo on a specific shelf (replaces the old /shelves/{id}/contents)
           schema: { type: integer, format: int64 }
       responses:
         '200':
@@ -1267,19 +1316,6 @@ components:
         cargoVolume: { type: number }
         entryDate: { type: string, format: date-time, nullable: true }
 
-    ShelfContents:
-      type: object
-      required: [shelfId, recordCount, occupiedWeight, occupiedVolume, items]
-      properties:
-        shelfId: { type: string }
-        locationCode: { type: string, nullable: true }
-        recordCount: { type: integer }
-        occupiedWeight: { type: number }
-        occupiedVolume: { type: number }
-        items:
-          type: array
-          items: { $ref: '#/components/schemas/StorageRecordItem' }
-
     ZoneInventory:
       type: object
       required: [zoneId, zoneName, recordCount, totalWeight, totalVolume]
@@ -1336,6 +1372,12 @@ components:
         exitDate: { type: string, format: date-time, nullable: true, description: Defaults to now }
         note: { type: string, nullable: true }
 
+    ConditionReport:
+      type: object
+      description: Body for /damage and /loss — an optional operator note.
+      properties:
+        note: { type: string, nullable: true }
+
     StorageRecord:
       type: object
       required: [recordId, requestId, partyId, shelfId, cargoWeight, cargoVolume, status]
@@ -1351,7 +1393,8 @@ components:
         cargoVolume: { type: number }
         entryDate: { type: string, format: date-time, nullable: true }
         exitDate: { type: string, format: date-time, nullable: true }
-        status: { type: string, enum: [STORED, DISPATCHED] }
+        condition: { type: string, enum: [GOOD, DAMAGED, LOST] }
+        status: { type: string, enum: [STORED, DISPATCHED, DAMAGED, LOST] }
 
     # --- Errors ---
     Error:

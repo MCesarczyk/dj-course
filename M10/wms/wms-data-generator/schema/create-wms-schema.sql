@@ -210,7 +210,8 @@ CREATE TABLE storage_record (
     actual_exit_date TIMESTAMP,
     cargo_description TEXT NOT NULL,
     cargo_weight NUMERIC NOT NULL,
-    cargo_volume NUMERIC NOT NULL
+    cargo_volume NUMERIC NOT NULL,
+    condition TEXT NOT NULL DEFAULT 'GOOD' CHECK (condition IN ('GOOD','DAMAGED','LOST'))
 );
 CREATE INDEX idx_storage_record_request_id ON storage_record(request_id);
 CREATE INDEX idx_storage_record_party_id ON storage_record(party_id);

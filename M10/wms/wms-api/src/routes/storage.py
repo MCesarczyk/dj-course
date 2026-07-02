@@ -6,26 +6,34 @@ an audit row to `cargo_event_history` (event types RECEIVED / MOVED / DISPATCHED
 
 import json
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from sqlalchemy import text
 
 from application import logger
 from database import db_engine
 from contract.storage_operation import (
-    ReceiptCreate, ReservationFulfill, MoveRequest, DispatchRequest, StorageRecord,
+    ReceiptCreate, ReservationFulfill, MoveRequest, DispatchRequest,
+    ConditionReport, StorageRecord,
 )
 from routes.structure_util import parse_body
 
 storage_bp = Blueprint('storage_bp', __name__)
 
-# Full record incl. exit date + derived status + location code.
+# Full record incl. exit date + condition + derived status + location code.
+# Status precedence: LOST (written off) > DISPATCHED (left) > DAMAGED (flagged,
+# still on stock) > STORED.
 _RECORD_SELECT = '''
     SELECT sr.storage_record_id AS record_id, sr.request_id, sr.party_id, p.name AS party_name,
-           sr.shelf_id,
+           sr.shelf_id, z.warehouse_id,
            z.name || '-' || a.label || '-' || r.label || '-' || s.level AS location_code,
            sr.cargo_description, sr.cargo_weight, sr.cargo_volume,
-           sr.actual_entry_date, sr.actual_exit_date,
-           CASE WHEN sr.actual_exit_date IS NULL THEN 'STORED' ELSE 'DISPATCHED' END AS status
+           sr.actual_entry_date, sr.actual_exit_date, sr.condition,
+           CASE
+               WHEN sr.condition = 'LOST' THEN 'LOST'
+               WHEN sr.actual_exit_date IS NOT NULL THEN 'DISPATCHED'
+               WHEN sr.condition = 'DAMAGED' THEN 'DAMAGED'
+               ELSE 'STORED'
+           END AS status
     FROM storage_record sr
     JOIN party p ON p.party_id = sr.party_id
     JOIN shelf s ON s.shelf_id = sr.shelf_id
@@ -46,7 +54,7 @@ def _record_dict(row):
         cargo_weight=float(row['cargo_weight']), cargo_volume=float(row['cargo_volume']),
         entry_date=entry.isoformat() if entry else None,
         exit_date=exit_.isoformat() if exit_ else None,
-        status=row['status'],
+        condition=row['condition'], status=row['status'],
     ).to_dict()
 
 
@@ -99,6 +107,40 @@ def get_storage_record(record_id):
     if row is None:
         return jsonify({'error': f'Storage record {record_id} not found'}), 404
     return jsonify(_record_dict(row))
+
+
+@storage_bp.route('/records', methods=['GET'])
+def list_storage_records():
+    """Full storage-record register (open + closed), filterable.
+
+    Unlike /inventory (current stock only), this returns every record with its
+    derived status. Filters: partyId, warehouseId, shelfId, status
+    (STORED / DISPATCHED / DAMAGED / LOST).
+    """
+    filters = []
+    params = {}
+    for param, column in (('partyId', 'party_id'),
+                          ('warehouseId', 'warehouse_id'),
+                          ('shelfId', 'shelf_id')):
+        value = request.args.get(param)
+        if value is not None:
+            if not value.isdigit():
+                return jsonify({'error': f'{param} must be an integer'}), 400
+            filters.append(f'{column} = :{param}')
+            params[param] = int(value)
+    status = request.args.get('status')
+    if status is not None:
+        filters.append('status = :status')
+        params['status'] = status.upper()
+
+    query = 'SELECT * FROM (' + _RECORD_SELECT + ') rec'
+    if filters:
+        query += ' WHERE ' + ' AND '.join(filters)
+    query += ' ORDER BY record_id;'
+    with db_engine.connect() as conn:
+        rows = conn.execute(text(query), params).mappings().all()
+    logger.info(f"Fetched {len(rows)} storage record(s) with filters {params}")
+    return jsonify([_record_dict(r) for r in rows])
 
 
 @storage_bp.route('/<int:record_id>/events', methods=['GET'])
@@ -320,4 +362,60 @@ def dispatch_goods(record_id):
             })
             row = _fetch_record(conn, record_id)
     logger.info(f"Dispatched record {record_id}")
+    return jsonify(_record_dict(row))
+
+
+@storage_bp.route('/<int:record_id>/damage', methods=['POST'])
+def report_damage(record_id):
+    """Uszkodzenie: flag goods as DAMAGED. They stay on the shelf (still occupied)."""
+    body, err = parse_body(ConditionReport)
+    if err:
+        return err
+    with db_engine.connect() as conn:
+        with conn.begin():
+            record = _fetch_record(conn, record_id)
+            if record is None:
+                return jsonify({'error': f'Storage record {record_id} not found'}), 404
+            if record['status'] != 'STORED':
+                return jsonify({'error': f"Storage record {record_id} is not on stock (status {record['status']})"}), 409
+
+            conn.execute(text(
+                "UPDATE storage_record SET condition = 'DAMAGED' WHERE storage_record_id = :id;"
+            ), {'id': record_id})
+            _log_event(conn, record['party_id'], record_id, 'DAMAGED', {
+                'shelf_id': record['shelf_id'],
+                'location_code': record['location_code'],
+                'note': body.note,
+            })
+            row = _fetch_record(conn, record_id)
+    logger.info(f"Flagged record {record_id} as DAMAGED")
+    return jsonify(_record_dict(row))
+
+
+@storage_bp.route('/<int:record_id>/loss', methods=['POST'])
+def report_loss(record_id):
+    """Zaginięcie: write off goods as LOST — removed from stock (exit date set)."""
+    body, err = parse_body(ConditionReport)
+    if err:
+        return err
+    with db_engine.connect() as conn:
+        with conn.begin():
+            record = _fetch_record(conn, record_id)
+            if record is None:
+                return jsonify({'error': f'Storage record {record_id} not found'}), 404
+            if record['actual_exit_date'] is not None or record['condition'] == 'LOST':
+                return jsonify({'error': f"Storage record {record_id} is no longer on stock (status {record['status']})"}), 409
+
+            conn.execute(text('''
+                UPDATE storage_record
+                SET condition = 'LOST', actual_exit_date = CURRENT_TIMESTAMP
+                WHERE storage_record_id = :id;
+            '''), {'id': record_id})
+            _log_event(conn, record['party_id'], record_id, 'LOST', {
+                'shelf_id': record['shelf_id'],
+                'location_code': record['location_code'],
+                'note': body.note,
+            })
+            row = _fetch_record(conn, record_id)
+    logger.info(f"Wrote off record {record_id} as LOST")
     return jsonify(_record_dict(row))

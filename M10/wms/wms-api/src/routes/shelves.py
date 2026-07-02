@@ -12,9 +12,7 @@ from sqlalchemy import text
 from application import logger
 from database import db_engine
 from contract.shelf import Shelf, ShelfUpdate
-from contract.inventory import ShelfContents
 from routes.structure_util import parse_body, update_fields, soft_delete
-from routes.inventory import RECORD_ITEM_SELECT, record_item_dict
 
 shelves_bp = Blueprint('shelves_bp', __name__)
 
@@ -80,31 +78,6 @@ def get_shelf(shelf_id):
     if row is None:
         return jsonify({'error': f'Shelf {shelf_id} not found'}), 404
     return jsonify(shelf_dict(row))
-
-
-@shelves_bp.route('/<int:shelf_id>/contents', methods=['GET'])
-def get_shelf_contents(shelf_id):
-    """Cargo lots physically stored on this shelf (open storage records)."""
-    with db_engine.connect() as conn:
-        shelf = conn.execute(text(SHELF_SELECT + ' WHERE s.shelf_id = :id;'),
-                             {'id': shelf_id}).mappings().first()
-        if shelf is None:
-            return jsonify({'error': f'Shelf {shelf_id} not found'}), 404
-        rows = conn.execute(
-            text(RECORD_ITEM_SELECT + ' WHERE sr.actual_exit_date IS NULL AND sr.shelf_id = :id'
-                 ' ORDER BY sr.storage_record_id;'),
-            {'id': shelf_id},
-        ).mappings().all()
-    result = ShelfContents(
-        shelf_id=str(shelf_id),
-        location_code=shelf['location_code'],
-        record_count=int(shelf['stored_record_count']),
-        occupied_weight=float(shelf['occupied_weight']),
-        occupied_volume=float(shelf['occupied_volume']),
-        items=[record_item_dict(r) for r in rows],
-    ).to_dict()
-    logger.info(f"Fetched {len(rows)} stored record(s) for shelf {shelf_id}")
-    return jsonify(result)
 
 
 @shelves_bp.route('/<int:shelf_id>', methods=['PATCH'])

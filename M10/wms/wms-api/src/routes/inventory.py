@@ -49,16 +49,18 @@ def record_item_dict(row):
 
 @inventory_bp.route('/', methods=['GET'], strict_slashes=False)
 def list_inventory():
-    """Currently stored cargo lots, filterable by party / warehouse / zone.
+    """Currently stored cargo lots, filterable by party / warehouse / zone / shelf.
 
-    Answers "where is customer X's cargo?" (partyId) and "what is stored in
-    warehouse/zone Y?" — each item carries its `locationCode`.
+    Answers "where is customer X's cargo?" (partyId), "what is stored in
+    warehouse/zone Y?" and "what is on shelf Z?" (shelfId) — each item carries
+    its `locationCode`. Per-shelf occupancy totals live on GET /shelves/{id}.
     """
     filters = ['sr.actual_exit_date IS NULL']
     params = {}
     for param, column in (('partyId', 'sr.party_id'),
                           ('warehouseId', 'w.warehouse_id'),
-                          ('zoneId', 'z.zone_id')):
+                          ('zoneId', 'z.zone_id'),
+                          ('shelfId', 'sr.shelf_id')):
         value = request.args.get(param)
         if value is not None:
             if not value.isdigit():

@@ -31,17 +31,6 @@ class StorageRecordItem(StructureModel):
     entry_date: Optional[StrictStr] = Field(default=None, alias="entryDate")
 
 
-class ShelfContents(StructureModel):
-    """What is physically stored on one shelf, with a summary."""
-
-    shelf_id: StrictStr = Field(alias="shelfId")
-    location_code: Optional[StrictStr] = Field(default=None, alias="locationCode")
-    record_count: StrictInt = Field(alias="recordCount")
-    occupied_weight: float = Field(alias="occupiedWeight")
-    occupied_volume: float = Field(alias="occupiedVolume")
-    items: List[StorageRecordItem] = Field(default_factory=list)
-
-
 class ZoneInventory(StructureModel):
     """Aggregated stored goods for a single zone."""
 

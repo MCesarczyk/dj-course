@@ -6,15 +6,24 @@ DELETE is blocked (409) while the shelf still holds active reservations or open
 storage records.
 """
 
-from flask import Blueprint, jsonify
+from flask import jsonify
+from flask_openapi3 import APIBlueprint, Tag
+from pydantic import BaseModel
 from sqlalchemy import text
 
 from application import logger
 from database import db_engine
 from contract.shelf import Shelf, ShelfUpdate
-from routes.structure_util import parse_body, update_fields, soft_delete
+from contract.errors import ErrorResponse
+from routes.structure_util import update_fields, soft_delete
 
-shelves_bp = Blueprint('shelves_bp', __name__)
+structure_tag = Tag(name='WarehouseStructure', description='Warehouse / zone / aisle / rack / shelf CRUD')
+shelves_bp = APIBlueprint('shelves_bp', __name__, url_prefix='/shelves')
+
+
+class ShelfPath(BaseModel):
+    shelf_id: int
+
 
 # Shelf + location code (zone-aisle-rack-level) + two distinct occupancy views:
 #   reserved  = booked capacity (ACTIVE reservations)
@@ -70,21 +79,25 @@ def shelf_dict(row):
     ).to_dict()
 
 
-@shelves_bp.route('/<int:shelf_id>', methods=['GET'])
-def get_shelf(shelf_id):
+@shelves_bp.get(
+    '/<int:shelf_id>', tags=[structure_tag],
+    summary='Shelf details (capacity + live occupancy + locationCode)',
+    operation_id='getShelf', responses={200: Shelf, 404: ErrorResponse},
+)
+def get_shelf(path: ShelfPath):
     with db_engine.connect() as conn:
         row = conn.execute(text(SHELF_SELECT + ' WHERE s.shelf_id = :id;'),
-                           {'id': shelf_id}).mappings().first()
+                           {'id': path.shelf_id}).mappings().first()
     if row is None:
-        return jsonify({'error': f'Shelf {shelf_id} not found'}), 404
+        return jsonify({'error': f'Shelf {path.shelf_id} not found'}), 404
     return jsonify(shelf_dict(row))
 
 
-@shelves_bp.route('/<int:shelf_id>', methods=['PATCH'])
-def update_shelf(shelf_id):
-    body, err = parse_body(ShelfUpdate)
-    if err:
-        return err
+@shelves_bp.patch(
+    '/<int:shelf_id>', tags=[structure_tag], summary='Update shelf',
+    operation_id='updateShelf', responses={200: Shelf, 400: ErrorResponse, 404: ErrorResponse},
+)
+def update_shelf(path: ShelfPath, body: ShelfUpdate):
     fields = update_fields(body, {'level': 'level', 'max_weight': 'max_weight',
                                   'max_volume': 'max_volume', 'status': 'status'})
     if not fields:
@@ -94,20 +107,24 @@ def update_shelf(shelf_id):
         with conn.begin():
             updated = conn.execute(
                 text(f'UPDATE shelf SET {set_clause} WHERE shelf_id = :id RETURNING shelf_id;'),
-                {**fields, 'id': shelf_id},
+                {**fields, 'id': path.shelf_id},
             ).first()
             if updated is None:
-                return jsonify({'error': f'Shelf {shelf_id} not found'}), 404
+                return jsonify({'error': f'Shelf {path.shelf_id} not found'}), 404
             row = conn.execute(text(SHELF_SELECT + ' WHERE s.shelf_id = :id;'),
-                               {'id': shelf_id}).mappings().first()
-    logger.info(f"Updated shelf {shelf_id}: {list(fields)}")
+                               {'id': path.shelf_id}).mappings().first()
+    logger.info(f"Updated shelf {path.shelf_id}: {list(fields)}")
     return jsonify(shelf_dict(row))
 
 
-@shelves_bp.route('/<int:shelf_id>', methods=['DELETE'])
-def delete_shelf(shelf_id):
+@shelves_bp.delete(
+    '/<int:shelf_id>', tags=[structure_tag],
+    summary='Soft-delete shelf (blocked 409 if active reservations/open records)',
+    operation_id='deleteShelf', responses={204: None, 404: ErrorResponse, 409: ErrorResponse},
+)
+def delete_shelf(path: ShelfPath):
     outcome = soft_delete(
-        'shelf', 'shelf_id', shelf_id,
+        'shelf', 'shelf_id', path.shelf_id,
         child_guard_sql='''
             SELECT 1 FROM storage_reservation
             WHERE shelf_id = :id AND UPPER(status) = 'ACTIVE'
@@ -118,8 +135,8 @@ def delete_shelf(shelf_id):
         ''',
     )
     if outcome == 'not_found':
-        return jsonify({'error': f'Shelf {shelf_id} not found'}), 404
+        return jsonify({'error': f'Shelf {path.shelf_id} not found'}), 404
     if outcome == 'conflict':
-        return jsonify({'error': f'Shelf {shelf_id} has active reservations or open storage records'}), 409
-    logger.info(f"Soft-deleted shelf {shelf_id} (outcome={outcome})")
+        return jsonify({'error': f'Shelf {path.shelf_id} has active reservations or open storage records'}), 409
+    logger.info(f"Soft-deleted shelf {path.shelf_id} (outcome={outcome})")
     return '', 204

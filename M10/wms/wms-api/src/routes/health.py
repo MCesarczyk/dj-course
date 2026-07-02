@@ -1,16 +1,39 @@
 import time
 import os
-from flask import Blueprint, jsonify
+from typing import Dict
+
+from flask import jsonify
+from flask_openapi3 import APIBlueprint, Tag
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from application import logger
 from database import db_engine
 
-health_bp = Blueprint('health_bp', __name__)
+health_tag = Tag(name='Health', description='Service liveness / readiness')
+health_bp = APIBlueprint('health_bp', __name__, url_prefix='/health')
 START_TIME = time.time()
 
 
-@health_bp.route('/', methods=['GET'], strict_slashes=False)
+class HealthStatus(BaseModel):
+    """Service status, uptime and dependency health."""
+
+    status: str = Field(description='Overall service status: UP or DOWN')
+    timestamp: float = Field(description='Unix timestamp')
+    uptime_seconds: int = Field(description='Service uptime in seconds')
+    version: str = Field(description='Application version (from VERSION env var)')
+    dependencies: Dict[str, str] = Field(
+        description='Per-dependency status (e.g. {"postgres": "UP"})')
+
+
+@health_bp.get(
+    '',
+    tags=[health_tag],
+    summary='Service health check',
+    description='Returns service status, uptime, version, and dependency status (PostgreSQL).',
+    operation_id='health',
+    responses={200: HealthStatus, 503: HealthStatus},
+)
 def health():
     logger.debug('Health check requested')
 

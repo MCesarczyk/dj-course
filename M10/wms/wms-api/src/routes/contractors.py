@@ -1,19 +1,44 @@
-from flask import Blueprint, jsonify, request
-from application import logger
-from sqlalchemy import text
-from database import db_engine
-from pydantic import ValidationError
+from typing import List
 
+from flask import jsonify
+from flask_openapi3 import APIBlueprint, Tag
+from pydantic import BaseModel, Field, RootModel, ValidationError
+from sqlalchemy import text
+
+from application import logger
+from database import db_engine
 from contract.contractor_details import ContractorDetails
 from contract.contractor_summary import ContractorSummary
 from contract.contractor_status_update import ContractorStatusUpdate
+from contract.errors import ErrorResponse
 
-contractors_bp = Blueprint('contractors_bp', __name__)
+contractors_tag = Tag(name='Contractors', description='Contractor companies')
+contractors_bp = APIBlueprint('contractors_bp', __name__, url_prefix='/contractors')
 
-@contractors_bp.route('/', methods=['GET'], strict_slashes=False)
+
+class ContractorSummaryList(RootModel[List[ContractorSummary]]):
+    """List of contractors."""
+
+
+class ContractorPath(BaseModel):
+    id: int = Field(description='Contractor ID (party_id)')
+
+
+class ContractorStatusUpdateResponse(BaseModel):
+    message: str = Field(examples=['Contractor 123 status updated successfully to ACTIVE'])
+
+
+@contractors_bp.get(
+    '',
+    tags=[contractors_tag],
+    summary='Contractor list',
+    description='Returns a list of contractors (companies) with basic data.',
+    operation_id='getContractors',
+    responses={200: ContractorSummaryList, 500: ErrorResponse},
+)
 def get_contractors():
     query = text('''
-        SELECT 
+        SELECT
             p.party_id AS id,
             p.name,
             p.data->>'status' AS status,
@@ -46,13 +71,22 @@ def get_contractors():
         except ValidationError as e:
             logger.error(f"Data validation error for contractor data: {raw_contractor}. Error: {e}")
             return jsonify({'error': 'Internal server error: data validation failed'}), 500
-    
+
     logger.info(f"Contractor validation successful for {len(contractors)} contractors")
     logger.info(f"Fetched {len(contractors)} contractors")
     return jsonify(contractors)
 
-@contractors_bp.route('/<int:id>', methods=['GET'])
-def get_contractor_details(id):
+
+@contractors_bp.get(
+    '/<int:id>',
+    tags=[contractors_tag],
+    summary='Contractor details',
+    description='Returns full contractor data including addresses and representative employees.',
+    operation_id='getContractorDetails',
+    responses={200: ContractorDetails, 404: ErrorResponse, 500: ErrorResponse},
+)
+def get_contractor_details(path: ContractorPath):
+    id = path.id
     query = text('''
     WITH contractor_base AS (
         SELECT
@@ -152,14 +186,18 @@ def get_contractor_details(id):
     logger.info(f"Fetched contractor details for {id}")
     return jsonify(contractor_details)
 
-@contractors_bp.route('/<int:id>', methods=['PATCH'])
-def update_contractor_status(id):
-    data = request.get_json()
-    try:
-        status_update = ContractorStatusUpdate.from_dict(data or {})
-        new_status = status_update.status.value
-    except ValidationError as e:
-        return jsonify({'error': f"Invalid request body: {e}"}), 400
+
+@contractors_bp.patch(
+    '/<int:id>',
+    tags=[contractors_tag],
+    summary='Update contractor status',
+    description='Updates contractor status (ACTIVE/INACTIVE).',
+    operation_id='updateContractorStatus',
+    responses={200: ContractorStatusUpdateResponse, 400: ErrorResponse, 404: ErrorResponse},
+)
+def update_contractor_status(path: ContractorPath, body: ContractorStatusUpdate):
+    id = path.id
+    new_status = body.status.value
 
     # IMPORTANT: SQLAlchemy has trouble in combining its own syntax (parameters starting with ":") and jsonb ("::modified")
     # For this reason the "new_status" gets injected into the string

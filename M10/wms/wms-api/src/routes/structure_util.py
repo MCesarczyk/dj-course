@@ -1,29 +1,14 @@
 """Shared helpers for the warehouse-structure CRUD routes.
 
 Keeps the per-resource blueprints focused on SQL by factoring out the
-repeated bits: request-body validation and dynamic UPDATE building.
+repeated bits: dynamic UPDATE building and soft-delete with child guards.
+Request-body validation is handled by flask-openapi3 from the typed route
+signatures (``def handler(body: SomeModel)``).
 """
 
-from flask import jsonify, request
-from pydantic import ValidationError
 from sqlalchemy import text
 
 from database import db_engine
-
-
-def parse_body(model_cls):
-    """Validate the JSON request body against a Pydantic contract.
-
-    Returns (instance, None) on success, or (None, flask_response) on failure
-    so callers can do: ``body, err = parse_body(X); if err: return err``.
-    """
-    data = request.get_json(silent=True)
-    if data is None:
-        return None, (jsonify({'error': 'Request body must be valid JSON'}), 400)
-    try:
-        return model_cls.from_dict(data), None
-    except ValidationError as e:
-        return None, (jsonify({'error': f'Invalid request body: {e}'}), 400)
 
 
 def update_fields(body, column_map):

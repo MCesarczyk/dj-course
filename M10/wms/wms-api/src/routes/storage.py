@@ -5,8 +5,12 @@ an audit row to `cargo_event_history` (event types RECEIVED / MOVED / DISPATCHED
 """
 
 import json
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from flask import Blueprint, jsonify, request
+from flask import jsonify
+from flask_openapi3 import APIBlueprint, Tag
+from pydantic import BaseModel, Field, RootModel
 from sqlalchemy import text
 
 from application import logger
@@ -15,9 +19,52 @@ from contract.storage_operation import (
     ReceiptCreate, ReservationFulfill, MoveRequest, DispatchRequest,
     ConditionReport, StorageRecord,
 )
-from routes.structure_util import parse_body
+from contract.errors import ErrorResponse
 
-storage_bp = Blueprint('storage_bp', __name__)
+storage_tag = Tag(name='Storage', description='Storage-record event history')
+storage_ops_tag = Tag(name='StorageOperations', description='Goods receipt / move / dispatch / write-off')
+
+storage_bp = APIBlueprint('storage_bp', __name__, url_prefix='/storage')
+
+
+class StorageRecordPath(BaseModel):
+    record_id: int = Field(description='Storage record ID (storage_record_id)')
+
+
+class ReservationPath(BaseModel):
+    reservation_id: int
+
+
+class RecordStatus(str, Enum):
+    STORED = 'STORED'
+    DISPATCHED = 'DISPATCHED'
+    DAMAGED = 'DAMAGED'
+    LOST = 'LOST'
+
+
+class StorageRecordQuery(BaseModel):
+    partyId: Optional[int] = None
+    warehouseId: Optional[int] = None
+    shelfId: Optional[int] = None
+    status: Optional[RecordStatus] = None
+
+
+class StorageEvent(BaseModel):
+    event_id: int
+    storage_record_id: int
+    event_type_id: int
+    event_time: Optional[str] = None
+    party_id: int
+    details: Optional[Dict[str, Any]] = None
+
+
+class StorageEventList(RootModel[List[StorageEvent]]):
+    """Event history for a storage record."""
+
+
+class StorageRecordList(RootModel[List[StorageRecord]]):
+    """List of storage records."""
+
 
 # Full record incl. exit date + condition + derived status + location code.
 # Status precedence: LOST (written off) > DISPATCHED (left) > DAMAGED (flagged,
@@ -100,17 +147,25 @@ def _log_event(conn, party_id, record_id, type_name, details):
            'details': json.dumps(details)})
 
 
-@storage_bp.route('/<int:record_id>', methods=['GET'])
-def get_storage_record(record_id):
+@storage_bp.get(
+    '/<int:record_id>', tags=[storage_ops_tag], summary='Storage record details',
+    operation_id='getStorageRecord', responses={200: StorageRecord, 404: ErrorResponse},
+)
+def get_storage_record(path: StorageRecordPath):
     with db_engine.connect() as conn:
-        row = _fetch_record(conn, record_id)
+        row = _fetch_record(conn, path.record_id)
     if row is None:
-        return jsonify({'error': f'Storage record {record_id} not found'}), 404
+        return jsonify({'error': f'Storage record {path.record_id} not found'}), 404
     return jsonify(_record_dict(row))
 
 
-@storage_bp.route('/records', methods=['GET'])
-def list_storage_records():
+@storage_bp.get(
+    '/records', tags=[storage_ops_tag], summary='Storage-record register (open + closed), filterable',
+    description='Every storage record with its derived status. Unlike /inventory (current stock only), '
+                'this includes dispatched/lost records. Filters: partyId, warehouseId, shelfId, status.',
+    operation_id='listStorageRecords', responses={200: StorageRecordList, 400: ErrorResponse},
+)
+def list_storage_records(query: StorageRecordQuery):
     """Full storage-record register (open + closed), filterable.
 
     Unlike /inventory (current stock only), this returns every record with its
@@ -119,32 +174,32 @@ def list_storage_records():
     """
     filters = []
     params = {}
-    for param, column in (('partyId', 'party_id'),
-                          ('warehouseId', 'warehouse_id'),
-                          ('shelfId', 'shelf_id')):
-        value = request.args.get(param)
+    for param, column, value in (('partyId', 'party_id', query.partyId),
+                                 ('warehouseId', 'warehouse_id', query.warehouseId),
+                                 ('shelfId', 'shelf_id', query.shelfId)):
         if value is not None:
-            if not value.isdigit():
-                return jsonify({'error': f'{param} must be an integer'}), 400
             filters.append(f'{column} = :{param}')
-            params[param] = int(value)
-    status = request.args.get('status')
-    if status is not None:
+            params[param] = value
+    if query.status is not None:
         filters.append('status = :status')
-        params['status'] = status.upper()
+        params['status'] = query.status.value
 
-    query = 'SELECT * FROM (' + _RECORD_SELECT + ') rec'
+    sql = 'SELECT * FROM (' + _RECORD_SELECT + ') rec'
     if filters:
-        query += ' WHERE ' + ' AND '.join(filters)
-    query += ' ORDER BY record_id;'
+        sql += ' WHERE ' + ' AND '.join(filters)
+    sql += ' ORDER BY record_id;'
     with db_engine.connect() as conn:
-        rows = conn.execute(text(query), params).mappings().all()
+        rows = conn.execute(text(sql), params).mappings().all()
     logger.info(f"Fetched {len(rows)} storage record(s) with filters {params}")
     return jsonify([_record_dict(r) for r in rows])
 
 
-@storage_bp.route('/<int:record_id>/events', methods=['GET'])
-def get_storage_event_history(record_id):
+@storage_bp.get(
+    '/<int:record_id>/events', tags=[storage_tag], summary='Storage record event history',
+    description='Returns cargo event history for the given storage record.',
+    operation_id='getStorageEventHistory', responses={200: StorageEventList},
+)
+def get_storage_event_history(path: StorageRecordPath):
     """Return the event history for a given storage record."""
     query = text('''
         SELECT
@@ -163,21 +218,24 @@ def get_storage_event_history(record_id):
     ''')
 
     with db_engine.connect() as conn:
-        result = conn.execute(query, {'record_id': record_id})
+        result = conn.execute(query, {'record_id': path.record_id})
         events = [dict(row) for row in result.mappings()]
 
     logger.info(
-        "Fetched %s storage event(s) for storage_record_id=%s", len(events), record_id
+        "Fetched %s storage event(s) for storage_record_id=%s", len(events), path.record_id
     )
     return jsonify(events)
 
 
-@storage_bp.route('/receipts', methods=['POST'])
-def receive_goods():
+@storage_bp.post(
+    '/receipts', tags=[storage_ops_tag], summary='Receive goods onto a shelf (przyjęcie)',
+    description='Creates a storage record against a request; owner is derived from the request. '
+                'Logs a RECEIVED event.',
+    operation_id='receiveGoods',
+    responses={201: StorageRecord, 400: ErrorResponse, 404: ErrorResponse, 409: ErrorResponse},
+)
+def receive_goods(body: ReceiptCreate):
     """Przyjęcie: place goods on a shelf against a storage request."""
-    body, err = parse_body(ReceiptCreate)
-    if err:
-        return err
     with db_engine.connect() as conn:
         with conn.begin():
             request_row = conn.execute(text(
@@ -222,17 +280,23 @@ def receive_goods():
     return jsonify(_record_dict(row)), 201
 
 
-@storage_bp.route('/reservations/<int:reservation_id>/fulfill', methods=['POST'])
-def fulfill_reservation(reservation_id):
+@storage_bp.post(
+    '/reservations/<int:reservation_id>/fulfill', tags=[storage_ops_tag],
+    summary='Receive goods against a reservation (przyjęcie realizujące rezerwację)',
+    description='Converts an ACTIVE reservation into stored goods: creates a storage record on the '
+                'reserved shelf (owner/request from the reservation), marks the reservation FULFILLED, '
+                'and logs a RECEIVED event. Cargo defaults to the reserved amounts.',
+    operation_id='fulfillReservation',
+    responses={201: StorageRecord, 400: ErrorResponse, 404: ErrorResponse, 409: ErrorResponse},
+)
+def fulfill_reservation(path: ReservationPath, body: ReservationFulfill):
     """Przyjęcie realizujące rezerwację: convert booked capacity into stored goods.
 
     Shelf/request/owner come from the reservation; the reservation moves to
     FULFILLED (so it stops counting as reserved) and a storage record is created
     (counting as occupied). Cargo defaults to the reserved amounts.
     """
-    body, err = parse_body(ReservationFulfill)
-    if err:
-        return err
+    reservation_id = path.reservation_id
     with db_engine.connect() as conn:
         with conn.begin():
             res = conn.execute(text('''
@@ -295,12 +359,15 @@ def fulfill_reservation(reservation_id):
     return jsonify(_record_dict(row)), 201
 
 
-@storage_bp.route('/<int:record_id>/move', methods=['POST'])
-def move_goods(record_id):
+@storage_bp.post(
+    '/<int:record_id>/move', tags=[storage_ops_tag], summary='Move stored goods to another shelf (przesunięcie)',
+    description='Relocates an open record within the same warehouse. Logs a MOVED event.',
+    operation_id='moveGoods',
+    responses={200: StorageRecord, 400: ErrorResponse, 404: ErrorResponse, 409: ErrorResponse},
+)
+def move_goods(path: StorageRecordPath, body: MoveRequest):
     """Przesunięcie: relocate a stored lot to another shelf (same warehouse)."""
-    body, err = parse_body(MoveRequest)
-    if err:
-        return err
+    record_id = path.record_id
     with db_engine.connect() as conn:
         with conn.begin():
             record = _fetch_record(conn, record_id)
@@ -336,12 +403,15 @@ def move_goods(record_id):
     return jsonify(_record_dict(row))
 
 
-@storage_bp.route('/<int:record_id>/dispatch', methods=['POST'])
-def dispatch_goods(record_id):
+@storage_bp.post(
+    '/<int:record_id>/dispatch', tags=[storage_ops_tag], summary='Dispatch goods from the warehouse (wydanie)',
+    description='Closes an open record (sets exit date). Logs a DISPATCHED event.',
+    operation_id='dispatchGoods',
+    responses={200: StorageRecord, 404: ErrorResponse, 409: ErrorResponse},
+)
+def dispatch_goods(path: StorageRecordPath, body: DispatchRequest):
     """Wydanie: release goods from the warehouse (close the storage record)."""
-    body, err = parse_body(DispatchRequest)
-    if err:
-        return err
+    record_id = path.record_id
     with db_engine.connect() as conn:
         with conn.begin():
             record = _fetch_record(conn, record_id)
@@ -365,12 +435,15 @@ def dispatch_goods(record_id):
     return jsonify(_record_dict(row))
 
 
-@storage_bp.route('/<int:record_id>/damage', methods=['POST'])
-def report_damage(record_id):
+@storage_bp.post(
+    '/<int:record_id>/damage', tags=[storage_ops_tag], summary='Flag stored goods as damaged (uszkodzenie)',
+    description='Sets condition=DAMAGED. Goods stay on the shelf (still occupied). Logs a DAMAGED event.',
+    operation_id='reportDamage',
+    responses={200: StorageRecord, 404: ErrorResponse, 409: ErrorResponse},
+)
+def report_damage(path: StorageRecordPath, body: ConditionReport):
     """Uszkodzenie: flag goods as DAMAGED. They stay on the shelf (still occupied)."""
-    body, err = parse_body(ConditionReport)
-    if err:
-        return err
+    record_id = path.record_id
     with db_engine.connect() as conn:
         with conn.begin():
             record = _fetch_record(conn, record_id)
@@ -392,12 +465,16 @@ def report_damage(record_id):
     return jsonify(_record_dict(row))
 
 
-@storage_bp.route('/<int:record_id>/loss', methods=['POST'])
-def report_loss(record_id):
+@storage_bp.post(
+    '/<int:record_id>/loss', tags=[storage_ops_tag], summary='Write off stored goods as lost (zaginięcie)',
+    description='Sets condition=LOST and actual_exit_date — removed from stock, distinct from DISPATCHED. '
+                'Logs a LOST event.',
+    operation_id='reportLoss',
+    responses={200: StorageRecord, 404: ErrorResponse, 409: ErrorResponse},
+)
+def report_loss(path: StorageRecordPath, body: ConditionReport):
     """Zaginięcie: write off goods as LOST — removed from stock (exit date set)."""
-    body, err = parse_body(ConditionReport)
-    if err:
-        return err
+    record_id = path.record_id
     with db_engine.connect() as conn:
         with conn.begin():
             record = _fetch_record(conn, record_id)

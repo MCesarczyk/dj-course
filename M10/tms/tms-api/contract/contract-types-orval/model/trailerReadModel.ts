@@ -5,7 +5,6 @@
  * Transportation Management System API
  * OpenAPI spec version: 1.0.0
  */
-import type { TrailerCapabilities } from './trailerCapabilities';
 import type { TrailerType } from './trailerType';
 
 /**
@@ -22,5 +21,4 @@ export interface TrailerReadModel {
   heightMm: number;
   /** Maximum loading metres (LDM) */
   maxLdm: number;
-  capabilities: TrailerCapabilities;
 }

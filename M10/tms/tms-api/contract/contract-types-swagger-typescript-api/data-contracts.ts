@@ -942,30 +942,6 @@ export interface CreateLoadPlanResponse {
   id: string;
 }
 
-/** Capabilities of the assigned trailer. */
-export interface TrailerCapabilities {
-  /**
-   * Trailer has temperature/climate control
-   * @example false
-   */
-  hasClimateControl: boolean;
-  /**
-   * Trailer supports side loading
-   * @example true
-   */
-  supportsSideLoading: boolean;
-  /**
-   * Trailer has high-security locking
-   * @example false
-   */
-  hasHighSecurityLock: boolean;
-  /**
-   * Trailer supports bulk cargo
-   * @example false
-   */
-  isBulkReady: boolean;
-}
-
 /** Details of the trailer assigned to the load plan. */
 export interface TrailerReadModel {
   /** Supported trailer types */
@@ -992,32 +968,6 @@ export interface TrailerReadModel {
    * @example 13.6
    */
   maxLdm: number;
-  /** Capabilities of the assigned trailer. */
-  capabilities: TrailerCapabilities;
-}
-
-/** Special handling requirements for a cargo unit. */
-export interface CargoRequirementsInput {
-  /**
-   * Cargo requires a refrigerated trailer
-   * @example false
-   */
-  isTemperatureControlled: boolean;
-  /**
-   * Cargo must be loaded from the side
-   * @example false
-   */
-  requiresSideLoading: boolean;
-  /**
-   * Cargo is bulk (requires bulk-ready trailer)
-   * @example false
-   */
-  isBulk: boolean;
-  /**
-   * Cargo requires high-security locking
-   * @example false
-   */
-  highSecurityRequired: boolean;
 }
 
 /** A single pallet unit assigned to a load plan. */
@@ -1051,8 +1001,6 @@ export interface PalletUnitReadModel {
   totalHeightMm: number;
   /** Human-readable product description (e.g. "FOOD – warzywa") */
   description?: string | null;
-  /** Special handling requirements for a cargo unit. */
-  requirements: CargoRequirementsInput;
 }
 
 /** Full state of a cargo load plan. */

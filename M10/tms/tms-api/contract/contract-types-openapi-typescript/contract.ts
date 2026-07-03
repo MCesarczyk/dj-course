@@ -1284,29 +1284,6 @@ export interface components {
          * @enum {string}
          */
         CargoLoadPlanStatus: "DRAFT" | "FINALIZED";
-        /** @description Capabilities of the assigned trailer. */
-        TrailerCapabilities: {
-            /**
-             * @description Trailer has temperature/climate control
-             * @example false
-             */
-            hasClimateControl: boolean;
-            /**
-             * @description Trailer supports side loading
-             * @example true
-             */
-            supportsSideLoading: boolean;
-            /**
-             * @description Trailer has high-security locking
-             * @example false
-             */
-            hasHighSecurityLock: boolean;
-            /**
-             * @description Trailer supports bulk cargo
-             * @example false
-             */
-            isBulkReady: boolean;
-        };
         /** @description Details of the trailer assigned to the load plan. */
         TrailerReadModel: {
             type: components["schemas"]["TrailerType"];
@@ -1332,36 +1309,12 @@ export interface components {
              * @example 13.6
              */
             maxLdm: number;
-            capabilities: components["schemas"]["TrailerCapabilities"];
         };
         /**
          * @description Type of cargo being transported
          * @enum {string}
          */
         CargoType: "FOOD" | "CHEMICAL" | "ELECTRONICS" | "ADR" | "GENERAL";
-        /** @description Special handling requirements for a cargo unit. */
-        CargoRequirementsInput: {
-            /**
-             * @description Cargo requires a refrigerated trailer
-             * @example false
-             */
-            isTemperatureControlled: boolean;
-            /**
-             * @description Cargo must be loaded from the side
-             * @example false
-             */
-            requiresSideLoading: boolean;
-            /**
-             * @description Cargo is bulk (requires bulk-ready trailer)
-             * @example false
-             */
-            isBulk: boolean;
-            /**
-             * @description Cargo requires high-security locking
-             * @example false
-             */
-            highSecurityRequired: boolean;
-        };
         /** @description A single pallet unit assigned to a load plan. */
         PalletUnitReadModel: {
             /**
@@ -1388,7 +1341,6 @@ export interface components {
             totalHeightMm: number;
             /** @description Human-readable product description (e.g. "FOOD – warzywa") */
             description?: string | null;
-            requirements: components["schemas"]["CargoRequirementsInput"];
         };
         /** @description Full state of a cargo load plan. */
         CargoLoadPlanReadModel: {
@@ -3084,13 +3036,7 @@ export interface operations {
                      *         "maxWeightCapacityKg": 24000,
                      *         "widthMm": 2400,
                      *         "heightMm": 2700,
-                     *         "maxLdm": 13.6,
-                     *         "capabilities": {
-                     *           "hasClimateControl": false,
-                     *           "supportsSideLoading": true,
-                     *           "hasHighSecurityLock": false,
-                     *           "isBulkReady": false
-                     *         }
+                     *         "maxLdm": 13.6
                      *       },
                      *       "version": 3,
                      *       "currentLdm": 2.4,
@@ -3101,13 +3047,7 @@ export interface operations {
                      *           "palletLabel": "EPAL 1",
                      *           "cargoType": "FOOD",
                      *           "weight": 600,
-                     *           "totalHeightMm": 1400,
-                     *           "requirements": {
-                     *             "isTemperatureControlled": false,
-                     *             "requiresSideLoading": false,
-                     *             "isBulk": false,
-                     *             "highSecurityRequired": false
-                     *           }
+                     *           "totalHeightMm": 1400
                      *         }
                      *       ]
                      *     }

@@ -63,11 +63,6 @@ paths:
                   widthMm: 2400
                   heightMm: 2700
                   maxLdm: 13.6
-                  capabilities:
-                    hasClimateControl: false
-                    supportsSideLoading: true
-                    hasHighSecurityLock: false
-                    isBulkReady: false
                 version: 3
                 currentLdm: 2.4
                 plannedWeight: 600
@@ -77,11 +72,6 @@ paths:
                     cargoType: FOOD
                     weight: 600
                     totalHeightMm: 1400
-                    requirements:
-                      isTemperatureControlled: false
-                      requiresSideLoading: false
-                      isBulk: false
-                      highSecurityRequired: false
         '404':
           description: No load plan exists with the given ID.
           content:
@@ -305,58 +295,6 @@ components:
         - DRAFT
         - FINALIZED
 
-    CargoRequirementsInput:
-      type: object
-      description: Special handling requirements for a cargo unit.
-      required:
-        - isTemperatureControlled
-        - requiresSideLoading
-        - isBulk
-        - highSecurityRequired
-      properties:
-        isTemperatureControlled:
-          type: boolean
-          description: Cargo requires a refrigerated trailer
-          example: false
-        requiresSideLoading:
-          type: boolean
-          description: Cargo must be loaded from the side
-          example: false
-        isBulk:
-          type: boolean
-          description: Cargo is bulk (requires bulk-ready trailer)
-          example: false
-        highSecurityRequired:
-          type: boolean
-          description: Cargo requires high-security locking
-          example: false
-
-    TrailerCapabilities:
-      type: object
-      description: Capabilities of the assigned trailer.
-      required:
-        - hasClimateControl
-        - supportsSideLoading
-        - hasHighSecurityLock
-        - isBulkReady
-      properties:
-        hasClimateControl:
-          type: boolean
-          description: Trailer has temperature/climate control
-          example: false
-        supportsSideLoading:
-          type: boolean
-          description: Trailer supports side loading
-          example: true
-        hasHighSecurityLock:
-          type: boolean
-          description: Trailer has high-security locking
-          example: false
-        isBulkReady:
-          type: boolean
-          description: Trailer supports bulk cargo
-          example: false
-
     TrailerReadModel:
       type: object
       description: Details of the trailer assigned to the load plan.
@@ -367,7 +305,6 @@ components:
         - widthMm
         - heightMm
         - maxLdm
-        - capabilities
       properties:
         type:
           $ref: '#/components/schemas/TrailerType'
@@ -390,8 +327,6 @@ components:
           type: number
           description: Maximum loading metres (LDM)
           example: 13.6
-        capabilities:
-          $ref: '#/components/schemas/TrailerCapabilities'
 
     PalletUnitReadModel:
       type: object
@@ -402,7 +337,6 @@ components:
         - cargoType
         - weight
         - totalHeightMm
-        - requirements
       properties:
         id:
           type: string
@@ -431,8 +365,6 @@ components:
           type: string
           nullable: true
           description: Human-readable product description (e.g. "FOOD – warzywa")
-        requirements:
-          $ref: '#/components/schemas/CargoRequirementsInput'
 
     CargoLoadPlanReadModel:
       type: object

@@ -343,14 +343,6 @@ const CreateLoadPlanResponse = z
   .passthrough();
 const CargoLoadPlanStatus = z.enum(["DRAFT", "FINALIZED"]);
 const WeightUnit = z.enum(["KG", "TONNE", "LB"]);
-const TrailerCapabilities = z
-  .object({
-    hasClimateControl: z.boolean(),
-    supportsSideLoading: z.boolean(),
-    hasHighSecurityLock: z.boolean(),
-    isBulkReady: z.boolean(),
-  })
-  .passthrough();
 const TrailerReadModel = z
   .object({
     type: TrailerType,
@@ -359,18 +351,9 @@ const TrailerReadModel = z
     widthMm: z.number().int(),
     heightMm: z.number().int(),
     maxLdm: z.number(),
-    capabilities: TrailerCapabilities,
   })
   .passthrough();
 const CargoType = z.enum(["FOOD", "CHEMICAL", "ELECTRONICS", "ADR", "GENERAL"]);
-const CargoRequirementsInput = z
-  .object({
-    isTemperatureControlled: z.boolean(),
-    requiresSideLoading: z.boolean(),
-    isBulk: z.boolean(),
-    highSecurityRequired: z.boolean(),
-  })
-  .passthrough();
 const PalletUnitReadModel = z
   .object({
     id: z.string().uuid(),
@@ -379,7 +362,6 @@ const PalletUnitReadModel = z
     weight: z.number().gt(0),
     totalHeightMm: z.number().int().gt(0),
     description: z.string().nullish(),
-    requirements: CargoRequirementsInput,
   })
   .passthrough();
 const CargoLoadPlanReadModel = z
@@ -450,10 +432,8 @@ export const schemas = {
   CreateLoadPlanResponse,
   CargoLoadPlanStatus,
   WeightUnit,
-  TrailerCapabilities,
   TrailerReadModel,
   CargoType,
-  CargoRequirementsInput,
   PalletUnitReadModel,
   CargoLoadPlanReadModel,
   PalletType,

@@ -78,6 +78,12 @@ GET {{modelsUrl}}?kind=TRACTOR_UNIT
 ### List only semi-trailers (naczepy)
 GET {{modelsUrl}}?kind=SEMI_TRAILER
 
+### List only vans (furgony — monolityczne, np. Fiat Ducato, Renault Master)
+GET {{modelsUrl}}?kind=VAN
+
+### List only box trucks (ciężarówki ze stałą zabudową — np. MAN TGL)
+GET {{modelsUrl}}?kind=BOX_TRUCK
+
 ### List models of a given brand
 GET {{modelsUrl}}?brandId=1
 
@@ -129,6 +135,37 @@ Content-Type: application/json
   "name": "Broken Tractor",
   "kind": "TRACTOR_UNIT",
   "trailerType": "curtain"
+}
+
+### Create VAN model (monolityczny furgon — Fiat = brandId 12), no trailerType
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 12,
+  "name": "Scudo",
+  "kind": "VAN"
+}
+
+### Create BOX_TRUCK model (ciężarówka ze stałą zabudową — MAN = brandId 4)
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 4,
+  "name": "TGM 15.250",
+  "kind": "BOX_TRUCK"
+}
+
+### Invalid: VAN with trailerType — 400 (tylko SEMI_TRAILER ma trailerType)
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 12,
+  "name": "Ducato Reefer",
+  "kind": "VAN",
+  "trailerType": "reefer"
 }
 
 ### Invalid: unknown brandId — 400

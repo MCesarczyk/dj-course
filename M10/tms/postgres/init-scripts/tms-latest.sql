@@ -44,11 +44,11 @@ CREATE TABLE vehicle_models (
 
     CONSTRAINT uq_vehicle_model UNIQUE (brand_id, name),
     CONSTRAINT chk_vehicle_model_kind
-        CHECK (kind IN ('TRACTOR_UNIT', 'SEMI_TRAILER')),
+        CHECK (kind IN ('TRACTOR_UNIT', 'SEMI_TRAILER', 'VAN', 'BOX_TRUCK')),
     CONSTRAINT chk_vehicle_model_trailer_type
         CHECK (
             (kind = 'SEMI_TRAILER' AND trailer_type IS NOT NULL) OR
-            (kind = 'TRACTOR_UNIT'  AND trailer_type IS NULL)
+            (kind <> 'SEMI_TRAILER' AND trailer_type IS NULL)
         )
 );
 
@@ -71,7 +71,7 @@ CREATE TABLE vehicles (
     specs                  JSONB,
 
     CONSTRAINT chk_vehicle_kind
-        CHECK (kind IS NULL OR kind IN ('TRACTOR_UNIT', 'SEMI_TRAILER'))
+        CHECK (kind IS NULL OR kind IN ('TRACTOR_UNIT', 'SEMI_TRAILER', 'VAN', 'BOX_TRUCK'))
 );
 
 -- ─── Fleet: vehicle documents (dokumenty egzemplarza) ────────────────────────
@@ -212,7 +212,8 @@ INSERT INTO vehicle_brands (id, name, country) VALUES
     (8, 'Krone', 'Germany'),
     (9, 'Schmitz Cargobull', 'Germany'),
     (10, 'Wielton', 'Poland'),
-    (11, 'Kögel', 'Germany');
+    (11, 'Kögel', 'Germany'),
+    (12, 'Fiat', 'Italy');
 INSERT INTO vehicle_models (id, brand_id, name, kind, trailer_type) VALUES
     (1, 1, 'FH 460', 'TRACTOR_UNIT', NULL),
     (2, 1, 'FH 500', 'TRACTOR_UNIT', NULL),
@@ -240,7 +241,10 @@ INSERT INTO vehicle_models (id, brand_id, name, kind, trailer_type) VALUES
     (24, 10, 'Strong Platform', 'SEMI_TRAILER', 'platform'),
     (25, 10, 'Tank Line', 'SEMI_TRAILER', 'tank'),
     (26, 11, 'Cargo', 'SEMI_TRAILER', 'curtain'),
-    (27, 11, 'Port 45', 'SEMI_TRAILER', 'container');
+    (27, 11, 'Port 45', 'SEMI_TRAILER', 'container'),
+    (28, 12, 'Ducato', 'VAN', NULL),
+    (29, 5, 'Master', 'VAN', NULL),
+    (30, 4, 'TGL', 'BOX_TRUCK', NULL);
 INSERT INTO vehicles (id, make, model, year, fuel_tank_capacity, model_id, kind, registration_number, vin, first_registration_date, mileage_km, status, specs) VALUES
     (1, 'Volvo', 'FH 460', 2020, 450.0, 1, 'TRACTOR_UNIT', 'WZ 7303G', 'AFQ38869795873943', '2020-02-02', 80037, 'retired', '{"power_kw":315,"euro_norm":"EURO6","axles":2,"fuel_type":"diesel"}'::jsonb),
     (2, 'Volvo', 'FH 500', 2021, 500.0, 2, 'TRACTOR_UNIT', 'JM 2344S', 'NJT02753556178266', '2021-03-03', 80074, 'active', '{"power_kw":330,"euro_norm":"EURO6","axles":2,"fuel_type":"diesel"}'::jsonb),
@@ -291,7 +295,10 @@ INSERT INTO vehicles (id, make, model, year, fuel_tank_capacity, model_id, kind,
     (47, 'Schmitz Cargobull', 'S.CS Universal', 2024, 0.0, 20, 'SEMI_TRAILER', 'SI 4633U', 'KKF68183318342224', '2024-12-21', 21363, 'active', '{"euro_pallets":33,"volume_m3":87.0,"interior_height_m":2.7,"has_tail_lift":false,"has_refrigeration":false}'::jsonb),
     (48, 'Schmitz Cargobull', 'S.KI Tipper', 2019, 0.0, 21, 'SEMI_TRAILER', 'ON 6697U', 'UJN96374476570351', '2019-01-22', 21392, 'active', '{"euro_pallets":33,"volume_m3":88.0,"interior_height_m":2.7,"has_tail_lift":true,"has_refrigeration":false}'::jsonb),
     (49, 'Wielton', 'NW 3', 2020, 0.0, 22, 'SEMI_TRAILER', 'YO 0359A', 'DNX86066750630556', '2020-02-23', 21421, 'active', '{"euro_pallets":33,"volume_m3":89.0,"interior_height_m":2.7,"has_tail_lift":false,"has_refrigeration":false}'::jsonb),
-    (50, 'Wielton', 'Master', 2021, 0.0, 23, 'SEMI_TRAILER', 'XG 1420Z', 'PYM07340828032937', '2021-03-24', 21450, 'in_service', '{"euro_pallets":33,"volume_m3":80.0,"interior_height_m":2.7,"has_tail_lift":false,"has_refrigeration":false}'::jsonb);
+    (50, 'Wielton', 'Master', 2021, 0.0, 23, 'SEMI_TRAILER', 'XG 1420Z', 'PYM07340828032937', '2021-03-24', 21450, 'in_service', '{"euro_pallets":33,"volume_m3":80.0,"interior_height_m":2.7,"has_tail_lift":false,"has_refrigeration":false}'::jsonb),
+    (51, 'Fiat', 'Ducato', 2022, 80.0, 28, 'VAN', 'WA 5521K', 'ZFA25000002500001', '2022-05-10', 64210, 'active', '{"payload_kg":1500,"cargo_volume_m3":15.0,"cargo_length_mm":4070,"cargo_width_mm":1870,"cargo_height_mm":1930,"gvw_kg":4250,"euro_norm":"EURO6","fuel_type":"diesel"}'::jsonb),
+    (52, 'Renault', 'Master', 2021, 80.0, 29, 'VAN', 'KR 8842P', 'VF1MA000067000052', '2021-09-18', 98765, 'active', '{"payload_kg":1500,"cargo_volume_m3":13.0,"cargo_length_mm":3733,"cargo_width_mm":1765,"cargo_height_mm":1894,"gvw_kg":3500,"euro_norm":"EURO6","fuel_type":"diesel"}'::jsonb),
+    (53, 'MAN', 'TGL', 2023, 200.0, 30, 'BOX_TRUCK', 'PO 4417N', 'WMAN12ZZ7MY000053', '2023-03-01', 42120, 'active', '{"payload_kg":5900,"cargo_volume_m3":40.0,"cargo_length_mm":7200,"cargo_width_mm":2480,"cargo_height_mm":2500,"gvw_kg":12000,"euro_norm":"EURO6","fuel_type":"diesel"}'::jsonb);
 INSERT INTO vehicle_documents (id, vehicle_id, doc_type, document_number, issue_date, expiry_date, file_url, notes) VALUES
     (1, 1, 'registration_certificate', 'DR/2020/654970', '2020-02-02', NULL, NULL, NULL),
     (2, 1, 'insurance_oc', 'OC/2026/547982', '2026-01-01', '2026-12-31', NULL, NULL),
@@ -548,8 +555,8 @@ INSERT INTO vehicle_history_events (id, vehicle_id, event_type, event_date, mile
     (98, 49, 'inspection', '2025-06-15', 21421, 'Okresowe badanie techniczne — wynik pozytywny'),
     (99, 50, 'purchase', '2021-03-24', 0, 'Zakup pojazdu i wprowadzenie do floty'),
     (100, 50, 'inspection', '2025-06-15', 21450, 'Okresowe badanie techniczne — wynik pozytywny');
-SELECT setval(pg_get_serial_sequence('vehicle_brands', 'id'), 11, true);
-SELECT setval(pg_get_serial_sequence('vehicle_models', 'id'), 27, true);
+SELECT setval(pg_get_serial_sequence('vehicle_brands', 'id'), 12, true);
+SELECT setval(pg_get_serial_sequence('vehicle_models', 'id'), 30, true);
 SELECT setval(pg_get_serial_sequence('vehicle_documents', 'id'), 154, true);
 SELECT setval(pg_get_serial_sequence('vehicle_history_events', 'id'), 100, true);
 INSERT INTO drivers (id, first_name, last_name, email, phone, contract_type, status) VALUES

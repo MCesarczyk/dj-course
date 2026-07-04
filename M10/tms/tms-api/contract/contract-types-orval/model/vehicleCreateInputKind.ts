@@ -15,4 +15,6 @@ export type VehicleCreateInputKind = typeof VehicleCreateInputKind[keyof typeof 
 export const VehicleCreateInputKind = {
   TRACTOR_UNIT: 'TRACTOR_UNIT',
   SEMI_TRAILER: 'SEMI_TRAILER',
+  VAN: 'VAN',
+  BOX_TRUCK: 'BOX_TRUCK',
 } as const;

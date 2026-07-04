@@ -12,7 +12,7 @@ paths:
         - $ref: '../../contract/entry.yaml#/components/parameters/LimitParam'
         - name: kind
           in: query
-          description: Filter by kind (TRACTOR_UNIT or SEMI_TRAILER)
+          description: Filter by kind (TRACTOR_UNIT, SEMI_TRAILER, VAN, BOX_TRUCK)
           required: false
           schema:
             $ref: '../vehicle-models/vehicle-models-openapi.yaml#/components/schemas/VehicleKind'
@@ -374,6 +374,8 @@ components:
           enum:
             - TRACTOR_UNIT
             - SEMI_TRAILER
+            - VAN
+            - BOX_TRUCK
         registration_number:
           type: string
           nullable: true
@@ -465,6 +467,8 @@ components:
           enum:
             - TRACTOR_UNIT
             - SEMI_TRAILER
+            - VAN
+            - BOX_TRUCK
         registration_number:
           type: string
           nullable: true

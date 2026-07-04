@@ -19,7 +19,7 @@ page?: PageParamParameter;
  */
 limit?: LimitParamParameter;
 /**
- * Filter by kind (TRACTOR_UNIT or SEMI_TRAILER)
+ * Filter by kind (TRACTOR_UNIT, SEMI_TRAILER, VAN, BOX_TRUCK)
  */
 kind?: VehicleKind;
 /**

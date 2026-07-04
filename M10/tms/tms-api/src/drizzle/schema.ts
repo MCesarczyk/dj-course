@@ -28,8 +28,9 @@ export type VehicleBrand = typeof vehicleBrands.$inferSelect;
 export type NewVehicleBrand = typeof vehicleBrands.$inferInsert;
 
 // ─── vehicle_models (modele) ─────────────────────────────────────────────────
-// Rozróżnia ciągniki siodłowe (TRACTOR_UNIT) od naczep (SEMI_TRAILER) oraz —
-// dla naczep — ich rodzaj (trailer_type: reefer/curtain/isotherm/tipper/…).
+// Modularne: ciągniki siodłowe (TRACTOR_UNIT) + naczepy (SEMI_TRAILER); monolityczne:
+// furgony (VAN) + ciężarówki ze stałą zabudową (BOX_TRUCK). Tylko naczepy mają
+// trailer_type (reefer/curtain/isotherm/tipper/…).
 export const vehicleModels = pgTable(
   'vehicle_models',
   {
@@ -48,10 +49,10 @@ export const vehicleModels = pgTable(
       name: 'vehicle_models_brand_id_fkey',
     }).onDelete('cascade'),
     unique('uq_vehicle_model').on(table.brandId, table.name),
-    check('chk_vehicle_model_kind', sql`${table.kind} IN ('TRACTOR_UNIT', 'SEMI_TRAILER')`),
+    check('chk_vehicle_model_kind', sql`${table.kind} IN ('TRACTOR_UNIT', 'SEMI_TRAILER', 'VAN', 'BOX_TRUCK')`),
     check(
       'chk_vehicle_model_trailer_type',
-      sql`(${table.kind} = 'SEMI_TRAILER' AND ${table.trailerType} IS NOT NULL) OR (${table.kind} = 'TRACTOR_UNIT' AND ${table.trailerType} IS NULL)`
+      sql`(${table.kind} = 'SEMI_TRAILER' AND ${table.trailerType} IS NOT NULL) OR (${table.kind} <> 'SEMI_TRAILER' AND ${table.trailerType} IS NULL)`
     ),
   ]
 );
@@ -88,7 +89,7 @@ export const vehicles = pgTable(
       foreignColumns: [vehicleModels.id],
       name: 'vehicles_model_id_fkey',
     }),
-    check('chk_vehicle_kind', sql`${table.kind} IS NULL OR ${table.kind} IN ('TRACTOR_UNIT', 'SEMI_TRAILER')`),
+    check('chk_vehicle_kind', sql`${table.kind} IS NULL OR ${table.kind} IN ('TRACTOR_UNIT', 'SEMI_TRAILER', 'VAN', 'BOX_TRUCK')`),
   ]
 );
 

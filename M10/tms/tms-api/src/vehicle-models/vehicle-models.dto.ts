@@ -3,7 +3,7 @@ import { createSelectSchema } from 'drizzle-zod';
 import { vehicleModels } from '../drizzle/schema.js';
 import { paginationSchema } from '../shared/pagination.types.js';
 
-export const vehicleKindSchema = z.enum(['TRACTOR_UNIT', 'SEMI_TRAILER']);
+export const vehicleKindSchema = z.enum(['TRACTOR_UNIT', 'SEMI_TRAILER', 'VAN', 'BOX_TRUCK']);
 
 // Rodzaje naczep (semi-trailer body types)
 export const trailerTypeSchema = z.enum([
@@ -23,7 +23,8 @@ export const vehicleModelListResponseSchema = z.object({
   pagination: paginationSchema,
 });
 
-// Ciągnik nie ma trailer_type; naczepa musi mieć trailer_type.
+// Tylko naczepa (SEMI_TRAILER) ma trailer_type; pozostałe rodzaje (ciągnik,
+// van, ciężarówka monolityczna) to pojazdy samodzielne bez trailer_type.
 const trailerTypeRule = (
   data: { kind?: string | null; trailerType?: string | null },
   ctx: z.RefinementCtx
@@ -35,11 +36,11 @@ const trailerTypeRule = (
       message: 'trailerType is required for SEMI_TRAILER models',
     });
   }
-  if (data.kind === 'TRACTOR_UNIT' && data.trailerType) {
+  if (data.kind !== 'SEMI_TRAILER' && data.trailerType) {
     ctx.addIssue({
       code: 'custom',
       path: ['trailerType'],
-      message: 'trailerType must be empty for TRACTOR_UNIT models',
+      message: `trailerType must be empty for ${data.kind} models`,
     });
   }
 };

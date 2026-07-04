@@ -699,10 +699,10 @@ export interface components {
             version: number;
         };
         /**
-         * @description Rozróżnienie ciągnik siodłowy vs naczepa.
+         * @description Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową).
          * @enum {string}
          */
-        VehicleKind: "TRACTOR_UNIT" | "SEMI_TRAILER";
+        VehicleKind: "TRACTOR_UNIT" | "SEMI_TRAILER" | "VAN" | "BOX_TRUCK";
         /** @description A single vehicle record as returned by the API. */
         Vehicle: {
             /**
@@ -739,7 +739,7 @@ export interface components {
              * @description Rozróżnienie ciągnik siodłowy / naczepa (zdenormalizowane pod filtr)
              * @enum {string|null}
              */
-            kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | null;
+            kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | "VAN" | "BOX_TRUCK" | null;
             /**
              * @description Numer rejestracyjny
              * @example WA 12345
@@ -801,7 +801,7 @@ export interface components {
             /** @example 3 */
             model_id?: number | null;
             /** @enum {string|null} */
-            kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | null;
+            kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | "VAN" | "BOX_TRUCK" | null;
             /** @example WA 12345 */
             registration_number?: string | null;
             /** @example YV2RT40A8FB123456 */
@@ -1763,7 +1763,7 @@ export interface operations {
                  * @example 20
                  */
                 limit?: components["parameters"]["LimitParam"];
-                /** @description Filter by kind (TRACTOR_UNIT or SEMI_TRAILER) */
+                /** @description Filter by kind (TRACTOR_UNIT, SEMI_TRAILER, VAN, BOX_TRUCK) */
                 kind?: components["schemas"]["VehicleKind"];
                 /**
                  * @description Filter by catalog model id
@@ -2409,7 +2409,7 @@ export interface operations {
                  * @example 1
                  */
                 brandId?: string;
-                /** @description Filter by kind (TRACTOR_UNIT or SEMI_TRAILER) */
+                /** @description Filter by kind (TRACTOR_UNIT, SEMI_TRAILER, VAN, BOX_TRUCK) */
                 kind?: components["schemas"]["VehicleKind"];
             };
             header?: never;

@@ -22,7 +22,7 @@ paths:
           example: '1'
         - name: kind
           in: query
-          description: Filter by kind (TRACTOR_UNIT or SEMI_TRAILER)
+          description: Filter by kind (TRACTOR_UNIT, SEMI_TRAILER, VAN, BOX_TRUCK)
           required: false
           schema:
             $ref: '#/components/schemas/VehicleKind'
@@ -166,10 +166,14 @@ components:
   schemas:
     VehicleKind:
       type: string
-      description: Rozróżnienie ciągnik siodłowy vs naczepa.
+      description: >
+        Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa).
+        Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową).
       enum:
         - TRACTOR_UNIT
         - SEMI_TRAILER
+        - VAN
+        - BOX_TRUCK
     TrailerType:
       type: string
       description: Rodzaj naczepy (tylko dla SEMI_TRAILER).

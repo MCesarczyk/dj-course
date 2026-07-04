@@ -8,14 +8,14 @@ type VehicleBrand struct {
 }
 
 // VehicleModel represents a catalog model (model pojazdu).
-// Kind distinguishes tractor units from semi-trailers; TrailerType (only for
-// semi-trailers) describes the body kind.
+// Kind is TRACTOR_UNIT | SEMI_TRAILER (modular) or VAN | BOX_TRUCK (monolithic).
+// TrailerType (only for SEMI_TRAILER) describes the body kind.
 type VehicleModel struct {
 	ID          int
 	BrandID     int
 	Name        string
-	Kind        string // TRACTOR_UNIT | SEMI_TRAILER
-	TrailerType string // empty for TRACTOR_UNIT
+	Kind        string // TRACTOR_UNIT | SEMI_TRAILER | VAN | BOX_TRUCK
+	TrailerType string // empty for all kinds except SEMI_TRAILER
 }
 
 // Vehicle represents a vehicle instance (egzemplarz).

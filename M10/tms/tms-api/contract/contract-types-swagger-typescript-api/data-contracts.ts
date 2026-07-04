@@ -28,8 +28,8 @@ export type WeightUnit = "KG" | "TONNE" | "LB";
 /** Supported trailer types */
 export type TrailerType = "standard-curtainside" | "mega" | "reefer";
 
-/** Rozróżnienie ciągnik siodłowy vs naczepa. */
-export type VehicleKind = "TRACTOR_UNIT" | "SEMI_TRAILER";
+/** Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową). */
+export type VehicleKind = "TRACTOR_UNIT" | "SEMI_TRAILER" | "VAN" | "BOX_TRUCK";
 
 /** Pagination metadata attached to list responses. */
 export interface Pagination {
@@ -276,7 +276,7 @@ export interface Vehicle {
    */
   model_id?: number | null;
   /** Rozróżnienie ciągnik siodłowy / naczepa (zdenormalizowane pod filtr) */
-  kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | null;
+  kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | "VAN" | "BOX_TRUCK" | null;
   /**
    * Numer rejestracyjny
    * @maxLength 20
@@ -345,7 +345,7 @@ export interface VehicleCreateInput {
   fuel_tank_capacity?: number | null;
   /** @example 3 */
   model_id?: number | null;
-  kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | null;
+  kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | "VAN" | "BOX_TRUCK" | null;
   /**
    * @maxLength 20
    * @example "WA 12345"
@@ -386,7 +386,7 @@ export interface VehicleModel {
    * @example "Scania R450"
    */
   name: string;
-  /** Rozróżnienie ciągnik siodłowy vs naczepa. */
+  /** Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową). */
   kind: VehicleKind;
   /** Wymagane dla SEMI_TRAILER, puste dla TRACTOR_UNIT. */
   trailerType?:
@@ -578,7 +578,7 @@ export interface VehicleModelCreateInput {
    * @example "Volvo FH 500"
    */
   name: string;
-  /** Rozróżnienie ciągnik siodłowy vs naczepa. */
+  /** Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową). */
   kind: VehicleKind;
   trailerType?:
     | "reefer"
@@ -599,7 +599,7 @@ export interface VehicleModelUpdateInput {
    * @maxLength 120
    */
   name?: string;
-  /** Rozróżnienie ciągnik siodłowy vs naczepa. */
+  /** Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową). */
   kind?: VehicleKind;
   trailerType?:
     | "reefer"

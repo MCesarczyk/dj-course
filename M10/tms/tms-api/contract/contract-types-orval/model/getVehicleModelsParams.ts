@@ -23,7 +23,7 @@ limit?: LimitParamParameter;
  */
 brandId?: string;
 /**
- * Filter by kind (TRACTOR_UNIT or SEMI_TRAILER)
+ * Filter by kind (TRACTOR_UNIT, SEMI_TRAILER, VAN, BOX_TRUCK)
  */
 kind?: VehicleKind;
 };

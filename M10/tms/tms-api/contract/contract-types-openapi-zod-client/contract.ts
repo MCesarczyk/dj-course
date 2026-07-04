@@ -67,7 +67,9 @@ const Vehicle = z
     year: z.number().int().nullish(),
     fuel_tank_capacity: z.string().nullish(),
     model_id: z.number().int().nullish(),
-    kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).nullish(),
+    kind: z
+      .enum(["TRACTOR_UNIT", "SEMI_TRAILER", "VAN", "BOX_TRUCK"])
+      .nullish(),
     registration_number: z.string().max(20).nullish(),
     vin: z.string().max(17).nullish(),
     first_registration_date: z.string().nullish(),
@@ -86,7 +88,9 @@ const VehicleCreateInput = z
     year: z.number().int().nullable(),
     fuel_tank_capacity: z.number().gt(0).nullable(),
     model_id: z.number().int().nullable(),
-    kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).nullable(),
+    kind: z
+      .enum(["TRACTOR_UNIT", "SEMI_TRAILER", "VAN", "BOX_TRUCK"])
+      .nullable(),
     registration_number: z.string().max(20).nullable(),
     vin: z.string().max(17).nullable(),
     first_registration_date: z.string().nullable(),
@@ -96,7 +100,12 @@ const VehicleCreateInput = z
   })
   .partial()
   .passthrough();
-const VehicleKind = z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]);
+const VehicleKind = z.enum([
+  "TRACTOR_UNIT",
+  "SEMI_TRAILER",
+  "VAN",
+  "BOX_TRUCK",
+]);
 const VehicleModel = z
   .object({
     id: z.number().int(),
@@ -519,7 +528,9 @@ export const endpointParams = {
     page: z.string().optional().default("1"),
     limit: z.string().optional().default("20"),
     brandId: z.string().optional(),
-    kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).optional(),
+    kind: z
+      .enum(["TRACTOR_UNIT", "SEMI_TRAILER", "VAN", "BOX_TRUCK"])
+      .optional(),
   },
   createVehicleModel: {
     body: VehicleModelCreateInput,
@@ -537,7 +548,9 @@ export const endpointParams = {
   getVehicles: {
     page: z.string().optional().default("1"),
     limit: z.string().optional().default("20"),
-    kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).optional(),
+    kind: z
+      .enum(["TRACTOR_UNIT", "SEMI_TRAILER", "VAN", "BOX_TRUCK"])
+      .optional(),
     modelId: z.string().optional(),
   },
   createVehicle: {
@@ -627,7 +640,9 @@ export const queryParams = {
       page: z.string().optional().default("1"),
       limit: z.string().optional().default("20"),
       brandId: z.string().optional(),
-      kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).optional(),
+      kind: z
+        .enum(["TRACTOR_UNIT", "SEMI_TRAILER", "VAN", "BOX_TRUCK"])
+        .optional(),
     })
     .strict(),
   createVehicleModel: z.object({}).strict(),
@@ -638,7 +653,9 @@ export const queryParams = {
     .object({
       page: z.string().optional().default("1"),
       limit: z.string().optional().default("20"),
-      kind: z.enum(["TRACTOR_UNIT", "SEMI_TRAILER"]).optional(),
+      kind: z
+        .enum(["TRACTOR_UNIT", "SEMI_TRAILER", "VAN", "BOX_TRUCK"])
+        .optional(),
       modelId: z.string().optional(),
     })
     .strict(),

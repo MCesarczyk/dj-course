@@ -16,4 +16,6 @@ export type VehicleKindProperty = typeof VehicleKindProperty[keyof typeof Vehicl
 export const VehicleKindProperty = {
   TRACTOR_UNIT: 'TRACTOR_UNIT',
   SEMI_TRAILER: 'SEMI_TRAILER',
+  VAN: 'VAN',
+  BOX_TRUCK: 'BOX_TRUCK',
 } as const;

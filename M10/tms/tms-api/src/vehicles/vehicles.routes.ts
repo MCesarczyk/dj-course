@@ -32,7 +32,7 @@ router.get('/', async (req: Request, res: Response<unknown | ErrorResponse>) => 
 
     const kindRaw = parseOptionalQueryString(req.query.kind);
     if (kindRaw !== undefined && !vehicleKindSchema.safeParse(kindRaw).success) {
-      return res.status(400).json({ error: 'kind must be TRACTOR_UNIT or SEMI_TRAILER' });
+      return res.status(400).json({ error: 'kind must be one of: TRACTOR_UNIT, SEMI_TRAILER, VAN, BOX_TRUCK' });
     }
 
     const modelIdRaw = parseOptionalQueryString(req.query.modelId);

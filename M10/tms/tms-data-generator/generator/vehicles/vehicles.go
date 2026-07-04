@@ -23,8 +23,10 @@ type modelSeed struct {
 }
 
 const (
-	kindTractor = "TRACTOR_UNIT"
-	kindTrailer = "SEMI_TRAILER"
+	kindTractor  = "TRACTOR_UNIT"
+	kindTrailer  = "SEMI_TRAILER"
+	kindVan      = "VAN"       // monolithic panel van (e.g. Fiat Ducato, Renault Master)
+	kindBoxTruck = "BOX_TRUCK" // monolithic rigid box truck (e.g. MAN TGL)
 )
 
 var brandSeeds = []brandSeed{
@@ -39,6 +41,7 @@ var brandSeeds = []brandSeed{
 	{"Schmitz Cargobull", "Germany"},
 	{"Wielton", "Poland"},
 	{"Kögel", "Germany"},
+	{"Fiat", "Italy"},
 }
 
 // Tractor and trailer models. Trailer models carry a trailer_type.
@@ -72,6 +75,10 @@ var modelSeeds = []modelSeed{
 	{"Wielton", "Tank Line", kindTrailer, "tank"},
 	{"Kögel", "Cargo", kindTrailer, "curtain"},
 	{"Kögel", "Port 45", kindTrailer, "container"},
+	// Monolithic (rigid) vehicles — self-contained, no tractor, no trailer_type.
+	{"Fiat", "Ducato", kindVan, ""},
+	{"Renault", "Master", kindVan, ""},
+	{"MAN", "TGL", kindBoxTruck, ""},
 }
 
 // ─── Fleet generation ─────────────────────────────────────────────────────────
@@ -151,10 +158,16 @@ func GenerateFleet(vehicleCount int) Fleet {
 }
 
 func tankCapacity(kind string, i int) float64 {
-	if kind == kindTrailer {
-		return 0
+	switch kind {
+	case kindTrailer:
+		return 0 // trailers have no engine/tank
+	case kindVan:
+		return 75.0 + float64(i%3)*5.0 // 75–85 l for vans
+	case kindBoxTruck:
+		return 180.0 + float64(i%5)*10.0 // 180–220 l for box trucks
+	default:
+		return 400.0 + float64(i%5)*50.0 // 400–600 l for tractors
 	}
-	return 400.0 + float64(i%5)*50.0 // 400–600 l for tractors
 }
 
 func statusFor(i int) string {
@@ -181,21 +194,40 @@ func vin() string {
 }
 
 func specsFor(m VehicleModel, i int) string {
-	if m.Kind == kindTractor {
+	switch m.Kind {
+	case kindTractor:
 		powerKw := 300 + (i%12)*15
 		return fmt.Sprintf(
 			`{"power_kw":%d,"euro_norm":"EURO6","axles":2,"fuel_type":"diesel"}`,
 			powerKw,
 		)
+	case kindVan, kindBoxTruck:
+		return monolithicSpecs(m)
+	default: // kindTrailer
+		hasRefrigeration := m.TrailerType == "reefer"
+		volume := 80.0 + float64(i%10)
+		return fmt.Sprintf(
+			`{"euro_pallets":33,"volume_m3":%.1f,"interior_height_m":2.7,"has_tail_lift":%t,"has_refrigeration":%t}`,
+			volume,
+			i%4 == 0,
+			hasRefrigeration,
+		)
 	}
-	hasRefrigeration := m.TrailerType == "reefer"
-	volume := 80.0 + float64(i%10)
-	return fmt.Sprintf(
-		`{"euro_pallets":33,"volume_m3":%.1f,"interior_height_m":2.7,"has_tail_lift":%t,"has_refrigeration":%t}`,
-		volume,
-		i%4 == 0,
-		hasRefrigeration,
-	)
+}
+
+// monolithicSpecs returns representative technical specs (from public catalog data)
+// for the rigid vans / box trucks. Shape: payload, cargo dimensions, GVW, emissions.
+func monolithicSpecs(m VehicleModel) string {
+	switch m.Name {
+	case "Ducato": // Fiat Ducato Maxi L4H2 panel van
+		return `{"payload_kg":1500,"cargo_volume_m3":15.0,"cargo_length_mm":4070,"cargo_width_mm":1870,"cargo_height_mm":1930,"gvw_kg":4250,"euro_norm":"EURO6","fuel_type":"diesel"}`
+	case "Master": // Renault Master L3H2 panel van
+		return `{"payload_kg":1500,"cargo_volume_m3":13.0,"cargo_length_mm":3733,"cargo_width_mm":1765,"cargo_height_mm":1894,"gvw_kg":3500,"euro_norm":"EURO6","fuel_type":"diesel"}`
+	case "TGL": // MAN TGL 12t rigid box truck
+		return `{"payload_kg":5900,"cargo_volume_m3":40.0,"cargo_length_mm":7200,"cargo_width_mm":2480,"cargo_height_mm":2500,"gvw_kg":12000,"euro_norm":"EURO6","fuel_type":"diesel"}`
+	default:
+		return `{"euro_norm":"EURO6","fuel_type":"diesel"}`
+	}
 }
 
 func documentsFor(v Vehicle, m VehicleModel, year int) []VehicleDocument {

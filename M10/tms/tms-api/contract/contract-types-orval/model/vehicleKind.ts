@@ -7,7 +7,8 @@
  */
 
 /**
- * Rozróżnienie ciągnik siodłowy vs naczepa.
+ * Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową).
+
  */
 export type VehicleKind = typeof VehicleKind[keyof typeof VehicleKind];
 
@@ -15,4 +16,6 @@ export type VehicleKind = typeof VehicleKind[keyof typeof VehicleKind];
 export const VehicleKind = {
   TRACTOR_UNIT: 'TRACTOR_UNIT',
   SEMI_TRAILER: 'SEMI_TRAILER',
+  VAN: 'VAN',
+  BOX_TRUCK: 'BOX_TRUCK',
 } as const;

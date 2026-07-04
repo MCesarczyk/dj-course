@@ -20,8 +20,8 @@ CREATE TABLE vehicle_brands (
 );
 
 -- ─── Fleet catalog: models (modele) ──────────────────────────────────────────
--- Rozróżnia ciągniki siodłowe (TRACTOR_UNIT) od naczep (SEMI_TRAILER)
--- oraz — dla naczep — ich rodzaj (trailer_type).
+-- Rozróżnia pojazdy modularne (TRACTOR_UNIT + SEMI_TRAILER) od monolitycznych
+-- (VAN, BOX_TRUCK). Tylko naczepy (SEMI_TRAILER) mają rodzaj zabudowy (trailer_type).
 CREATE TABLE vehicle_models (
     id           SERIAL PRIMARY KEY,
     brand_id     INT NOT NULL REFERENCES vehicle_brands(id) ON DELETE CASCADE,
@@ -31,11 +31,13 @@ CREATE TABLE vehicle_models (
 
     CONSTRAINT uq_vehicle_model UNIQUE (brand_id, name),
     CONSTRAINT chk_vehicle_model_kind
-        CHECK (kind IN ('TRACTOR_UNIT', 'SEMI_TRAILER')),
+        CHECK (kind IN ('TRACTOR_UNIT', 'SEMI_TRAILER', 'VAN', 'BOX_TRUCK')),
     CONSTRAINT chk_vehicle_model_trailer_type
         CHECK (
+            -- Only semi-trailers carry a body type; every other kind (tractor unit,
+            -- van, box truck) is a self-contained vehicle with no trailer_type.
             (kind = 'SEMI_TRAILER' AND trailer_type IS NOT NULL) OR
-            (kind = 'TRACTOR_UNIT'  AND trailer_type IS NULL)
+            (kind <> 'SEMI_TRAILER' AND trailer_type IS NULL)
         )
 );
 
@@ -58,7 +60,7 @@ CREATE TABLE vehicles (
     specs                  JSONB,
 
     CONSTRAINT chk_vehicle_kind
-        CHECK (kind IS NULL OR kind IN ('TRACTOR_UNIT', 'SEMI_TRAILER'))
+        CHECK (kind IS NULL OR kind IN ('TRACTOR_UNIT', 'SEMI_TRAILER', 'VAN', 'BOX_TRUCK'))
 );
 
 -- ─── Fleet: vehicle documents (dokumenty egzemplarza) ────────────────────────

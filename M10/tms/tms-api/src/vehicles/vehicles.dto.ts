@@ -3,11 +3,12 @@ import { createSelectSchema } from 'drizzle-zod';
 import { vehicles } from '../drizzle/schema.js';
 import { paginationSchema } from '../shared/pagination.types.js';
 
-export const vehicleKindSchema = z.enum(['TRACTOR_UNIT', 'SEMI_TRAILER']);
+export const vehicleKindSchema = z.enum(['TRACTOR_UNIT', 'SEMI_TRAILER', 'VAN', 'BOX_TRUCK']);
 
 // Type-specific technical attributes stored as JSONB.
-//   TRACTOR_UNIT: { power_kw, euro_norm, axles, fuel_type }
-//   SEMI_TRAILER: { euro_pallets, volume_m3, interior_height_m, has_tail_lift, has_refrigeration }
+//   TRACTOR_UNIT:     { power_kw, euro_norm, axles, fuel_type }
+//   SEMI_TRAILER:     { euro_pallets, volume_m3, interior_height_m, has_tail_lift, has_refrigeration }
+//   VAN / BOX_TRUCK:  { payload_kg, cargo_volume_m3, cargo_length_mm, cargo_width_mm, cargo_height_mm, gvw_kg, euro_norm }
 // Kept intentionally loose — DB stores raw JSONB; the shape is documented, not enforced.
 export const vehicleSpecsSchema = z.record(z.string(), z.unknown());
 

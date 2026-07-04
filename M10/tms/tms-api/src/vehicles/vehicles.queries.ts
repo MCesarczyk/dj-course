@@ -1,4 +1,4 @@
-import { and, count, eq, sql, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { db } from '../drizzle/drizzle.js';
 import { vehicles, type NewVehicle } from '../drizzle/schema.js';
 import { pool } from '../database.js';
@@ -37,7 +37,7 @@ export const getVehicles = async (params: {
       .select()
       .from(vehicles)
       .where(where)
-      .orderBy(vehicles.id)
+      .orderBy(desc(vehicles.id)) // newest vehicles (highest id) first
       .limit(params.limit)
       .offset(params.offset);
 

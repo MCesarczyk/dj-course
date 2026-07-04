@@ -358,7 +358,7 @@ export interface paths {
         put?: never;
         /**
          * Create a load plan
-         * @description Creates a new cargo load plan for a given trailer type.
+         * @description Creates a new cargo load plan for a given carrier type (a semi-trailer or a rigid vehicle body).
          */
         post: operations["createLoadPlan"];
         delete?: never;
@@ -427,7 +427,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cargo-plans/{id}/trailer": {
+    "/cargo-plans/{id}/carrier": {
         parameters: {
             query?: never;
             header?: never;
@@ -436,10 +436,10 @@ export interface paths {
         };
         get?: never;
         /**
-         * Change trailer type
-         * @description Replaces the trailer on a draft load plan. All currently assigned cargo units are re-validated against the new trailer's capabilities and capacity.
+         * Change carrier type
+         * @description Replaces the carrier on a draft load plan. All currently assigned cargo units are re-validated against the new carrier's capabilities and capacity.
          */
-        put: operations["changeTrailerType"];
+        put: operations["changeCarrierType"];
         post?: never;
         delete?: never;
         options?: never;
@@ -458,7 +458,7 @@ export interface paths {
         put?: never;
         /**
          * Finalize a load plan
-         * @description Marks the load plan as FINALIZED. A finalized plan cannot be modified. The plan must have at least one cargo unit and must not exceed trailer capacity.
+         * @description Marks the load plan as FINALIZED. A finalized plan cannot be modified. The plan must have at least one cargo unit and must not exceed carrier capacity.
          */
         post: operations["finalizeLoadPlan"];
         delete?: never;
@@ -1256,13 +1256,13 @@ export interface components {
             pagination: components["schemas"]["Pagination"];
         };
         /**
-         * @description Supported trailer types
+         * @description Supported load-carrier types. MODULAR carriers are semi-trailers (need a separate tractor unit); MONOLITHIC carriers are self-contained rigid vehicle bodies. These are generic loadable-space categories — concrete brand-models live in the vehicles catalog.
          * @enum {string}
          */
-        TrailerType: "standard-curtainside" | "mega" | "reefer";
+        CarrierType: "standard-curtainside" | "mega" | "reefer" | "van" | "box-truck";
         /** @description Payload for creating a new load plan. */
         CreateLoadPlanInput: {
-            trailerType: components["schemas"]["TrailerType"];
+            carrierType: components["schemas"]["CarrierType"];
         };
         /** @description Identifier of the newly created load plan. */
         CreateLoadPlanResponse: {
@@ -1284,9 +1284,20 @@ export interface components {
          * @enum {string}
          */
         CargoLoadPlanStatus: "DRAFT" | "FINALIZED";
-        /** @description Details of the trailer assigned to the load plan. */
-        TrailerReadModel: {
-            type: components["schemas"]["TrailerType"];
+        /**
+         * @description Shape of the carrier: MONOLITHIC (single self-contained vehicle body) or MODULAR (a towed semi-trailer that requires a tractor unit).
+         * @enum {string}
+         */
+        VehicleClass: "MONOLITHIC" | "MODULAR";
+        /** @description Details of the load carrier assigned to the load plan. */
+        CarrierReadModel: {
+            type: components["schemas"]["CarrierType"];
+            vehicleClass: components["schemas"]["VehicleClass"];
+            /**
+             * @description True when the carrier is MODULAR (a semi-trailer) and therefore needs a separate tractor unit to be moved. This module does not reserve the tractor; the flag signals the requirement to downstream fleet/dispatch.
+             * @example true
+             */
+            requiresTractor: boolean;
             /** @example true */
             canCarryPallets: boolean;
             /**
@@ -1295,17 +1306,17 @@ export interface components {
              */
             maxWeightCapacityKg: number;
             /**
-             * @description Internal trailer width in millimetres
-             * @example 2400
+             * @description Internal loading-space width in millimetres
+             * @example 2480
              */
             widthMm: number;
             /**
-             * @description Internal trailer height in millimetres
+             * @description Internal loading-space height in millimetres
              * @example 2700
              */
             heightMm: number;
             /**
-             * @description Maximum loading metres (LDM)
+             * @description Maximum loading metres (LDM). For sub-2.4 m bodies (vans) this is an approximation.
              * @example 13.6
              */
             maxLdm: number;
@@ -1357,7 +1368,7 @@ export interface components {
              */
             version: number;
             weightUnit: components["schemas"]["WeightUnit"];
-            trailer: components["schemas"]["TrailerReadModel"];
+            carrier: components["schemas"]["CarrierReadModel"];
             /**
              * @description Currently used loading metres
              * @example 2.4
@@ -1391,9 +1402,9 @@ export interface components {
              */
             cargoHeightMm: number;
         };
-        /** @description Payload for changing the trailer type on a load plan. */
-        ChangeTrailerInput: {
-            trailerType: components["schemas"]["TrailerType"];
+        /** @description Payload for changing the carrier type on a load plan. */
+        ChangeCarrierInput: {
+            carrierType: components["schemas"]["CarrierType"];
         };
         /** @description Health check response body. */
         HealthResponse: {
@@ -2963,7 +2974,7 @@ export interface operations {
             content: {
                 /**
                  * @example {
-                 *       "trailerType": "standard-curtainside"
+                 *       "carrierType": "standard-curtainside"
                  *     }
                  */
                 "application/json": components["schemas"]["CreateLoadPlanInput"];
@@ -2984,7 +2995,7 @@ export interface operations {
                     "application/json": components["schemas"]["CreateLoadPlanResponse"];
                 };
             };
-            /** @description Missing or invalid trailerType. */
+            /** @description Missing or invalid carrierType. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2992,7 +3003,7 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "error": "trailerType is required. Allowed: standard-curtainside, mega, reefer"
+                     *       "error": "carrierType is required. Allowed: standard-curtainside, mega, reefer, van, box-truck"
                      *     }
                      */
                     "application/json": components["schemas"]["ErrorResponse"];
@@ -3030,11 +3041,13 @@ export interface operations {
                      *       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
                      *       "status": "DRAFT",
                      *       "weightUnit": "KG",
-                     *       "trailer": {
+                     *       "carrier": {
                      *         "type": "standard-curtainside",
+                     *         "vehicleClass": "MODULAR",
+                     *         "requiresTractor": true,
                      *         "canCarryPallets": true,
                      *         "maxWeightCapacityKg": 24000,
-                     *         "widthMm": 2400,
+                     *         "widthMm": 2480,
                      *         "heightMm": 2700,
                      *         "maxLdm": 13.6
                      *       },
@@ -3185,7 +3198,7 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
-    changeTrailerType: {
+    changeCarrierType: {
         parameters: {
             query?: never;
             header?: never;
@@ -3202,21 +3215,21 @@ export interface operations {
             content: {
                 /**
                  * @example {
-                 *       "trailerType": "reefer"
+                 *       "carrierType": "reefer"
                  *     }
                  */
-                "application/json": components["schemas"]["ChangeTrailerInput"];
+                "application/json": components["schemas"]["ChangeCarrierInput"];
             };
         };
         responses: {
-            /** @description Trailer type changed successfully – no body returned. */
+            /** @description Carrier type changed successfully – no body returned. */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Invalid trailerType or re-validation of existing cargo failed. */
+            /** @description Invalid carrierType or re-validation of existing cargo failed. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -3224,7 +3237,7 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "error": "trailerType is required. Allowed: standard-curtainside, mega, reefer"
+                     *       "error": "carrierType is required. Allowed: standard-curtainside, mega, reefer, van, box-truck"
                      *     }
                      */
                     "application/json": components["schemas"]["ErrorResponse"];

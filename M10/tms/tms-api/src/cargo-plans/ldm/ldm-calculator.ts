@@ -1,11 +1,11 @@
 import { PalletUnit } from '../pallets/pallet-unit';
-import type { PalletLoadableTrailerSpec } from '../trailers';
+import type { PalletLoadableCarrierSpec } from '../carriers';
 
 /**
  * Domain Service for calculating LDM.
  */
 export class LdmCalculator {
-  public static calculate(units: PalletUnit[], trailer: PalletLoadableTrailerSpec): number {
+  public static calculate(units: PalletUnit[], carrier: PalletLoadableCarrierSpec): number {
     if (units.length === 0) return 0;
 
     const sortedUnits = [...units].sort((a, b) => b.getSnapshot().spec.length - a.getSnapshot().spec.length);
@@ -15,7 +15,7 @@ export class LdmCalculator {
       let placed = false;
       for (const row of rows) {
         const rowWidth = row.reduce((sum, u) => sum + u.getSnapshot().spec.width, 0);
-        if (rowWidth + unit.getSnapshot().spec.width <= trailer.widthMm) {
+        if (rowWidth + unit.getSnapshot().spec.width <= carrier.widthMm) {
           row.push(unit);
           placed = true;
           break;

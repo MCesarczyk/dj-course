@@ -15,7 +15,7 @@ export function toReadModel(
     status: row.status,
     version: row.version,
     weightUnit: weightUnit as ContractWeightUnit,
-    trailer: row.trailer,
+    carrier: row.carrier,
     currentLdm: row.currentLdm,
     plannedWeight: Weight.from(
       row.units.reduce((sum, u) => sum + u.weightKg, 0),

@@ -15,7 +15,7 @@ import type {
 import type {
   AddCargoInput,
   CargoLoadPlanReadModel,
-  ChangeTrailerInput,
+  ChangeCarrierInput,
   CreateLoadPlanInput,
   CreateLoadPlanResponse,
   GetLoadPlanParams
@@ -26,7 +26,7 @@ import type {
 
   export const getCargoPlans = (axiosInstance: AxiosInstance = axios) => {
 /**
- * Creates a new cargo load plan for a given trailer type.
+ * Creates a new cargo load plan for a given carrier type (a semi-trailer or a rigid vehicle body).
  * @summary Create a load plan
  */
 const createLoadPlan = (
@@ -77,20 +77,20 @@ const removeCargoFromLoadPlan = (
     );
   }
 /**
- * Replaces the trailer on a draft load plan. All currently assigned cargo units are re-validated against the new trailer's capabilities and capacity.
- * @summary Change trailer type
+ * Replaces the carrier on a draft load plan. All currently assigned cargo units are re-validated against the new carrier's capabilities and capacity.
+ * @summary Change carrier type
  */
-const changeTrailerType = (
+const changeCarrierType = (
     id: string,
-    changeTrailerInput: ChangeTrailerInput, options?: AxiosRequestConfig
+    changeCarrierInput: ChangeCarrierInput, options?: AxiosRequestConfig
  ): Promise<AxiosResponse<void>> => {
     return axiosInstance.put(
-      `/cargo-plans/${id}/trailer`,
-      changeTrailerInput,options
+      `/cargo-plans/${id}/carrier`,
+      changeCarrierInput,options
     );
   }
 /**
- * Marks the load plan as FINALIZED. A finalized plan cannot be modified. The plan must have at least one cargo unit and must not exceed trailer capacity.
+ * Marks the load plan as FINALIZED. A finalized plan cannot be modified. The plan must have at least one cargo unit and must not exceed carrier capacity.
  * @summary Finalize a load plan
  */
 const finalizeLoadPlan = (
@@ -100,10 +100,10 @@ const finalizeLoadPlan = (
       `/cargo-plans/${id}/finalize`,undefined,options
     );
   }
-return {createLoadPlan,getLoadPlan,addCargoToLoadPlan,removeCargoFromLoadPlan,changeTrailerType,finalizeLoadPlan}};
+return {createLoadPlan,getLoadPlan,addCargoToLoadPlan,removeCargoFromLoadPlan,changeCarrierType,finalizeLoadPlan}};
 export type CreateLoadPlanResult = AxiosResponse<CreateLoadPlanResponse>
 export type GetLoadPlanResult = AxiosResponse<CargoLoadPlanReadModel>
 export type AddCargoToLoadPlanResult = AxiosResponse<void>
 export type RemoveCargoFromLoadPlanResult = AxiosResponse<void>
-export type ChangeTrailerTypeResult = AxiosResponse<void>
+export type ChangeCarrierTypeResult = AxiosResponse<void>
 export type FinalizeLoadPlanResult = AxiosResponse<void>

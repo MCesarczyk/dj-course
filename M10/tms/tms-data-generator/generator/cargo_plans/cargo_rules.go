@@ -29,19 +29,19 @@ type UnitRequirements struct {
 	HighSecurityRequired    bool
 }
 
-// TrailerSatisfiesCargoRequirements checks whether the trailer meets all unit requirements.
-// Mirrors cargo-load-plan.ts: ensureTrailerSatisfiesCargoRequirements()
-func TrailerSatisfiesCargoRequirements(trailer trailerSpec, req UnitRequirements) bool {
-	if req.IsTemperatureControlled && !trailer.HasClimateControl {
+// CarrierSatisfiesCargoRequirements checks whether the carrier meets all unit requirements.
+// Mirrors cargo-load-plan.ts: ensureCarrierSatisfiesCargoRequirements()
+func CarrierSatisfiesCargoRequirements(carrier carrierSpec, req UnitRequirements) bool {
+	if req.IsTemperatureControlled && !carrier.HasClimateControl {
 		return false
 	}
-	if req.RequiresSideLoading && !trailer.SupportsSideLoading {
+	if req.RequiresSideLoading && !carrier.SupportsSideLoading {
 		return false
 	}
-	if req.HighSecurityRequired && !trailer.HasHighSecurityLock {
+	if req.HighSecurityRequired && !carrier.HasHighSecurityLock {
 		return false
 	}
-	if req.IsBulk && !trailer.IsBulkReady {
+	if req.IsBulk && !carrier.IsBulkReady {
 		return false
 	}
 	return true

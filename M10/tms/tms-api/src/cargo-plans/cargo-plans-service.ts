@@ -3,7 +3,7 @@ import { ok, fail, type Result } from '../shared/result';
 import { CargoLoadPlan } from './cargo-load-plans/cargo-load-plan';
 import type { PalletUnit } from './pallets/pallet-unit';
 import { LdmCalculator } from './ldm/ldm-calculator';
-import { TrailerFactory, type PalletLoadableTrailerSpec } from './trailers';
+import { CarrierFactory, type PalletLoadableCarrierSpec } from './carriers';
 import type { CargoLoadPlanRepository } from './cargo-load-plans/cargo-load-plan.repository';
 import type { CargoLoadPlanQueries, CargoLoadPlanReadModel } from './cargo-load-plans/cargo-load-plan.queries';
 import { OptimisticLockError } from '../shared/optimistic-lock-error';
@@ -11,13 +11,13 @@ import type {
   CreateLoadPlanCommand,
   AddCargoCommand,
   RemoveCargoCommand,
-  ChangeTrailerCommand,
+  ChangeCarrierCommand,
 } from './cargo-plans.commands';
 import type { WeightUnit } from '../shared/weight';
 import { CargoPlanServiceError, LoadPlanNotFoundError } from './cargo-plans.errors';
 
 interface CargoPlansApplicationService {
-  /** Creates a new load plan for a specific trailer */
+  /** Creates a new load plan for a specific carrier */
   createLoadPlan(command: CreateLoadPlanCommand): Promise<Result<string, CargoPlanServiceError>>;
 
   /** Main operation to add cargo */
@@ -26,8 +26,8 @@ interface CargoPlansApplicationService {
   /** Removes cargo (frees up LDM/weight) */
   removeCargoFromPlan(command: RemoveCargoCommand): Promise<Result<void, CargoPlanServiceError>>;
 
-  /** Changes trailer type during planning (requires re-validation of all loads) */
-  changeTrailerType(command: ChangeTrailerCommand): Promise<Result<void, CargoPlanServiceError>>;
+  /** Changes carrier type during planning (requires re-validation of all loads) */
+  changeCarrierType(command: ChangeCarrierCommand): Promise<Result<void, CargoPlanServiceError>>;
 
   /** Marks the plan as ready / locks further changes */
   finalizeLoadPlan(loadPlanId: string): Promise<Result<void, CargoPlanServiceError>>;
@@ -37,8 +37,8 @@ interface CargoPlansApplicationService {
 }
 
 export class CargoPlansService implements CargoPlansApplicationService {
-  private readonly ldmProvider = (units: PalletUnit[], trailer: PalletLoadableTrailerSpec) =>
-    LdmCalculator.calculate(units, trailer);
+  private readonly ldmProvider = (units: PalletUnit[], carrier: PalletLoadableCarrierSpec) =>
+    LdmCalculator.calculate(units, carrier);
 
   constructor(
     private readonly repository: CargoLoadPlanRepository,
@@ -46,9 +46,9 @@ export class CargoPlansService implements CargoPlansApplicationService {
   ) {}
 
   async createLoadPlan(command: CreateLoadPlanCommand): Promise<Result<string, CargoPlanServiceError>> {
-    const trailer = TrailerFactory.fromType(command.trailerType);
+    const carrier = CarrierFactory.fromType(command.carrierType);
     const id = UUID.newUUID<'CargoLoadPlan'>();
-    const plan = new CargoLoadPlan(id, trailer, 0);
+    const plan = new CargoLoadPlan(id, carrier, 0);
     try {
       await this.repository.create(plan);
     } catch (e) {
@@ -87,12 +87,12 @@ export class CargoPlansService implements CargoPlansApplicationService {
     return ok(undefined);
   }
 
-  async changeTrailerType(command: ChangeTrailerCommand): Promise<Result<void, CargoPlanServiceError>> {
+  async changeCarrierType(command: ChangeCarrierCommand): Promise<Result<void, CargoPlanServiceError>> {
     const planResult = await this.findLoadPlan(command.loadPlanId);
     if (!planResult.success) return planResult;
 
-    const newTrailer = TrailerFactory.fromType(command.trailerType);
-    const domainResult = planResult.value.replaceTrailer(newTrailer, this.ldmProvider);
+    const newCarrier = CarrierFactory.fromType(command.carrierType);
+    const domainResult = planResult.value.replaceCarrier(newCarrier, this.ldmProvider);
     if (!domainResult.success) return domainResult;
 
     try {

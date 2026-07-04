@@ -16,6 +16,9 @@ export type PalletType = "epal1" | "industrial" | "half" | "cp1" | "cp3" | "h1";
 /** Type of cargo being transported */
 export type CargoType = "FOOD" | "CHEMICAL" | "ELECTRONICS" | "ADR" | "GENERAL";
 
+/** Shape of the carrier: MONOLITHIC (single self-contained vehicle body) or MODULAR (a towed semi-trailer that requires a tractor unit). */
+export type VehicleClass = "MONOLITHIC" | "MODULAR";
+
 /** Current status of the load plan */
 export type CargoLoadPlanStatus = "DRAFT" | "FINALIZED";
 
@@ -25,8 +28,13 @@ export type CargoLoadPlanStatus = "DRAFT" | "FINALIZED";
  */
 export type WeightUnit = "KG" | "TONNE" | "LB";
 
-/** Supported trailer types */
-export type TrailerType = "standard-curtainside" | "mega" | "reefer";
+/** Supported load-carrier types. MODULAR carriers are semi-trailers (need a separate tractor unit); MONOLITHIC carriers are self-contained rigid vehicle bodies. These are generic loadable-space categories — concrete brand-models live in the vehicles catalog. */
+export type CarrierType =
+  | "standard-curtainside"
+  | "mega"
+  | "reefer"
+  | "van"
+  | "box-truck";
 
 /** Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową). */
 export type VehicleKind = "TRACTOR_UNIT" | "SEMI_TRAILER" | "VAN" | "BOX_TRUCK";
@@ -928,8 +936,8 @@ export interface NotificationListResponse {
 
 /** Payload for creating a new load plan. */
 export interface CreateLoadPlanInput {
-  /** Supported trailer types */
-  trailerType: TrailerType;
+  /** Supported load-carrier types. MODULAR carriers are semi-trailers (need a separate tractor unit); MONOLITHIC carriers are self-contained rigid vehicle bodies. These are generic loadable-space categories — concrete brand-models live in the vehicles catalog. */
+  carrierType: CarrierType;
 }
 
 /** Identifier of the newly created load plan. */
@@ -942,10 +950,17 @@ export interface CreateLoadPlanResponse {
   id: string;
 }
 
-/** Details of the trailer assigned to the load plan. */
-export interface TrailerReadModel {
-  /** Supported trailer types */
-  type: TrailerType;
+/** Details of the load carrier assigned to the load plan. */
+export interface CarrierReadModel {
+  /** Supported load-carrier types. MODULAR carriers are semi-trailers (need a separate tractor unit); MONOLITHIC carriers are self-contained rigid vehicle bodies. These are generic loadable-space categories — concrete brand-models live in the vehicles catalog. */
+  type: CarrierType;
+  /** Shape of the carrier: MONOLITHIC (single self-contained vehicle body) or MODULAR (a towed semi-trailer that requires a tractor unit). */
+  vehicleClass: VehicleClass;
+  /**
+   * True when the carrier is MODULAR (a semi-trailer) and therefore needs a separate tractor unit to be moved. This module does not reserve the tractor; the flag signals the requirement to downstream fleet/dispatch.
+   * @example true
+   */
+  requiresTractor: boolean;
   /** @example true */
   canCarryPallets: boolean;
   /**
@@ -954,17 +969,17 @@ export interface TrailerReadModel {
    */
   maxWeightCapacityKg: number;
   /**
-   * Internal trailer width in millimetres
-   * @example 2400
+   * Internal loading-space width in millimetres
+   * @example 2480
    */
   widthMm: number;
   /**
-   * Internal trailer height in millimetres
+   * Internal loading-space height in millimetres
    * @example 2700
    */
   heightMm: number;
   /**
-   * Maximum loading metres (LDM)
+   * Maximum loading metres (LDM). For sub-2.4 m bodies (vans) this is an approximation.
    * @example 13.6
    */
   maxLdm: number;
@@ -1021,8 +1036,8 @@ export interface CargoLoadPlanReadModel {
   version: number;
   /** Unit of weight measurement */
   weightUnit: WeightUnit;
-  /** Details of the trailer assigned to the load plan. */
-  trailer: TrailerReadModel;
+  /** Details of the load carrier assigned to the load plan. */
+  carrier: CarrierReadModel;
   /**
    * Currently used loading metres
    * @min 0
@@ -1061,10 +1076,10 @@ export interface AddCargoInput {
   cargoHeightMm: number;
 }
 
-/** Payload for changing the trailer type on a load plan. */
-export interface ChangeTrailerInput {
-  /** Supported trailer types */
-  trailerType: TrailerType;
+/** Payload for changing the carrier type on a load plan. */
+export interface ChangeCarrierInput {
+  /** Supported load-carrier types. MODULAR carriers are semi-trailers (need a separate tractor unit); MONOLITHIC carriers are self-contained rigid vehicle bodies. These are generic loadable-space categories — concrete brand-models live in the vehicles catalog. */
+  carrierType: CarrierType;
 }
 
 /** Health check response body. */

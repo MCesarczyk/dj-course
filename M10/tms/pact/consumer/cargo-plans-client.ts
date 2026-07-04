@@ -7,14 +7,15 @@
  *     mock server to generate the contract, and
  *   - the console demo (`console-demo.ts`), which runs it against the live API.
  *
- * CDC note: `CargoPlanView` intentionally omits the trailer's `capabilities`
+ * CDC note: `CargoPlanView` intentionally omits the carrier's `capabilities`
  * and each unit's `requirements`. This consumer simply does not use those
  * fields, so they are absent from the type — and, consequently, from the
  * contract we publish. The provider may keep returning them; Pact only verifies
  * the fields the consumer actually declares it needs.
  */
 
-export type TrailerType = 'standard-curtainside' | 'mega' | 'reefer';
+export type CarrierType = 'standard-curtainside' | 'mega' | 'reefer' | 'van' | 'box-truck';
+export type VehicleClass = 'MONOLITHIC' | 'MODULAR';
 export type PalletType = 'epal1' | 'industrial' | 'half' | 'cp1' | 'cp3' | 'h1';
 export type CargoType = 'FOOD' | 'CHEMICAL' | 'ELECTRONICS' | 'ADR' | 'GENERAL';
 export type WeightUnit = 'KG' | 'TONNE' | 'LB';
@@ -27,9 +28,11 @@ export interface AddCargoInput {
   cargoHeightMm: number;
 }
 
-/** Trailer info as the consumer needs it — WITHOUT `capabilities`. */
-export interface TrailerView {
-  type: TrailerType;
+/** Carrier info as the consumer needs it — WITHOUT `capabilities`. */
+export interface CarrierView {
+  type: CarrierType;
+  vehicleClass: VehicleClass;
+  requiresTractor: boolean;
   canCarryPallets: boolean;
   maxWeightCapacityKg: number;
   widthMm: number;
@@ -52,7 +55,7 @@ export interface CargoPlanView {
   status: CargoLoadPlanStatus;
   version: number;
   weightUnit: WeightUnit;
-  trailer: TrailerView;
+  carrier: CarrierView;
   currentLdm: number;
   plannedWeight: number;
   units: PalletUnitView[];
@@ -74,8 +77,8 @@ export class CargoPlansClient {
   constructor(private readonly baseUrl: string) {}
 
   /** POST /cargo-plans — create a new draft plan. */
-  async createPlan(trailerType: TrailerType): Promise<string> {
-    const { id } = await this.request<{ id: string }>('POST', '/cargo-plans', { trailerType });
+  async createPlan(carrierType: CarrierType): Promise<string> {
+    const { id } = await this.request<{ id: string }>('POST', '/cargo-plans', { carrierType });
     return id;
   }
 
@@ -89,9 +92,9 @@ export class CargoPlansClient {
     await this.request<void>('DELETE', `/cargo-plans/${planId}/cargo/${unitId}`);
   }
 
-  /** PUT /cargo-plans/{id}/trailer — swap the trailer type (204). */
-  async changeTrailer(planId: string, trailerType: TrailerType): Promise<void> {
-    await this.request<void>('PUT', `/cargo-plans/${planId}/trailer`, { trailerType });
+  /** PUT /cargo-plans/{id}/carrier — swap the carrier type (204). */
+  async changeCarrier(planId: string, carrierType: CarrierType): Promise<void> {
+    await this.request<void>('PUT', `/cargo-plans/${planId}/carrier`, { carrierType });
   }
 
   /** POST /cargo-plans/{id}/finalize — finalize the plan (204). */

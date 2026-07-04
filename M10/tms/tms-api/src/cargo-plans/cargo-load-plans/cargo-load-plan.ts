@@ -2,7 +2,7 @@ import { CargoType, requirementsFor } from '../cargo/cargo.types';
 import { CargoLoadPlanStatus } from './cargo-load-plan.types';
 import { PalletUnit } from '../pallets/pallet-unit';
 import { PalletSpec } from '../pallets/pallet-spec';
-import type { PalletLoadableTrailerSpec } from '../trailers';
+import type { PalletLoadableCarrierSpec } from '../carriers';
 import { Weight } from '../../shared/weight';
 import { ok, fail, type Result } from '../../shared/result';
 import { UUID } from '../../shared/uuid';
@@ -11,8 +11,8 @@ import {
   EmptyPlanError,
   WeightCapacityExceededError,
   LdmCapacityExceededError,
-  CargoTooTallForTrailerError,
-  TrailerCapabilityMismatchError,
+  CargoTooTallForCarrierError,
+  CarrierCapabilityMismatchError,
   IncompatibleCargoColoadingError,
   CargoUnitNotFoundError,
   type CargoLoadPlanDomainError,
@@ -28,7 +28,7 @@ export interface AddCargoData {
 export class CargoLoadPlan {
   constructor(
     private readonly id: UUID<'CargoLoadPlan'>,
-    private trailer: PalletLoadableTrailerSpec,
+    private carrier: PalletLoadableCarrierSpec,
     private currentLdm: number,
     private assignedUnits: PalletUnit[] = [],
     private status: CargoLoadPlanStatus = CargoLoadPlanStatus.DRAFT,
@@ -37,14 +37,14 @@ export class CargoLoadPlan {
     this.assignedUnits = [...assignedUnits];
 
     // 🔥🔥🔥 Validate invariants on reconstruction – throw because corrupt state from DB is unexpected
-    const integrityResult = this.ensureLoadIntegrity(this.assignedUnits, this.trailer, this.currentLdm);
+    const integrityResult = this.ensureLoadIntegrity(this.assignedUnits, this.carrier, this.currentLdm);
     if (!integrityResult.success) throw integrityResult.error;
   }
 
   public getSnapshot() {
     return {
       id: this.id,
-      trailer: this.trailer,
+      carrier: this.carrier,
       status: this.status,
       currentLdm: this.currentLdm,
       assignedUnits: Object.freeze(this.assignedUnits.map(u => u.getSnapshot())),
@@ -58,8 +58,8 @@ export class CargoLoadPlan {
 
     if (this.assignedUnits.length === 0) return fail(new EmptyPlanError());
 
-    if (this.currentLdm > this.trailer.maxLdm) {
-      return fail(new LdmCapacityExceededError(this.currentLdm, this.trailer.maxLdm));
+    if (this.currentLdm > this.carrier.maxLdm) {
+      return fail(new LdmCapacityExceededError(this.currentLdm, this.carrier.maxLdm));
     }
 
     this.status = CargoLoadPlanStatus.FINALIZED;
@@ -69,7 +69,7 @@ export class CargoLoadPlan {
   public addCargoToPlan(
     data: AddCargoData,
     // 🔥🔥🔥 strategy (not double dispatch)
-    ldmProvider: (u: PalletUnit[], t: PalletLoadableTrailerSpec) => number
+    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => number
   ): Result<void, CargoLoadPlanDomainError> {
     const guardResult = this.ensurePlanNotFinalized();
     if (!guardResult.success) return guardResult;
@@ -81,8 +81,8 @@ export class CargoLoadPlan {
     if (!unitResult.success) return fail(unitResult.error);
 
     const candidateUnits = [...this.assignedUnits, unitResult.value];
-    const newLdm = ldmProvider(candidateUnits, this.trailer);
-    const integrityResult = this.ensureLoadIntegrity(candidateUnits, this.trailer, newLdm);
+    const newLdm = ldmProvider(candidateUnits, this.carrier);
+    const integrityResult = this.ensureLoadIntegrity(candidateUnits, this.carrier, newLdm);
     if (!integrityResult.success) return integrityResult;
 
     this.assignedUnits = candidateUnits;
@@ -92,7 +92,7 @@ export class CargoLoadPlan {
 
   public removeCargoFromPlan(
     unitId: string,
-    ldmProvider: (u: PalletUnit[], t: PalletLoadableTrailerSpec) => number
+    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => number
   ): Result<void, CargoLoadPlanDomainError> {
     const guardResult = this.ensurePlanNotFinalized();
     if (!guardResult.success) return guardResult;
@@ -102,8 +102,8 @@ export class CargoLoadPlan {
       return fail(new CargoUnitNotFoundError(unitId));
     }
 
-    const newLdm = ldmProvider(candidateUnits, this.trailer);
-    const integrityResult = this.ensureLoadIntegrity(candidateUnits, this.trailer, newLdm);
+    const newLdm = ldmProvider(candidateUnits, this.carrier);
+    const integrityResult = this.ensureLoadIntegrity(candidateUnits, this.carrier, newLdm);
     if (!integrityResult.success) return integrityResult;
 
     this.assignedUnits = candidateUnits;
@@ -111,18 +111,18 @@ export class CargoLoadPlan {
     return ok(undefined);
   }
 
-  public replaceTrailer(
-    newTrailer: PalletLoadableTrailerSpec,
-    ldmProvider: (u: PalletUnit[], t: PalletLoadableTrailerSpec) => number
+  public replaceCarrier(
+    newCarrier: PalletLoadableCarrierSpec,
+    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => number
   ): Result<void, CargoLoadPlanDomainError> {
     const guardResult = this.ensurePlanNotFinalized();
     if (!guardResult.success) return guardResult;
 
-    const newLdm = ldmProvider(this.assignedUnits, newTrailer);
-    const integrityResult = this.ensureLoadIntegrity(this.assignedUnits, newTrailer, newLdm);
+    const newLdm = ldmProvider(this.assignedUnits, newCarrier);
+    const integrityResult = this.ensureLoadIntegrity(this.assignedUnits, newCarrier, newLdm);
     if (!integrityResult.success) return integrityResult;
 
-    this.trailer = newTrailer;
+    this.carrier = newCarrier;
     this.currentLdm = newLdm;
     return ok(undefined);
   }
@@ -140,25 +140,25 @@ export class CargoLoadPlan {
 
   private ensureLoadIntegrity(
     units: PalletUnit[],
-    trailer: PalletLoadableTrailerSpec,
+    carrier: PalletLoadableCarrierSpec,
     ldm: number
   ): Result<void, CargoLoadPlanDomainError> {
     if (units.length === 0) return ok(undefined);
 
-    const weightResult = this.ensureWeightCapacityNotExceeded(units, trailer);
+    const weightResult = this.ensureWeightCapacityNotExceeded(units, carrier);
     if (!weightResult.success) return weightResult;
 
-    const ldmResult = this.ensureLdmCapacityNotExceeded(ldm, trailer);
+    const ldmResult = this.ensureLdmCapacityNotExceeded(ldm, carrier);
     if (!ldmResult.success) return ldmResult;
 
     const coloadResult = this.ensureCargoColoadingCompatibility(units);
     if (!coloadResult.success) return coloadResult;
 
     for (const unit of units) {
-      const spatialResult = this.ensureCargoSpatialFit(unit, trailer);
+      const spatialResult = this.ensureCargoSpatialFit(unit, carrier);
       if (!spatialResult.success) return spatialResult;
 
-      const capabilityResult = this.ensureTrailerSatisfiesCargoRequirements(unit, trailer);
+      const capabilityResult = this.ensureCarrierSatisfiesCargoRequirements(unit, carrier);
       if (!capabilityResult.success) return capabilityResult;
     }
 
@@ -167,55 +167,55 @@ export class CargoLoadPlan {
 
   private ensureWeightCapacityNotExceeded(
     units: PalletUnit[],
-    trailer: PalletLoadableTrailerSpec
+    carrier: PalletLoadableCarrierSpec
   ): Result<void, CargoLoadPlanDomainError> {
     // 🤨🤨🤨 so unit's weight is of type Weight (VO) but their sum totalWeightKg is a primitive (number)?
     // (╯°□°)╯︵ ┻━┻ 
     const totalWeightKg = units.reduce((sum, u) => sum + u.getSnapshot().weight.valueInKg, 0);
-    if (totalWeightKg > trailer.maxWeightCapacity.valueInKg) {
-      return fail(new WeightCapacityExceededError(totalWeightKg, trailer.maxWeightCapacity.valueInKg));
+    if (totalWeightKg > carrier.maxWeightCapacity.valueInKg) {
+      return fail(new WeightCapacityExceededError(totalWeightKg, carrier.maxWeightCapacity.valueInKg));
     }
     return ok(undefined);
   }
 
   private ensureLdmCapacityNotExceeded(
     ldm: number,
-    trailer: PalletLoadableTrailerSpec
+    carrier: PalletLoadableCarrierSpec
   ): Result<void, CargoLoadPlanDomainError> {
-    if (ldm > trailer.maxLdm) {
-      return fail(new LdmCapacityExceededError(ldm, trailer.maxLdm));
+    if (ldm > carrier.maxLdm) {
+      return fail(new LdmCapacityExceededError(ldm, carrier.maxLdm));
     }
     return ok(undefined);
   }
 
   private ensureCargoSpatialFit(
     unit: PalletUnit,
-    trailer: PalletLoadableTrailerSpec
-  ): Result<void, CargoTooTallForTrailerError> {
-    if (unit.getSnapshot().totalHeightMm > trailer.heightMm) {
-      return fail(new CargoTooTallForTrailerError(unit.getSnapshot().id, unit.getSnapshot().totalHeightMm, trailer.type, trailer.heightMm));
+    carrier: PalletLoadableCarrierSpec
+  ): Result<void, CargoTooTallForCarrierError> {
+    if (unit.getSnapshot().totalHeightMm > carrier.heightMm) {
+      return fail(new CargoTooTallForCarrierError(unit.getSnapshot().id, unit.getSnapshot().totalHeightMm, carrier.type, carrier.heightMm));
     }
     return ok(undefined);
   }
 
-  private ensureTrailerSatisfiesCargoRequirements(
+  private ensureCarrierSatisfiesCargoRequirements(
     unit: PalletUnit,
-    trailer: PalletLoadableTrailerSpec
-  ): Result<void, TrailerCapabilityMismatchError> {
+    carrier: PalletLoadableCarrierSpec
+  ): Result<void, CarrierCapabilityMismatchError> {
     const { requirements: req } = unit.getSnapshot();
-    const { capabilities: cap } = trailer;
+    const { capabilities: cap } = carrier;
 
     if (req.isTemperatureControlled && !cap.hasClimateControl) {
-      return fail(new TrailerCapabilityMismatchError('Climate control required'));
+      return fail(new CarrierCapabilityMismatchError('Climate control required'));
     }
     if (req.requiresSideLoading && !cap.supportsSideLoading) {
-      return fail(new TrailerCapabilityMismatchError('side loading required'));
+      return fail(new CarrierCapabilityMismatchError('side loading required'));
     }
     if (req.highSecurityRequired && !cap.hasHighSecurityLock) {
-      return fail(new TrailerCapabilityMismatchError('high security lock required'));
+      return fail(new CarrierCapabilityMismatchError('high security lock required'));
     }
     if (req.isBulk && !cap.isBulkReady) {
-      return fail(new TrailerCapabilityMismatchError('bulk-ready trailer required'));
+      return fail(new CarrierCapabilityMismatchError('bulk-ready carrier required'));
     }
 
     return ok(undefined);

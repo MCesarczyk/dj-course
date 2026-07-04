@@ -38,9 +38,9 @@ async function main(): Promise<void> {
   await client.removeCargo(planId, unitId);
   console.log('3. Removed cargo');
 
-  // 4. Change trailer (plan is empty again → any trailer is valid)
-  await client.changeTrailer(planId, 'reefer');
-  console.log('4. Changed trailer → reefer');
+  // 4. Change carrier (plan is empty again → any carrier is valid)
+  await client.changeCarrier(planId, 'reefer');
+  console.log('4. Changed carrier → reefer');
 
   // Re-add a unit so the plan can be finalized (must be non-empty).
   await client.addCargo(planId, {

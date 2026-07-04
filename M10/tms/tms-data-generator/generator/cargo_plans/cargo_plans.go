@@ -10,7 +10,7 @@ import (
 	"github.com/brianvoe/gofakeit/v6"
 )
 
-// Trailer capabilities – aligned with tms-api TrailerFactory.
+// Carrier capabilities – aligned with tms-api CarrierFactory.
 const (
 	maxWeightStandardKg = 24000
 	maxWeightReeferKg   = 22000
@@ -31,7 +31,7 @@ var cargoDescriptors = map[CargoType][]string{
 }
 
 // GenerateCargoLoadPlans generates count cargo load plans.
-// First len(PredefinedPlans) plans use deterministic IDs, cargo types, trailers and statuses.
+// First len(PredefinedPlans) plans use deterministic IDs, cargo types, carriers and statuses.
 // Each plan has homogeneous cargo (one type) – respects coloading rules.
 // Remaining plans are ~2/3 FINALIZED, ~1/3 DRAFT.
 func GenerateCargoLoadPlans(count int) []CargoLoadPlan {
@@ -40,7 +40,7 @@ func GenerateCargoLoadPlans(count int) []CargoLoadPlan {
 	for i := 0; i < count; i++ {
 		var planID string
 		var cargoType CargoType
-		var trailer trailerSpec
+		var carrier carrierSpec
 		var status Status
 		var version int
 
@@ -48,7 +48,7 @@ func GenerateCargoLoadPlans(count int) []CargoLoadPlan {
 			pp := PredefinedPlans[i]
 			planID = pp.ID
 			cargoType = pp.CargoType
-			trailer = trailerSpecForType(pp.TrailerType)
+			carrier = carrierSpecForType(pp.CarrierType)
 			status = pp.Status
 			if status == Draft {
 				version = 1 + rand.Intn(3)
@@ -58,7 +58,7 @@ func GenerateCargoLoadPlans(count int) []CargoLoadPlan {
 		} else {
 			planID = gofakeit.UUID()
 			cargoType = randomCargoType()
-			trailer = trailerForCargo(cargoType)
+			carrier = carrierForCargo(cargoType)
 			if i >= count*2/3 {
 				status = Draft
 				version = 1 + rand.Intn(3)
@@ -69,7 +69,7 @@ func GenerateCargoLoadPlans(count int) []CargoLoadPlan {
 		}
 
 		unitCount := 2 + rand.Intn(5) // 2–6 units per plan
-		units := generateHomogeneousUnits(planID, trailer, cargoType, unitCount, PredefinedUnitIDs[planID])
+		units := generateHomogeneousUnits(planID, carrier, cargoType, unitCount, PredefinedUnitIDs[planID])
 
 		totalLdm := 0.0
 		for _, u := range units {
@@ -77,15 +77,15 @@ func GenerateCargoLoadPlans(count int) []CargoLoadPlan {
 		}
 		totalLdm = math.Round(totalLdm*100) / 100
 
-		// Ensure LDM and weight within trailer limits
+		// Ensure LDM and weight within carrier limits
 		totalWeight := 0.0
 		for _, u := range units {
 			totalWeight += u.WeightKg
 		}
-		maxWeight := maxWeightForTrailer(trailer.Type)
-		if totalWeight > maxWeight || totalLdm > maxLdmForTrailer(trailer.Type) {
+		maxWeight := maxWeightForCarrier(carrier.Type)
+		if totalWeight > maxWeight || totalLdm > maxLdmForCarrier(carrier.Type) {
 			// Truncate units to stay within limits (simplified: reduce count)
-			for len(units) > 2 && (totalWeight > maxWeight || totalLdm > maxLdmForTrailer(trailer.Type)) {
+			for len(units) > 2 && (totalWeight > maxWeight || totalLdm > maxLdmForCarrier(carrier.Type)) {
 				units = units[:len(units)-1]
 				totalLdm = 0
 				totalWeight = 0
@@ -101,7 +101,7 @@ func GenerateCargoLoadPlans(count int) []CargoLoadPlan {
 
 		plans = append(plans, CargoLoadPlan{
 			ID:          planID,
-			TrailerType: trailer.Type,
+			CarrierType: carrier.Type,
 			Status:      status,
 			CurrentLdm:  totalLdm,
 			Version:     version,
@@ -114,27 +114,27 @@ func GenerateCargoLoadPlans(count int) []CargoLoadPlan {
 	return plans
 }
 
-func trailerForCargo(c CargoType) trailerSpec {
+func carrierForCargo(c CargoType) carrierSpec {
 	switch c {
 	case Food:
-		return trailerSpecs[2] // Reefer
+		return carrierSpecs[2] // Reefer
 	case Chemical, General, Electronics:
-		return trailerSpecs[rand.Intn(2)] // Standard or Mega
+		return carrierSpecs[rand.Intn(2)] // Standard or Mega
 	case DangerousGoods:
-		return trailerSpecs[2] // Reefer (high security)
+		return carrierSpecs[2] // Reefer (high security)
 	default:
-		return trailerSpecs[0]
+		return carrierSpecs[0]
 	}
 }
 
-// trailerSpecForType returns the trailerSpec matching the given TrailerType.
-func trailerSpecForType(t TrailerType) trailerSpec {
-	for _, spec := range trailerSpecs {
+// carrierSpecForType returns the carrierSpec matching the given CarrierType.
+func carrierSpecForType(t CarrierType) carrierSpec {
+	for _, spec := range carrierSpecs {
 		if spec.Type == t {
 			return spec
 		}
 	}
-	return trailerSpecs[0]
+	return carrierSpecs[0]
 }
 
 func randomCargoType() CargoType {
@@ -142,14 +142,14 @@ func randomCargoType() CargoType {
 	return types[rand.Intn(len(types))]
 }
 
-func maxWeightForTrailer(t TrailerType) float64 {
+func maxWeightForCarrier(t CarrierType) float64 {
 	if t == Reefer {
 		return maxWeightReeferKg
 	}
 	return maxWeightStandardKg
 }
 
-func maxLdmForTrailer(t TrailerType) float64 {
+func maxLdmForCarrier(t CarrierType) float64 {
 	if t == Reefer {
 		return maxLdmReefer
 	}
@@ -158,11 +158,11 @@ func maxLdmForTrailer(t TrailerType) float64 {
 
 // generateHomogeneousUnits creates units of a single cargo type (homogeneous load).
 // predefinedIDs: if non-empty, the first len(predefinedIDs) units get those IDs instead of random UUIDs.
-func generateHomogeneousUnits(planID string, trailer trailerSpec, cargoType CargoType, count int, predefinedIDs []string) []CargoLoadPlanUnit {
-	pallets := palletsForCargoAndTrailer(trailer, cargoType)
+func generateHomogeneousUnits(planID string, carrier carrierSpec, cargoType CargoType, count int, predefinedIDs []string) []CargoLoadPlanUnit {
+	pallets := palletsForCargoAndCarrier(carrier, cargoType)
 	if len(pallets) == 0 {
 		// Fallback: use first compatible pallet
-		pallets = compatiblePallets(trailer)
+		pallets = compatiblePallets(carrier)
 	}
 	if len(pallets) == 0 {
 		return nil
@@ -179,7 +179,7 @@ func generateHomogeneousUnits(planID string, trailer trailerSpec, cargoType Carg
 		maxWeight := math.Min(pallet.MaxWeightKg*0.8, 2000) // stay within capacity
 		weightKg := math.Round((100+rand.Float64()*(maxWeight-100))*100) / 100
 
-		heightMm := heightForTrailer(trailer.Type)
+		heightMm := heightForCarrier(carrier.Type)
 		cargoHeightMm := heightMm - pallet.BaseHeightMm
 		if cargoHeightMm < 200 {
 			cargoHeightMm = 200
@@ -188,10 +188,10 @@ func generateHomogeneousUnits(planID string, trailer trailerSpec, cargoType Carg
 			cargoHeightMm = 500 + rand.Intn(1000)
 		}
 
-		isTemp := trailer.HasClimateControl && cargoType == Food
-		requiresSide := trailer.SupportsSideLoading && rand.Intn(3) == 0
+		isTemp := carrier.HasClimateControl && cargoType == Food
+		requiresSide := carrier.SupportsSideLoading && rand.Intn(3) == 0
 		isBulk := false
-		highSecurity := trailer.HasHighSecurityLock && (cargoType == DangerousGoods || cargoType == Electronics)
+		highSecurity := carrier.HasHighSecurityLock && (cargoType == DangerousGoods || cargoType == Electronics)
 
 		req := UnitRequirements{
 			IsTemperatureControlled: isTemp,
@@ -199,7 +199,7 @@ func generateHomogeneousUnits(planID string, trailer trailerSpec, cargoType Carg
 			IsBulk:                  isBulk,
 			HighSecurityRequired:    highSecurity,
 		}
-		if !TrailerSatisfiesCargoRequirements(trailer, req) {
+		if !CarrierSatisfiesCargoRequirements(carrier, req) {
 			continue // retry with different requirements
 		}
 
@@ -231,7 +231,7 @@ func generateHomogeneousUnits(planID string, trailer trailerSpec, cargoType Carg
 	return units
 }
 
-func heightForTrailer(t TrailerType) int {
+func heightForCarrier(t CarrierType) int {
 	switch t {
 	case Mega:
 		return heightMegaMm
@@ -242,14 +242,14 @@ func heightForTrailer(t TrailerType) int {
 	}
 }
 
-// palletsForCargoAndTrailer returns pallets that support cargoType and work with trailer.
-func palletsForCargoAndTrailer(trailer trailerSpec, cargoType CargoType) []palletSpec {
+// palletsForCargoAndCarrier returns pallets that support cargoType and work with carrier.
+func palletsForCargoAndCarrier(carrier carrierSpec, cargoType CargoType) []palletSpec {
 	var result []palletSpec
 	for _, p := range palletSpecs {
 		if !palletSupportsCargo(p, cargoType) {
 			continue
 		}
-		if !trailerSupportsPallet(trailer, p, cargoType) {
+		if !carrierSupportsPallet(carrier, p, cargoType) {
 			continue
 		}
 		result = append(result, p)
@@ -266,22 +266,22 @@ func palletSupportsCargo(p palletSpec, c CargoType) bool {
 	return false
 }
 
-func trailerSupportsPallet(trailer trailerSpec, p palletSpec, c CargoType) bool {
+func carrierSupportsPallet(carrier carrierSpec, p palletSpec, c CargoType) bool {
 	// High security required for ADR – only Reefer has it
-	if c == DangerousGoods && !trailer.HasHighSecurityLock {
+	if c == DangerousGoods && !carrier.HasHighSecurityLock {
 		return false
 	}
 	// Reefer: Food pallets or ADR pallets
-	if trailer.Type == Reefer {
+	if carrier.Type == Reefer {
 		return palletSupportsCargo(p, Food) || palletSupportsCargo(p, DangerousGoods) || palletSupportsCargo(p, Chemical)
 	}
 	// Standard/Mega: no ADR (no high security), but Chemical/General/Electronics/Food ok
 	return true
 }
 
-// compatiblePallets returns pallet specs that work with the trailer (legacy fallback).
-func compatiblePallets(trailer trailerSpec) []palletSpec {
-	if trailer.Type == Reefer {
+// compatiblePallets returns pallet specs that work with the carrier (legacy fallback).
+func compatiblePallets(carrier carrierSpec) []palletSpec {
+	if carrier.Type == Reefer {
 		var result []palletSpec
 		for _, p := range palletSpecs {
 			for _, c := range p.AllowedCargo {
@@ -302,7 +302,7 @@ func compatiblePallets(trailer trailerSpec) []palletSpec {
 				break
 			}
 		}
-		if !hasOnlyAdr || trailer.HasHighSecurityLock {
+		if !hasOnlyAdr || carrier.HasHighSecurityLock {
 			result = append(result, p)
 		}
 	}
@@ -336,11 +336,11 @@ func GeneratePlanInsertStatements(plans []CargoLoadPlan) string {
 
 	var sb strings.Builder
 	sb.Grow(len(plans) * 200)
-	sb.WriteString("INSERT INTO cargo_plans.cargo_load_plans (id, trailer_type, status, current_ldm, version, created_at, updated_at) VALUES\n")
+	sb.WriteString("INSERT INTO cargo_plans.cargo_load_plans (id, carrier_type, status, current_ldm, version, created_at, updated_at) VALUES\n")
 
 	for i, p := range plans {
 		sb.WriteString(fmt.Sprintf("    ('%s', '%s', '%s', %.2f, %d, '%s'::timestamptz, '%s'::timestamptz)",
-			p.ID, p.TrailerType, p.Status, p.CurrentLdm, p.Version, p.CreatedAt, p.UpdatedAt))
+			p.ID, p.CarrierType, p.Status, p.CurrentLdm, p.Version, p.CreatedAt, p.UpdatedAt))
 		if i < len(plans)-1 {
 			sb.WriteString(",\n")
 		} else {

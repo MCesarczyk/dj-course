@@ -13,7 +13,7 @@
 import {
   AddCargoInput,
   CargoLoadPlanReadModel,
-  ChangeTrailerInput,
+  ChangeCarrierInput,
   CreateLoadPlanInput,
   CreateLoadPlanResponse,
   WeightUnit,
@@ -21,13 +21,13 @@ import {
 
 export namespace CargoPlans {
   /**
-   * @description Creates a new cargo load plan for a given trailer type.
+   * @description Creates a new cargo load plan for a given carrier type (a semi-trailer or a rigid vehicle body).
    * @tags CargoPlans
    * @name CreateLoadPlan
    * @summary Create a load plan
    * @request POST:/cargo-plans
    * @response `201` `CreateLoadPlanResponse` Load plan created successfully
-   * @response `400` `ErrorResponse` Missing or invalid trailerType.
+   * @response `400` `ErrorResponse` Missing or invalid carrierType.
    * @response `500` `ErrorResponse`
    */
   export namespace CreateLoadPlan {
@@ -125,17 +125,17 @@ export namespace CargoPlans {
   }
 
   /**
-   * @description Replaces the trailer on a draft load plan. All currently assigned cargo units are re-validated against the new trailer's capabilities and capacity.
+   * @description Replaces the carrier on a draft load plan. All currently assigned cargo units are re-validated against the new carrier's capabilities and capacity.
    * @tags CargoPlans
-   * @name ChangeTrailerType
-   * @summary Change trailer type
-   * @request PUT:/cargo-plans/{id}/trailer
-   * @response `204` `void` Trailer type changed successfully – no body returned.
-   * @response `400` `ErrorResponse` Invalid trailerType or re-validation of existing cargo failed.
+   * @name ChangeCarrierType
+   * @summary Change carrier type
+   * @request PUT:/cargo-plans/{id}/carrier
+   * @response `204` `void` Carrier type changed successfully – no body returned.
+   * @response `400` `ErrorResponse` Invalid carrierType or re-validation of existing cargo failed.
    * @response `404` `ErrorResponse` No load plan exists with the given ID.
    * @response `500` `ErrorResponse`
    */
-  export namespace ChangeTrailerType {
+  export namespace ChangeCarrierType {
     export type RequestParams = {
       /**
        * UUID of the load plan
@@ -145,13 +145,13 @@ export namespace CargoPlans {
       id: string;
     };
     export type RequestQuery = {};
-    export type RequestBody = ChangeTrailerInput;
+    export type RequestBody = ChangeCarrierInput;
     export type RequestHeaders = {};
     export type ResponseBody = void;
   }
 
   /**
-   * @description Marks the load plan as FINALIZED. A finalized plan cannot be modified. The plan must have at least one cargo unit and must not exceed trailer capacity.
+   * @description Marks the load plan as FINALIZED. A finalized plan cannot be modified. The plan must have at least one cargo unit and must not exceed carrier capacity.
    * @tags CargoPlans
    * @name FinalizeLoadPlan
    * @summary Finalize a load plan

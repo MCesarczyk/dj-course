@@ -5,7 +5,7 @@
  *   1. create a plan            POST   /cargo-plans
  *   2. add cargo                POST   /cargo-plans/{id}/cargo
  *   3. remove cargo             DELETE /cargo-plans/{id}/cargo/{unitId}
- *   4. change the trailer       PUT    /cargo-plans/{id}/trailer
+ *   4. change the carrier       PUT    /cargo-plans/{id}/carrier
  *   5. finalize the plan        POST   /cargo-plans/{id}/finalize
  *   6. read the plan            GET    /cargo-plans/{id}
  *
@@ -14,7 +14,7 @@
  * API and returns the real id, which Pact substitutes into the request path.
  * That keeps the contract free of hard-coded UUIDs and decoupled from the DB.
  *
- * CDC highlight (step 6): the expected GET body omits the trailer's
+ * CDC highlight (step 6): the expected GET body omits the carrier's
  * `capabilities` and each unit's `requirements`. This consumer does not use
  * them, so they are not in the contract. The provider still returns them — and
  * verification passes, because Pact only checks the fields the consumer declares.
@@ -45,7 +45,7 @@ async function runTest(): Promise<void> {
       method: 'POST',
       path: '/cargo-plans',
       headers: { 'Content-Type': 'application/json' },
-      body: { trailerType: 'standard-curtainside' },
+      body: { carrierType: 'standard-curtainside' },
     })
     .willRespondWith({
       status: 201,
@@ -83,15 +83,15 @@ async function runTest(): Promise<void> {
     })
     .willRespondWith({ status: 204 });
 
-  // ── 4. Change the trailer type ───────────────────────────────────────────
+  // ── 4. Change the carrier type ───────────────────────────────────────────
   provider
     .given('a draft load plan exists', { planId: EXAMPLE_PLAN_ID })
-    .uponReceiving('a request to change the trailer type of the load plan')
+    .uponReceiving('a request to change the carrier type of the load plan')
     .withRequest({
       method: 'PUT',
-      path: fromProviderState('/cargo-plans/${planId}/trailer', `/cargo-plans/${EXAMPLE_PLAN_ID}/trailer`),
+      path: fromProviderState('/cargo-plans/${planId}/carrier', `/cargo-plans/${EXAMPLE_PLAN_ID}/carrier`),
       headers: { 'Content-Type': 'application/json' },
-      body: { trailerType: 'reefer' },
+      body: { carrierType: 'reefer' },
     })
     .willRespondWith({ status: 204 });
 
@@ -121,9 +121,11 @@ async function runTest(): Promise<void> {
         status: string('DRAFT'),
         version: integer(1),
         weightUnit: string('KG'),
-        trailer: {
+        carrier: {
           // NOTE: `capabilities` intentionally omitted — consumer does not use it.
           type: string('standard-curtainside'),
+          vehicleClass: string('MODULAR'),
+          requiresTractor: boolean(true),
           canCarryPallets: boolean(true),
           maxWeightCapacityKg: number(24000),
           widthMm: integer(2400),
@@ -159,13 +161,13 @@ async function runTest(): Promise<void> {
 
     await client.removeCargo(EXAMPLE_PLAN_ID, EXAMPLE_UNIT_ID);
 
-    await client.changeTrailer(EXAMPLE_PLAN_ID, 'reefer');
+    await client.changeCarrier(EXAMPLE_PLAN_ID, 'reefer');
 
     await client.finalize(EXAMPLE_PLAN_ID);
 
     const plan = await client.getPlan(EXAMPLE_PLAN_ID);
-    if (plan.trailer.type !== 'standard-curtainside') {
-      throw new Error(`Unexpected trailer type: ${JSON.stringify(plan)}`);
+    if (plan.carrier.type !== 'standard-curtainside') {
+      throw new Error(`Unexpected carrier type: ${JSON.stringify(plan)}`);
     }
     if (!Array.isArray(plan.units) || plan.units.length === 0) {
       throw new Error(`Expected at least one unit, got: ${JSON.stringify(plan)}`);

@@ -2,18 +2,18 @@ import { CargoLoadPlan } from '../cargo-load-plan';
 import type { CargoLoadPlanRepository } from '../cargo-load-plan.repository';
 import type { CargoLoadPlanDbRow } from '../cargo-load-plan.repository';
 import type { InMemoryCargoLoadPlanReadStore } from './cargo-load-plan.in-memory-queries';
-import { toTrailerReadModel } from '../../trailers';
+import { toCarrierReadModel } from '../../carriers';
 import type {
   CargoLoadPlanStatus as ContractCargoLoadPlanStatus,
   CargoType as ContractCargoType,
 } from '../../../types/data-contracts';
 
 function projectToRow(plan: CargoLoadPlan): CargoLoadPlanDbRow {
-  const { id, trailer, status, currentLdm, assignedUnits, version } = plan.getSnapshot();
+  const { id, carrier, status, currentLdm, assignedUnits, version } = plan.getSnapshot();
   return {
     id,
     status: status as unknown as ContractCargoLoadPlanStatus,
-    trailer: toTrailerReadModel(trailer),
+    carrier: toCarrierReadModel(carrier),
     currentLdm,
     version,
     units: assignedUnits.map(({ id, spec, cargoType, weight, totalHeightMm, requirements }) => {

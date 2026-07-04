@@ -13,7 +13,7 @@ DROP TABLE IF EXISTS cargo_plans.cargo_load_plans;
 
 CREATE TABLE cargo_plans.cargo_load_plans (
     id           UUID         PRIMARY KEY,
-    trailer_type TEXT         NOT NULL,
+    carrier_type TEXT         NOT NULL,
     status       TEXT         NOT NULL DEFAULT 'DRAFT',
     current_ldm  NUMERIC(5,2) NOT NULL DEFAULT 0,
     version      INTEGER      NOT NULL DEFAULT 0,
@@ -39,7 +39,7 @@ CREATE TABLE cargo_plans.cargo_load_plan_units (
 CREATE INDEX idx_cargo_load_plan_units_load_plan_id ON cargo_plans.cargo_load_plan_units(load_plan_id);
 CREATE INDEX idx_cargo_load_plans_status ON cargo_plans.cargo_load_plans(status);
 
-INSERT INTO cargo_plans.cargo_load_plans (id, trailer_type, status, current_ldm, version, created_at, updated_at) VALUES
+INSERT INTO cargo_plans.cargo_load_plans (id, carrier_type, status, current_ldm, version, created_at, updated_at) VALUES
     ('11111111-1111-4111-a111-111111111101', 'reefer', 'FINALIZED', 0.81, 3, '2026-06-16 22:07:42+02'::timestamptz, '2026-06-18 19:07:42+02'::timestamptz),
     ('22222222-2222-4222-a222-222222222202', 'standard-curtainside', 'FINALIZED', 0.98, 3, '2026-06-03 22:07:42+02'::timestamptz, '2026-06-04 02:07:42+02'::timestamptz),
     ('33333333-3333-4333-a333-333333333303', 'mega', 'FINALIZED', 2.60, 5, '2026-06-09 22:07:42+02'::timestamptz, '2026-06-11 19:07:42+02'::timestamptz),

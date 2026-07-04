@@ -8,8 +8,8 @@
 import type { CarrierType } from './carrierType';
 
 /**
- * Payload for creating a new load plan.
+ * Payload for changing the carrier type on a load plan.
  */
-export interface CreateLoadPlanInput {
+export interface ChangeCarrierInput {
   carrierType: CarrierType;
 }

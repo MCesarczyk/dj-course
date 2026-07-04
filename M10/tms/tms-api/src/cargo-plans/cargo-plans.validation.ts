@@ -103,11 +103,11 @@ export const cargoPlanValidators = {
     }),
     query: queryParams.removeCargoFromLoadPlan,
   },
-  changeTrailerType: {
+  changeCarrierType: {
     headers: jsonRequestHeaders,
-    params: z.object({ id: endpointParams.changeTrailerType.id }),
-    query: queryParams.changeTrailerType,
-    body: endpointParams.changeTrailerType.body,
+    params: z.object({ id: endpointParams.changeCarrierType.id }),
+    query: queryParams.changeCarrierType,
+    body: endpointParams.changeCarrierType.body,
   },
   finalizeLoadPlan: {
     params: z.object({ id: endpointParams.finalizeLoadPlan.id }),

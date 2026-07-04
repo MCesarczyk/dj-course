@@ -24,24 +24,24 @@ export class LdmCapacityExceededError {
   }
 }
 
-export class CargoTooTallForTrailerError {
-  readonly kind = 'CargoTooTallForTrailerError' as const;
+export class CargoTooTallForCarrierError {
+  readonly kind = 'CargoTooTallForCarrierError' as const;
   readonly message: string;
   constructor(
     readonly unitId: string,
     readonly unitHeightMm: number,
-    readonly trailerType: string,
-    readonly trailerHeightMm: number
+    readonly carrierType: string,
+    readonly carrierHeightMm: number
   ) {
-    this.message = `Unit ${unitId} is too tall (${unitHeightMm}mm) for trailer ${trailerType} (${trailerHeightMm}mm).`;
+    this.message = `Unit ${unitId} is too tall (${unitHeightMm}mm) for carrier ${carrierType} (${carrierHeightMm}mm).`;
   }
 }
 
-export class TrailerCapabilityMismatchError {
-  readonly kind = 'TrailerCapabilityMismatchError' as const;
+export class CarrierCapabilityMismatchError {
+  readonly kind = 'CarrierCapabilityMismatchError' as const;
   readonly message: string;
   constructor(readonly reason: string) {
-    this.message = `Trailer capability mismatch: ${reason}`;
+    this.message = `Carrier capability mismatch: ${reason}`;
   }
 }
 
@@ -70,8 +70,8 @@ export type CargoLoadPlanDomainError =
   | EmptyPlanError
   | WeightCapacityExceededError
   | LdmCapacityExceededError
-  | CargoTooTallForTrailerError
-  | TrailerCapabilityMismatchError
+  | CargoTooTallForCarrierError
+  | CarrierCapabilityMismatchError
   | IncompatibleCargoColoadingError
   | CargoUnitNotFoundError
   | PalletWeightExceedsCapacityError

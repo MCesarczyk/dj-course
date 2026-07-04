@@ -3,33 +3,33 @@ import assert from 'assert';
 
 import { CargoLoadPlan, type AddCargoData } from './cargo-load-plan';
 import { LdmCalculator } from '../ldm/ldm-calculator';
-import { TrailerFactory } from '../trailers';
+import { CarrierFactory } from '../carriers';
 import { CargoType } from '../cargo/cargo.types';
 import { CargoLoadPlanStatus } from './cargo-load-plan.types';
 import type { PalletUnit } from '../pallets/pallet-unit';
-import type { PalletLoadableTrailerSpec } from '../trailers';
+import type { PalletLoadableCarrierSpec } from '../carriers';
 import { Weight } from '../../shared/weight';
 import { UUID } from '../../shared/uuid';
 
-const ldmProvider = (u: PalletUnit[], t: PalletLoadableTrailerSpec) => LdmCalculator.calculate(u, t);
+const ldmProvider = (u: PalletUnit[], t: PalletLoadableCarrierSpec) => LdmCalculator.calculate(u, t);
 
-function trailerWithMaxWeight(maxWeightKg: number): PalletLoadableTrailerSpec {
+function trailerWithMaxWeight(maxWeightKg: number): PalletLoadableCarrierSpec {
   return {
-    ...TrailerFactory.standardCurtainside(),
+    ...CarrierFactory.standardCurtainside(),
     maxWeightCapacity: Weight.from(maxWeightKg, 'KG'),
   };
 }
 
-function trailerWithMaxLdm(maxLdm: number): PalletLoadableTrailerSpec {
+function trailerWithMaxLdm(maxLdm: number): PalletLoadableCarrierSpec {
   return {
-    ...TrailerFactory.standardCurtainside(),
+    ...CarrierFactory.standardCurtainside(),
     maxLdm,
   };
 }
 
-function trailerWithHeight(heightMm: number): PalletLoadableTrailerSpec {
+function trailerWithHeight(heightMm: number): PalletLoadableCarrierSpec {
   return {
-    ...TrailerFactory.standardCurtainside(),
+    ...CarrierFactory.standardCurtainside(),
     heightMm,
   };
 }
@@ -40,7 +40,7 @@ interface CargoLoadPlanWorld {
 }
 
 Given('an empty load plan with standard curtainside trailer', function (this: CargoLoadPlanWorld) {
-  const trailer = TrailerFactory.standardCurtainside();
+  const trailer = CarrierFactory.standardCurtainside();
   this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, 0, [], CargoLoadPlanStatus.DRAFT);
 });
 
@@ -60,12 +60,12 @@ Given('an empty load plan with trailer having height {int} mm', function (this: 
 });
 
 Given('a load plan with standard curtainside trailer', function (this: CargoLoadPlanWorld) {
-  const trailer = TrailerFactory.standardCurtainside();
+  const trailer = CarrierFactory.standardCurtainside();
   this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, 0, [], CargoLoadPlanStatus.DRAFT);
 });
 
 Given('a load plan with refrigerated trailer', function (this: CargoLoadPlanWorld) {
-  const trailer = TrailerFactory.refrigerated();
+  const trailer = CarrierFactory.refrigerated();
   this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, 0, [], CargoLoadPlanStatus.DRAFT);
 });
 
@@ -129,7 +129,7 @@ When('I try to remove pallet unit with id {string}', function (this: CargoLoadPl
 
 When('I try to replace trailer with mega trailer', function (this: CargoLoadPlanWorld) {
   assert(this.plan);
-  const result = this.plan.replaceTrailer(TrailerFactory.megaTrailer(), ldmProvider);
+  const result = this.plan.replaceCarrier(CarrierFactory.megaTrailer(), ldmProvider);
   if (!result.success) this.lastError = result.error;
 });
 

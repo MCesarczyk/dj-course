@@ -26,6 +26,9 @@ export interface AddCargoData {
 }
 
 export class CargoLoadPlan {
+  // Business rule: DMC may be exceeded by at most 200 kg per whole transport plan
+  private static readonly DMC_OVERLOAD_TOLERANCE_KG = 200;
+
   constructor(
     private readonly id: UUID<'CargoLoadPlan'>,
     private carrier: PalletLoadableCarrierSpec,
@@ -172,8 +175,15 @@ export class CargoLoadPlan {
     // 🤨🤨🤨 so unit's weight is of type Weight (VO) but their sum totalWeightKg is a primitive (number)?
     // (╯°□°)╯︵ ┻━┻ 
     const totalWeightKg = units.reduce((sum, u) => sum + u.getSnapshot().weight.valueInKg, 0);
-    if (totalWeightKg > carrier.maxWeightCapacity.valueInKg) {
-      return fail(new WeightCapacityExceededError(totalWeightKg, carrier.maxWeightCapacity.valueInKg));
+    const maxAllowedKg = carrier.maxWeightCapacity.valueInKg + CargoLoadPlan.DMC_OVERLOAD_TOLERANCE_KG;
+    if (totalWeightKg > maxAllowedKg) {
+      return fail(
+        new WeightCapacityExceededError(
+          totalWeightKg,
+          carrier.maxWeightCapacity.valueInKg,
+          CargoLoadPlan.DMC_OVERLOAD_TOLERANCE_KG
+        )
+      );
     }
     return ok(undefined);
   }

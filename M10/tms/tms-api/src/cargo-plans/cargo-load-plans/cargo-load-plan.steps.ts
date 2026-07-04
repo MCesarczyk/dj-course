@@ -121,6 +121,13 @@ When('I try to add another general cargo pallet unit with weight {int} kg', func
   if (!result.success) this.lastError = result.error;
 });
 
+When('I add another general cargo pallet unit with weight {int} kg', function (this: CargoLoadPlanWorld, weight: number) {
+  assert(this.plan);
+  const data: AddCargoData = { palletType: 'epal1', cargoType: CargoType.GENERAL, weight: Weight.from(weight, 'KG'), cargoHeightMm: 100 };
+  const result = this.plan.addCargoToPlan(data, ldmProvider);
+  assert(result.success, `Expected adding cargo to succeed but got: ${!result.success ? result.error.message : ''}`);
+});
+
 When('I try to remove pallet unit with id {string}', function (this: CargoLoadPlanWorld, unitId: string) {
   assert(this.plan);
   const result = this.plan.removeCargoFromPlan(unitId, ldmProvider);
@@ -170,6 +177,11 @@ Then('the plan status should be FINALIZED', function (this: CargoLoadPlanWorld) 
 Then('the plan status should be DRAFT', function (this: CargoLoadPlanWorld) {
   assert(this.plan);
   assert.strictEqual(this.plan.isFinalized(), false);
+});
+
+Then('the plan should contain {int} cargo units', function (this: CargoLoadPlanWorld, expectedCount: number) {
+  assert(this.plan);
+  assert.strictEqual(this.plan.getSnapshot().assignedUnits.length, expectedCount);
 });
 
 Then('it should fail with {string}', function (this: CargoLoadPlanWorld, expectedSubstring: string) {

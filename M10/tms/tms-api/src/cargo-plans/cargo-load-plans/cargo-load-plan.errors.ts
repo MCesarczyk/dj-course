@@ -11,8 +11,8 @@ export class EmptyPlanError {
 export class WeightCapacityExceededError {
   readonly kind = 'WeightCapacityExceededError' as const;
   readonly message: string;
-  constructor(readonly actualKg: number, readonly maxKg: number) {
-    this.message = `Weight capacity exceeded: ${actualKg}kg > ${maxKg}kg`;
+  constructor(readonly actualKg: number, readonly maxKg: number, readonly toleranceKg: number) {
+    this.message = `Weight capacity exceeded: ${actualKg}kg > ${maxKg}kg (max allowed overload: ${toleranceKg}kg)`;
   }
 }
 

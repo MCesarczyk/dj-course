@@ -60,10 +60,44 @@ Feature: Cargo Load Plan Aggregate
 
   # ── Pojemność (waga, LDM) ────────────────────────────────────────────────────────
 
-  Scenario: Adding unit exceeding weight capacity fails
+  Scenario: Adding unit exceeding weight capacity by more than the allowed overload fails
     Given a load plan with trailer having max weight 1000 kg
     And the plan has a general cargo pallet unit with weight 600 kg
-    When I try to add another general cargo pallet unit with weight 500 kg
+    When I try to add another general cargo pallet unit with weight 700 kg
+    Then it should fail with "Weight capacity exceeded"
+
+  # ── Tolerancja przekroczenia DMC (max 200 kg per cały plan transportowy) ────────
+
+  Scenario: DMC can be exceeded within the 200 kg tolerance
+    Given a load plan with trailer having max weight 1000 kg
+    And the plan has a general cargo pallet unit with weight 600 kg
+    When I add another general cargo pallet unit with weight 550 kg
+    Then the plan should contain 2 cargo units
+
+  Scenario: DMC can be exceeded by exactly 200 kg
+    Given a load plan with trailer having max weight 1000 kg
+    And the plan has a general cargo pallet unit with weight 600 kg
+    When I add another general cargo pallet unit with weight 600 kg
+    Then the plan should contain 2 cargo units
+
+  Scenario: DMC exceeded by more than 200 kg is rejected
+    Given a load plan with trailer having max weight 1000 kg
+    And the plan has a general cargo pallet unit with weight 600 kg
+    When I try to add another general cargo pallet unit with weight 601 kg
+    Then it should fail with "Weight capacity exceeded"
+
+  Scenario: Plan loaded up to DMC with tolerance can be finalized
+    Given a load plan with trailer having max weight 1000 kg
+    And the plan has a general cargo pallet unit with weight 600 kg
+    And the plan has a general cargo pallet unit with weight 600 kg
+    When I finalize the plan
+    Then the plan status should be FINALIZED
+
+  Scenario: Tolerance applies to the whole plan, not per unit
+    Given a load plan with trailer having max weight 1000 kg
+    And the plan has a general cargo pallet unit with weight 600 kg
+    And the plan has a general cargo pallet unit with weight 600 kg
+    When I try to add another general cargo pallet unit with weight 150 kg
     Then it should fail with "Weight capacity exceeded"
 
   Scenario: Adding unit exceeding LDM capacity fails

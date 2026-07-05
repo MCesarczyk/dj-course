@@ -2,6 +2,7 @@ import type { PalletLoadableCarrierSpec } from './carrier-spec';
 import type { CarrierSpec } from './carrier-spec';
 import { Weight } from '../../shared/weight';
 import { Length } from '../../shared/length';
+import { Ldm } from '../ldm/ldm';
 import { UnknownCarrierTypeError } from './carrier-factory.errors';
 
 export { UnknownCarrierTypeError } from './carrier-factory.errors';
@@ -43,7 +44,7 @@ export class CarrierFactory {
       capabilities: { hasClimateControl: false, supportsSideLoading: true, hasHighSecurityLock: false, isBulkReady: false },
       canCarryPallets: true,
       maxWeightCapacity: Weight.from(24000, 'KG'),
-      maxLdm: Length.from(13.6, 'M'),
+      maxLdm: Ldm.of(13.6),
       width: Length.from(2480, 'MM'),
       height: Length.from(2700, 'MM')
     };
@@ -56,7 +57,7 @@ export class CarrierFactory {
       capabilities: { hasClimateControl: false, supportsSideLoading: true, hasHighSecurityLock: false, isBulkReady: false },
       canCarryPallets: true,
       maxWeightCapacity: Weight.from(24000, 'KG'),
-      maxLdm: Length.from(13.6, 'M'),
+      maxLdm: Ldm.of(13.6),
       width: Length.from(2480, 'MM'),
       height: Length.from(3000, 'MM')
     };
@@ -69,7 +70,7 @@ export class CarrierFactory {
       capabilities: { hasClimateControl: true, supportsSideLoading: false, hasHighSecurityLock: true, isBulkReady: false },
       canCarryPallets: true,
       maxWeightCapacity: Weight.from(22000, 'KG'),
-      maxLdm: Length.from(13.4, 'M'),
+      maxLdm: Ldm.of(13.4),
       width: Length.from(2460, 'MM'),
       height: Length.from(2600, 'MM')
     };
@@ -87,7 +88,7 @@ export class CarrierFactory {
       capabilities: { hasClimateControl: false, supportsSideLoading: false, hasHighSecurityLock: false, isBulkReady: false },
       canCarryPallets: true,
       maxWeightCapacity: Weight.from(1500, 'KG'),
-      maxLdm: Length.from(4.07, 'M'),
+      maxLdm: Ldm.of(4.07),
       width: Length.from(1870, 'MM'),
       height: Length.from(1930, 'MM')
     };
@@ -101,7 +102,7 @@ export class CarrierFactory {
       capabilities: { hasClimateControl: false, supportsSideLoading: false, hasHighSecurityLock: false, isBulkReady: false },
       canCarryPallets: true,
       maxWeightCapacity: Weight.from(5900, 'KG'),
-      maxLdm: Length.from(7.2, 'M'),
+      maxLdm: Ldm.of(7.2),
       width: Length.from(2480, 'MM'),
       height: Length.from(2500, 'MM')
     };

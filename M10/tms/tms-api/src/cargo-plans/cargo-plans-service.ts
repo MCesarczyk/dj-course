@@ -1,5 +1,5 @@
 import { UUID } from '../shared/uuid';
-import { Length } from '../shared/length';
+import { Ldm } from './ldm/ldm';
 import { ok, fail, type Result } from '../shared/result';
 import { CargoLoadPlan } from './cargo-load-plans/cargo-load-plan';
 import type { PalletUnit } from './pallets/pallet-unit';
@@ -49,7 +49,7 @@ export class CargoPlansService implements CargoPlansApplicationService {
   async createLoadPlan(command: CreateLoadPlanCommand): Promise<Result<string, CargoPlanServiceError>> {
     const carrier = CarrierFactory.fromType(command.carrierType);
     const id = UUID.newUUID<'CargoLoadPlan'>();
-    const plan = new CargoLoadPlan(id, carrier, Length.zero());
+    const plan = new CargoLoadPlan(id, carrier, Ldm.zero());
     try {
       await this.repository.create(plan);
     } catch (e) {

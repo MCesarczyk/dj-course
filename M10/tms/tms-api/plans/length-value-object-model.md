@@ -235,11 +235,73 @@ na inne pytanie: „jak zamodelować wielkości przestrzenne w systemie, który
 *liczy* powierzchnie i objętości". Gdy TMS zacznie je liczyć — to będzie
 właściwy moment na jej wprowadzenie, a dzisiejszy model niczego wtedy nie blokuje.
 
+## Follow-up: czy LDM to ta sama jednostka długości?
+
+Pytanie: *skoro i w LDM, i w zwykłej długości jest „metr" w nazwie,
+czy LDM powinien używać tego samego value objectu co reszta długości?*
+
+**Odpowiedź: fizycznie to ten sam metr, ale domenowo to inna wielkość** —
+i pierwotna decyzja („LDM to `Length` w metrach") została zrewidowana.
+
+### Dlaczego LDM ≠ długość geometryczna
+
+1. **LDM się nie mierzy, tylko wylicza.** Szerokość palety można zmierzyć
+   miarką; „ldm" nie istnieje na żadnym fizycznym obiekcie. To miara *zużycia
+   pojemności podłogi naczepy*, znormalizowana do standardowej szerokości 2,4 m
+   (klasyczny wzór spedycyjny: `(długość × szerokość) / 2,4` — czyli bliżej
+   powierzchni podzielonej przez stałą niż czystej długości). Kod sam to
+   sygnalizuje: komentarz przy vanie mówi wprost, że jego „LDM" to aproksymacja,
+   bo metryka jest standaryzowana dla naczep 2,4 m.
+2. **Test operacji** (to samo kryterium co przy Area/Volume — use case'y):
+   - sensowne dla LDM: porównanie z `maxLdm`, suma LDM przesyłek, cena za ldm,
+     zaokrąglenie do 2 miejsc (w wycenie często w górę),
+   - bezsensowne: `valueIn('MM')`, dodanie do wysokości palety, porównanie
+     z prześwitem — a wspólny typ `Length` wszystko to przepuszczał.
+3. **Błąd, który wygląda na poprawny.** Przy wspólnym typie kompilowało się
+   `unit.spec.length.fitsWithin(carrier.maxLdm)` — „czy paleta mieści się na
+   długość?". Brzmi rozsądnie i jest błędne: dwie palety obok siebie zużywają
+   głębokość rzędu raz, więc długości palety nie wolno porównywać z pojemnością
+   LDM z pominięciem kalkulatora. Osobny typ czyni ten skrót niekompilowalnym.
+4. **Analogia:** `Instant` vs `Duration` — obie wielkości w sekundach, a nikt
+   nie modeluje ich jednym typem, bo mają inną algebrę. „Metr" w LDM to
+   jednostka zapisu; VO modeluje *pojęcie*, nie jednostkę. Podobnie
+   roboczogodzina vs godzina zegarowa.
+
+### Implementacja: dedykowany VO `Ldm`
+
+`src/cargo-plans/ldm/ldm.ts` — celowo w module `cargo-plans`, nie w `shared`:
+LDM to pojęcie tego bounded contextu, a nie uniwersalna wielkość fizyczna.
+
+```ts
+Ldm.of(13.6)                     // metry, precyzja 2 miejsc W TYPIE (nie w kalkulatorze)
+Ldm.zero()
+Ldm.fromFloorLength(length)      // JEDYNY most geometria → pojemność
+a.isGreaterThan(b)               // porównania tylko Ldm ↔ Ldm
+a.valueInMeters                  // granice (DB NUMERIC(5,2), API); brak mm/cm!
+```
+
+Skutki:
+
+- `CarrierSpec.maxLdm: Ldm`, `CargoLoadPlan.currentLdm: Ldm`, `LdmCalculator`
+  zwraca `Ldm` — geometryczne `Length` wchodzą, `Ldm.fromFloorLength(...)`
+  wychodzi; każda wartość LDM w systemie **dowodnie** przeszła przez kalkulator,
+- reguła precyzji (2 miejsca) przeniosła się z wnętrza algorytmu do typu,
+- pomieszanie LDM z wymiarem geometrycznym przestało się kompilować,
+- testy: 43 scenariusze / 142 kroki — zielone, kontrakt API bez zmian
+  (`maxLdm`/`currentLdm` dalej serializowane jako liczba metrów).
+
+### Puenta
+
+Kryterium „jedna klasa czy wiele" pozostaje niezmienione: **decydują operacje
+domeny**. Dla mm/cm/m odpowiedź brzmiała „jeden typ", bo różnica jest czysto
+zapisowa (chroni ją normalizacja w runtime). Dla LDM odpowiedź brzmi „osobny
+typ", bo różnica jest pojęciowa: inna algebra, inne niezmienniki, inny słownik.
+Ten sam nóż, dwa różne cięcia.
+
 ## Pytania do dyskusji
 
-- Czy `maxLdm: Length` to za słabe typowanie? Alternatywa: branded type
-  `Ldm = Length & { __brand }` albo dedykowany VO, gdy dojdą reguły specyficzne
-  dla LDM (np. zaokrąglanie zawsze w górę przy wycenie).
+- ~~Czy `maxLdm: Length` to za słabe typowanie?~~ **Rozstrzygnięte w follow-upie:**
+  LDM dostał dedykowany VO `Ldm` — patrz sekcja wyżej.
 - Czy `Footprint`/`Dimensions` jako *grupujący* VO (bez algebry, sama spójność
   danych) ma sens już teraz, czy dopiero przy rotacji palet?
 - Gdzie postawilibyście granicę Length vs Distance (trasa przewozu w km to inny

@@ -1,5 +1,6 @@
 import { Weight } from '../../shared/weight';
 import { Length } from '../../shared/length';
+import { Ldm } from '../ldm/ldm';
 
 /**
  * Shape of the load carrier.
@@ -49,8 +50,8 @@ export type PalletLoadableCarrierSpec = CarrierSpec & {
   readonly width: Length;
   /** Internal vertical clearance of the loading space. Example: 2700 mm. */
   readonly height: Length;
-  /** Maximum loading meters available for cargo placement. Example: 13.6 m (typical for TIR 😎). */
-  readonly maxLdm: Length;
+  /** Maximum loading meters available for cargo placement. Example: 13.6 ldm (typical for TIR 😎). */
+  readonly maxLdm: Ldm;
 };
 
 export function isPalletLoadable(spec: CarrierSpec): spec is PalletLoadableCarrierSpec {

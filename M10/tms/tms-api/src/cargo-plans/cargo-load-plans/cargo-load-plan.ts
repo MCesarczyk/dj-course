@@ -5,6 +5,7 @@ import { PalletSpec } from '../pallets/pallet-spec';
 import type { PalletLoadableCarrierSpec } from '../carriers';
 import { Weight } from '../../shared/weight';
 import { Length } from '../../shared/length';
+import { Ldm } from '../ldm/ldm';
 import { ok, fail, type Result } from '../../shared/result';
 import { UUID } from '../../shared/uuid';
 import {
@@ -33,7 +34,7 @@ export class CargoLoadPlan {
   constructor(
     private readonly id: UUID<'CargoLoadPlan'>,
     private carrier: PalletLoadableCarrierSpec,
-    private currentLdm: Length,
+    private currentLdm: Ldm,
     private assignedUnits: PalletUnit[] = [],
     private status: CargoLoadPlanStatus = CargoLoadPlanStatus.DRAFT,
     private version: number = 0
@@ -63,7 +64,7 @@ export class CargoLoadPlan {
     if (this.assignedUnits.length === 0) return fail(new EmptyPlanError());
 
     if (this.currentLdm.isGreaterThan(this.carrier.maxLdm)) {
-      return fail(new LdmCapacityExceededError(this.currentLdm.valueIn('M'), this.carrier.maxLdm.valueIn('M')));
+      return fail(new LdmCapacityExceededError(this.currentLdm.valueInMeters, this.carrier.maxLdm.valueInMeters));
     }
 
     this.status = CargoLoadPlanStatus.FINALIZED;
@@ -73,7 +74,7 @@ export class CargoLoadPlan {
   public addCargoToPlan(
     data: AddCargoData,
     // 🔥🔥🔥 strategy (not double dispatch)
-    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => Length
+    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => Ldm
   ): Result<void, CargoLoadPlanDomainError> {
     const guardResult = this.ensurePlanNotFinalized();
     if (!guardResult.success) return guardResult;
@@ -96,7 +97,7 @@ export class CargoLoadPlan {
 
   public removeCargoFromPlan(
     unitId: string,
-    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => Length
+    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => Ldm
   ): Result<void, CargoLoadPlanDomainError> {
     const guardResult = this.ensurePlanNotFinalized();
     if (!guardResult.success) return guardResult;
@@ -117,7 +118,7 @@ export class CargoLoadPlan {
 
   public replaceCarrier(
     newCarrier: PalletLoadableCarrierSpec,
-    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => Length
+    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => Ldm
   ): Result<void, CargoLoadPlanDomainError> {
     const guardResult = this.ensurePlanNotFinalized();
     if (!guardResult.success) return guardResult;
@@ -145,7 +146,7 @@ export class CargoLoadPlan {
   private ensureLoadIntegrity(
     units: PalletUnit[],
     carrier: PalletLoadableCarrierSpec,
-    ldm: Length
+    ldm: Ldm
   ): Result<void, CargoLoadPlanDomainError> {
     if (units.length === 0) return ok(undefined);
 
@@ -190,11 +191,11 @@ export class CargoLoadPlan {
   }
 
   private ensureLdmCapacityNotExceeded(
-    ldm: Length,
+    ldm: Ldm,
     carrier: PalletLoadableCarrierSpec
   ): Result<void, CargoLoadPlanDomainError> {
     if (ldm.isGreaterThan(carrier.maxLdm)) {
-      return fail(new LdmCapacityExceededError(ldm.valueIn('M'), carrier.maxLdm.valueIn('M')));
+      return fail(new LdmCapacityExceededError(ldm.valueInMeters, carrier.maxLdm.valueInMeters));
     }
     return ok(undefined);
   }

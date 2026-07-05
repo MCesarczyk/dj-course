@@ -10,6 +10,7 @@ import type { PalletUnit } from '../pallets/pallet-unit';
 import type { PalletLoadableCarrierSpec } from '../carriers';
 import { Weight } from '../../shared/weight';
 import { Length } from '../../shared/length';
+import { Ldm } from '../ldm/ldm';
 import { UUID } from '../../shared/uuid';
 
 const ldmProvider = (u: PalletUnit[], t: PalletLoadableCarrierSpec) => LdmCalculator.calculate(u, t);
@@ -24,7 +25,7 @@ function trailerWithMaxWeight(maxWeightKg: number): PalletLoadableCarrierSpec {
 function trailerWithMaxLdm(maxLdm: number): PalletLoadableCarrierSpec {
   return {
     ...CarrierFactory.standardCurtainside(),
-    maxLdm: Length.from(maxLdm, 'M'),
+    maxLdm: Ldm.of(maxLdm),
   };
 }
 
@@ -42,42 +43,42 @@ interface CargoLoadPlanWorld {
 
 Given('an empty load plan with standard curtainside trailer', function (this: CargoLoadPlanWorld) {
   const trailer = CarrierFactory.standardCurtainside();
-  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Length.zero(), [], CargoLoadPlanStatus.DRAFT);
+  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Ldm.zero(), [], CargoLoadPlanStatus.DRAFT);
 });
 
 Given('an empty load plan with trailer having max weight {int} kg', function (this: CargoLoadPlanWorld, maxWeight: number) {
   const trailer = trailerWithMaxWeight(maxWeight);
-  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Length.zero(), [], CargoLoadPlanStatus.DRAFT);
+  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Ldm.zero(), [], CargoLoadPlanStatus.DRAFT);
 });
 
 Given('an empty load plan with trailer having max LDM {float} m', function (this: CargoLoadPlanWorld, maxLdm: number) {
   const trailer = trailerWithMaxLdm(maxLdm);
-  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Length.zero(), [], CargoLoadPlanStatus.DRAFT);
+  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Ldm.zero(), [], CargoLoadPlanStatus.DRAFT);
 });
 
 Given('an empty load plan with trailer having height {int} mm', function (this: CargoLoadPlanWorld, heightMm: number) {
   const trailer = trailerWithHeight(heightMm);
-  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Length.zero(), [], CargoLoadPlanStatus.DRAFT);
+  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Ldm.zero(), [], CargoLoadPlanStatus.DRAFT);
 });
 
 Given('a load plan with standard curtainside trailer', function (this: CargoLoadPlanWorld) {
   const trailer = CarrierFactory.standardCurtainside();
-  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Length.zero(), [], CargoLoadPlanStatus.DRAFT);
+  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Ldm.zero(), [], CargoLoadPlanStatus.DRAFT);
 });
 
 Given('a load plan with refrigerated trailer', function (this: CargoLoadPlanWorld) {
   const trailer = CarrierFactory.refrigerated();
-  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Length.zero(), [], CargoLoadPlanStatus.DRAFT);
+  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Ldm.zero(), [], CargoLoadPlanStatus.DRAFT);
 });
 
 Given('a load plan with trailer having max weight {int} kg', function (this: CargoLoadPlanWorld, maxWeight: number) {
   const trailer = trailerWithMaxWeight(maxWeight);
-  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Length.zero(), [], CargoLoadPlanStatus.DRAFT);
+  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Ldm.zero(), [], CargoLoadPlanStatus.DRAFT);
 });
 
 Given('a load plan with trailer having max LDM {float} m', function (this: CargoLoadPlanWorld, maxLdm: number) {
   const trailer = trailerWithMaxLdm(maxLdm);
-  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Length.zero(), [], CargoLoadPlanStatus.DRAFT);
+  this.plan = new CargoLoadPlan(UUID.from<'CargoLoadPlan'>('plan-1'), trailer, Ldm.zero(), [], CargoLoadPlanStatus.DRAFT);
 });
 
 Given('the plan has a general cargo pallet unit with weight {int} kg', function (this: CargoLoadPlanWorld, weight: number) {

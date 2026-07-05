@@ -17,6 +17,6 @@ export function toCarrierReadModel(carrier: PalletLoadableCarrierSpec): CarrierR
     maxWeightCapacityKg: carrier.maxWeightCapacity.valueInKg,
     widthMm: carrier.width.valueIn('MM'),
     heightMm: carrier.height.valueIn('MM'),
-    maxLdm: carrier.maxLdm.valueIn('M'),
+    maxLdm: carrier.maxLdm.valueInMeters,
   };
 }

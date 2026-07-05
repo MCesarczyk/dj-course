@@ -14,7 +14,7 @@ function projectToRow(plan: CargoLoadPlan): CargoLoadPlanDbRow {
     id,
     status: status as unknown as ContractCargoLoadPlanStatus,
     carrier: toCarrierReadModel(carrier),
-    currentLdm: currentLdm.valueIn('M'),
+    currentLdm: currentLdm.valueInMeters,
     version,
     units: assignedUnits.map(({ id, spec, cargoType, weight, totalHeight, requirements }) => {
       return {

@@ -9,6 +9,7 @@ import { PalletSpec } from '../pallets/pallet-spec';
 import { CarrierFactory } from '../carriers';
 import { Weight } from '../../shared/weight';
 import { Length } from '../../shared/length';
+import { Ldm } from '../ldm/ldm';
 import type { PoolClient } from 'pg';
 
 export interface CargoLoadPlanRepository {
@@ -39,7 +40,7 @@ export class SqlCargoLoadPlanRepository implements CargoLoadPlanRepository {
     await pool.query(
       `INSERT INTO cargo_plans.cargo_load_plans (id, carrier_type, status, current_ldm, version)
        VALUES ($1, $2, $3, $4, 1)`,
-      [id, carrierTypeKey, status, currentLdm.valueIn('M')],
+      [id, carrierTypeKey, status, currentLdm.valueInMeters],
     );
   }
 
@@ -58,14 +59,14 @@ export class SqlCargoLoadPlanRepository implements CargoLoadPlanRepository {
         await client.query(
           `INSERT INTO cargo_plans.cargo_load_plans (id, carrier_type, status, current_ldm, version)
            VALUES ($1, $2, $3, $4, 1)`,
-          [id, carrierTypeKey, status, currentLdm.valueIn('M')],
+          [id, carrierTypeKey, status, currentLdm.valueInMeters],
         );
       } else {
         const { rowCount } = await client.query(
           `UPDATE cargo_plans.cargo_load_plans
            SET carrier_type = $1, status = $2, current_ldm = $3, version = version + 1
            WHERE id = $4 AND version = $5`, // 🔥🔥🔥 optimistic lock check
-          [carrierTypeKey, status, currentLdm.valueIn('M'), id, version], // 🔥🔥🔥 currentLDM - is derived from the all units dimensions (like a local cache), and is also transactionally consistent (within 1 row)
+          [carrierTypeKey, status, currentLdm.valueInMeters, id, version], // 🔥🔥🔥 currentLDM - is derived from the all units dimensions (like a local cache), and is also transactionally consistent (within 1 row)
         );
         if (rowCount === 0) { // 🔥🔥🔥 optimistic check failed
           const currentVersion = await this.fetchVersion(client, id); // 🔥🔥🔥 no updates? VERSION MISMATCH!
@@ -155,7 +156,7 @@ export class SqlCargoLoadPlanRepository implements CargoLoadPlanRepository {
     return new CargoLoadPlan(
       UUID.from<'CargoLoadPlan'>(row.id),
       carrier,
-      Length.from(parseFloat(row.current_ldm), 'M'),
+      Ldm.of(parseFloat(row.current_ldm)),
       units,
       row.status as CargoLoadPlanStatus,
       row.version,

@@ -1,13 +1,16 @@
 import { PalletUnit } from '../pallets/pallet-unit';
 import type { PalletLoadableCarrierSpec } from '../carriers';
 import { Length } from '../../shared/length';
+import { Ldm } from './ldm';
 
 /**
- * Domain Service for calculating LDM (loading meters — a 1D measure).
+ * Domain Service for calculating LDM.
+ * The only place where geometric lengths (pallet footprints) are converted
+ * into consumed loading capacity (Ldm).
  */
 export class LdmCalculator {
-  public static calculate(units: PalletUnit[], carrier: PalletLoadableCarrierSpec): Length {
-    if (units.length === 0) return Length.zero();
+  public static calculate(units: PalletUnit[], carrier: PalletLoadableCarrierSpec): Ldm {
+    if (units.length === 0) return Ldm.zero();
 
     const sortedUnits = [...units].sort((a, b) =>
       Length.compare(b.getSnapshot().spec.length, a.getSnapshot().spec.length)
@@ -27,13 +30,12 @@ export class LdmCalculator {
       if (!placed) rows.push([unit]);
     }
 
-    const totalLdm = rows.reduce((acc, row) => {
+    const usedFloorLength = rows.reduce((acc, row) => {
       if (row.length === 0) return acc;
       const [first, ...rest] = row.map(u => u.getSnapshot().spec.length);
       return acc.add(Length.max(first, ...rest));
     }, Length.zero());
 
-    // LDM is conventionally expressed in meters with 2-decimal precision
-    return Length.from(Number(totalLdm.valueIn('M').toFixed(2)), 'M');
+    return Ldm.fromFloorLength(usedFloorLength);
   }
 }

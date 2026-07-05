@@ -55,7 +55,7 @@ export class PalletSpec {
   }
 
   isWeightExceeded(cargoWeight: Weight): boolean {
-    return cargoWeight.valueInKg > this.maxLoadCapacity.valueInKg;
+    return cargoWeight.isGreaterThan(this.maxLoadCapacity);
   }
 
   // 🔥🔥🔥 technical validation
@@ -69,7 +69,7 @@ export class PalletSpec {
     if (this.width.isZero() || this.length.isZero() || this.height.isZero()) {
       throw new Error('Dimensions must be positive values');
     }
-    if (this.maxLoadCapacity.valueInKg <= 0) {
+    if (this.maxLoadCapacity.isZero()) {
       throw new Error('Max load capacity must be a positive value');
     }
   }

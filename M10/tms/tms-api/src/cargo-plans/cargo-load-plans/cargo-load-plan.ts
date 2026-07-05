@@ -29,7 +29,7 @@ export interface AddCargoData {
 
 export class CargoLoadPlan {
   // Business rule: DMC may be exceeded by at most 200 kg per whole transport plan
-  private static readonly DMC_OVERLOAD_TOLERANCE_KG = 200;
+  private static readonly DMC_OVERLOAD_TOLERANCE = Weight.from(200, 'KG');
 
   constructor(
     private readonly id: UUID<'CargoLoadPlan'>,
@@ -64,7 +64,7 @@ export class CargoLoadPlan {
     if (this.assignedUnits.length === 0) return fail(new EmptyPlanError());
 
     if (this.currentLdm.isGreaterThan(this.carrier.maxLdm)) {
-      return fail(new LdmCapacityExceededError(this.currentLdm.valueInMeters, this.carrier.maxLdm.valueInMeters));
+      return fail(new LdmCapacityExceededError(this.currentLdm, this.carrier.maxLdm));
     }
 
     this.status = CargoLoadPlanStatus.FINALIZED;
@@ -174,16 +174,16 @@ export class CargoLoadPlan {
     units: PalletUnit[],
     carrier: PalletLoadableCarrierSpec
   ): Result<void, CargoLoadPlanDomainError> {
-    // 🤨🤨🤨 so unit's weight is of type Weight (VO) but their sum totalWeightKg is a primitive (number)?
-    // (╯°□°)╯︵ ┻━┻ 
-    const totalWeightKg = units.reduce((sum, u) => sum + u.getSnapshot().weight.valueInKg, 0);
-    const maxAllowedKg = carrier.maxWeightCapacity.valueInKg + CargoLoadPlan.DMC_OVERLOAD_TOLERANCE_KG;
-    if (totalWeightKg > maxAllowedKg) {
+    // 🔥🔥🔥 the whole check reads like the business rule: total load vs DMC with allowed overload —
+    // units, summation and tolerance arithmetic are hidden inside Weight
+    const totalWeight = units.reduce((sum, u) => sum.add(u.getSnapshot().weight), Weight.zero());
+    const maxAllowed = carrier.maxWeightCapacity.add(CargoLoadPlan.DMC_OVERLOAD_TOLERANCE);
+    if (totalWeight.isGreaterThan(maxAllowed)) {
       return fail(
         new WeightCapacityExceededError(
-          totalWeightKg,
-          carrier.maxWeightCapacity.valueInKg,
-          CargoLoadPlan.DMC_OVERLOAD_TOLERANCE_KG
+          totalWeight,
+          carrier.maxWeightCapacity,
+          CargoLoadPlan.DMC_OVERLOAD_TOLERANCE
         )
       );
     }
@@ -195,7 +195,7 @@ export class CargoLoadPlan {
     carrier: PalletLoadableCarrierSpec
   ): Result<void, CargoLoadPlanDomainError> {
     if (ldm.isGreaterThan(carrier.maxLdm)) {
-      return fail(new LdmCapacityExceededError(ldm.valueInMeters, carrier.maxLdm.valueInMeters));
+      return fail(new LdmCapacityExceededError(ldm, carrier.maxLdm));
     }
     return ok(undefined);
   }
@@ -206,7 +206,7 @@ export class CargoLoadPlan {
   ): Result<void, CargoTooTallForCarrierError> {
     const { id, totalHeight } = unit.getSnapshot();
     if (totalHeight.isGreaterThan(carrier.height)) {
-      return fail(new CargoTooTallForCarrierError(id, totalHeight.valueIn('MM'), carrier.type, carrier.height.valueIn('MM')));
+      return fail(new CargoTooTallForCarrierError(id, totalHeight, carrier.type, carrier.height));
     }
     return ok(undefined);
   }

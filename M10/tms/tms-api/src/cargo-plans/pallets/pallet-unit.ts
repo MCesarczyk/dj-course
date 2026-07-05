@@ -52,7 +52,7 @@ export class PalletUnit {
       return fail(new PalletCargoTypeNotAllowedError(cargoType, spec.label));
     }
     if (spec.isWeightExceeded(weight)) {
-      return fail(new PalletWeightExceedsCapacityError(weight.valueInKg, spec.maxLoadCapacity.valueInKg, spec.label));
+      return fail(new PalletWeightExceedsCapacityError(weight, spec.maxLoadCapacity, spec.label));
     }
     return ok(new PalletUnit(UUID.newUUID<'CargoUnit'>(), spec, cargoType, requirements, weight, cargoHeight));
   }

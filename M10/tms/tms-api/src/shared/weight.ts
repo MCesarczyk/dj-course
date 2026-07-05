@@ -32,6 +32,23 @@ export class Weight {
     return new Weight(amount, unit);
   }
 
+  static zero(): Weight {
+    return new Weight(0, 'KG');
+  }
+
+  /** Result keeps the unit of the left operand. */
+  add(other: Weight): Weight {
+    return new Weight(this.amount + other.valueInUnit(this.unit), this.unit);
+  }
+
+  isGreaterThan(other: Weight): boolean {
+    return this.valueInKg > other.valueInKg;
+  }
+
+  isZero(): boolean {
+    return this.amount === 0;
+  }
+
   get valueInKg(): number {
     return this.amount * UNITS[this.unit].factorToKg;
   }

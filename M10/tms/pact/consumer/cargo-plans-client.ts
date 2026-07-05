@@ -38,6 +38,8 @@ export interface CarrierView {
   widthMm: number;
   heightMm: number;
   maxLdm: number;
+  /** BREAKING (v2): new field this consumer now requires. */
+  axleCount: number;
 }
 
 /** Cargo unit as the consumer needs it — WITHOUT `requirements`. */
@@ -45,7 +47,8 @@ export interface PalletUnitView {
   id: string;
   palletLabel: string;
   cargoType: CargoType;
-  weight: number;
+  /** BREAKING (v2): renamed from `weight`. */
+  weightKg: number;
   totalHeightMm: number;
 }
 
@@ -57,7 +60,8 @@ export interface CargoPlanView {
   weightUnit: WeightUnit;
   carrier: CarrierView;
   currentLdm: number;
-  plannedWeight: number;
+  /** BREAKING (v2): renamed from `plannedWeight`. */
+  plannedWeightKg: number;
   units: PalletUnitView[];
 }
 

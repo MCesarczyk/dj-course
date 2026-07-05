@@ -131,15 +131,19 @@ async function runTest(): Promise<void> {
           widthMm: integer(2400),
           heightMm: integer(2700),
           maxLdm: number(13.6),
+          // BREAKING (v2): brand-new field this consumer now demands.
+          axleCount: integer(3),
         },
         currentLdm: number(0.4),
-        plannedWeight: number(600),
+        // BREAKING (v2): renamed from `plannedWeight`.
+        plannedWeightKg: number(600),
         units: eachLike({
           // NOTE: `requirements` intentionally omitted — consumer does not use it.
           id: uuid(EXAMPLE_UNIT_ID),
           palletLabel: string('EPAL 1'),
           cargoType: string('GENERAL'),
-          weight: number(600),
+          // BREAKING (v2): renamed from `weight`.
+          weightKg: number(600),
           totalHeightMm: integer(1400),
         }),
       },

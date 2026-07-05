@@ -15,8 +15,8 @@ export function toCarrierReadModel(carrier: PalletLoadableCarrierSpec): CarrierR
     requiresTractor: requiresTractor(carrier),
     canCarryPallets: carrier.canCarryPallets,
     maxWeightCapacityKg: carrier.maxWeightCapacity.valueInKg,
-    widthMm: carrier.widthMm,
-    heightMm: carrier.heightMm,
-    maxLdm: carrier.maxLdm,
+    widthMm: carrier.width.valueIn('MM'),
+    heightMm: carrier.height.valueIn('MM'),
+    maxLdm: carrier.maxLdm.valueIn('M'),
   };
 }

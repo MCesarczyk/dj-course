@@ -1,4 +1,5 @@
 import { Weight } from '../../shared/weight';
+import { Length } from '../../shared/length';
 
 /**
  * Shape of the load carrier.
@@ -44,16 +45,16 @@ export interface CarrierSpec {
 export type PalletLoadableCarrierSpec = CarrierSpec & {
   /** Explicit requirement for pallet loading capability. Example: True. */
   readonly canCarryPallets: true;
-  /** Internal horizontal span of the loading space in millimeters. Example: 2450. */
-  readonly widthMm: number;
-  /** Internal vertical clearance of the loading space in millimeters. Example: 2700. */
-  readonly heightMm: number;
-  /** Maximum loading meters available for cargo placement. Example: 13.6 (typical for TIR 😎). */
-  readonly maxLdm: number;
+  /** Internal horizontal span of the loading space. Example: 2450 mm. */
+  readonly width: Length;
+  /** Internal vertical clearance of the loading space. Example: 2700 mm. */
+  readonly height: Length;
+  /** Maximum loading meters available for cargo placement. Example: 13.6 m (typical for TIR 😎). */
+  readonly maxLdm: Length;
 };
 
 export function isPalletLoadable(spec: CarrierSpec): spec is PalletLoadableCarrierSpec {
-  return spec.canCarryPallets === true && 'widthMm' in spec && 'maxLdm' in spec;
+  return spec.canCarryPallets === true && 'width' in spec && 'maxLdm' in spec;
 }
 
 /** A MODULAR carrier (semi-trailer) needs a separate tractor unit to be moved. */

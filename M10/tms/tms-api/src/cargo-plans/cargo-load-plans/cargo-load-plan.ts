@@ -4,6 +4,7 @@ import { PalletUnit } from '../pallets/pallet-unit';
 import { PalletSpec } from '../pallets/pallet-spec';
 import type { PalletLoadableCarrierSpec } from '../carriers';
 import { Weight } from '../../shared/weight';
+import { Length } from '../../shared/length';
 import { ok, fail, type Result } from '../../shared/result';
 import { UUID } from '../../shared/uuid';
 import {
@@ -22,7 +23,7 @@ export interface AddCargoData {
   palletType: string;
   cargoType: CargoType;
   weight: Weight;
-  cargoHeightMm: number;
+  cargoHeight: Length;
 }
 
 export class CargoLoadPlan {
@@ -32,7 +33,7 @@ export class CargoLoadPlan {
   constructor(
     private readonly id: UUID<'CargoLoadPlan'>,
     private carrier: PalletLoadableCarrierSpec,
-    private currentLdm: number,
+    private currentLdm: Length,
     private assignedUnits: PalletUnit[] = [],
     private status: CargoLoadPlanStatus = CargoLoadPlanStatus.DRAFT,
     private version: number = 0
@@ -61,8 +62,8 @@ export class CargoLoadPlan {
 
     if (this.assignedUnits.length === 0) return fail(new EmptyPlanError());
 
-    if (this.currentLdm > this.carrier.maxLdm) {
-      return fail(new LdmCapacityExceededError(this.currentLdm, this.carrier.maxLdm));
+    if (this.currentLdm.isGreaterThan(this.carrier.maxLdm)) {
+      return fail(new LdmCapacityExceededError(this.currentLdm.valueIn('M'), this.carrier.maxLdm.valueIn('M')));
     }
 
     this.status = CargoLoadPlanStatus.FINALIZED;
@@ -72,7 +73,7 @@ export class CargoLoadPlan {
   public addCargoToPlan(
     data: AddCargoData,
     // 🔥🔥🔥 strategy (not double dispatch)
-    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => number
+    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => Length
   ): Result<void, CargoLoadPlanDomainError> {
     const guardResult = this.ensurePlanNotFinalized();
     if (!guardResult.success) return guardResult;
@@ -80,7 +81,7 @@ export class CargoLoadPlan {
     const spec = PalletSpec.fromType(data.palletType);
     const requirements = requirementsFor(data.cargoType);
 
-    const unitResult = PalletUnit.create(spec, data.cargoType, requirements, data.weight, data.cargoHeightMm);
+    const unitResult = PalletUnit.create(spec, data.cargoType, requirements, data.weight, data.cargoHeight);
     if (!unitResult.success) return fail(unitResult.error);
 
     const candidateUnits = [...this.assignedUnits, unitResult.value];
@@ -95,7 +96,7 @@ export class CargoLoadPlan {
 
   public removeCargoFromPlan(
     unitId: string,
-    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => number
+    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => Length
   ): Result<void, CargoLoadPlanDomainError> {
     const guardResult = this.ensurePlanNotFinalized();
     if (!guardResult.success) return guardResult;
@@ -116,7 +117,7 @@ export class CargoLoadPlan {
 
   public replaceCarrier(
     newCarrier: PalletLoadableCarrierSpec,
-    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => number
+    ldmProvider: (u: PalletUnit[], t: PalletLoadableCarrierSpec) => Length
   ): Result<void, CargoLoadPlanDomainError> {
     const guardResult = this.ensurePlanNotFinalized();
     if (!guardResult.success) return guardResult;
@@ -144,7 +145,7 @@ export class CargoLoadPlan {
   private ensureLoadIntegrity(
     units: PalletUnit[],
     carrier: PalletLoadableCarrierSpec,
-    ldm: number
+    ldm: Length
   ): Result<void, CargoLoadPlanDomainError> {
     if (units.length === 0) return ok(undefined);
 
@@ -189,11 +190,11 @@ export class CargoLoadPlan {
   }
 
   private ensureLdmCapacityNotExceeded(
-    ldm: number,
+    ldm: Length,
     carrier: PalletLoadableCarrierSpec
   ): Result<void, CargoLoadPlanDomainError> {
-    if (ldm > carrier.maxLdm) {
-      return fail(new LdmCapacityExceededError(ldm, carrier.maxLdm));
+    if (ldm.isGreaterThan(carrier.maxLdm)) {
+      return fail(new LdmCapacityExceededError(ldm.valueIn('M'), carrier.maxLdm.valueIn('M')));
     }
     return ok(undefined);
   }
@@ -202,8 +203,9 @@ export class CargoLoadPlan {
     unit: PalletUnit,
     carrier: PalletLoadableCarrierSpec
   ): Result<void, CargoTooTallForCarrierError> {
-    if (unit.getSnapshot().totalHeightMm > carrier.heightMm) {
-      return fail(new CargoTooTallForCarrierError(unit.getSnapshot().id, unit.getSnapshot().totalHeightMm, carrier.type, carrier.heightMm));
+    const { id, totalHeight } = unit.getSnapshot();
+    if (totalHeight.isGreaterThan(carrier.height)) {
+      return fail(new CargoTooTallForCarrierError(id, totalHeight.valueIn('MM'), carrier.type, carrier.height.valueIn('MM')));
     }
     return ok(undefined);
   }

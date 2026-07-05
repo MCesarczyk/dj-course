@@ -8,6 +8,7 @@ import { CargoPlans } from '../types/CargoPlansRoute';
 import { ErrorResponse } from '../types/data-contracts';
 import { parseCargoType } from './cargo/cargo.types';
 import { Weight } from '../shared/weight';
+import { Length } from '../shared/length';
 import { type CargoPlanServiceError } from './cargo-plans.errors';
 import { cargoPlanValidators, sendValidated, validate } from './cargo-plans.validation';
 
@@ -106,7 +107,7 @@ router.post('/:id/cargo', async (
     palletType: body.data.palletType,
     cargoType,
     weight: Weight.from(body.data.weightKg, 'KG'),
-    cargoHeightMm: body.data.cargoHeightMm,
+    cargoHeight: Length.from(body.data.cargoHeightMm, 'MM'),
   });
   if (!result.success) {
     return handleResultError(res, result.error, 'Failed to add cargo to plan');

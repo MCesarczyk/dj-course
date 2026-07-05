@@ -8,6 +8,7 @@ import { PalletUnit } from '../pallets/pallet-unit';
 import { PalletSpec } from '../pallets/pallet-spec';
 import { CarrierFactory } from '../carriers';
 import { Weight } from '../../shared/weight';
+import { Length } from '../../shared/length';
 import type { PoolClient } from 'pg';
 
 export interface CargoLoadPlanRepository {
@@ -38,7 +39,7 @@ export class SqlCargoLoadPlanRepository implements CargoLoadPlanRepository {
     await pool.query(
       `INSERT INTO cargo_plans.cargo_load_plans (id, carrier_type, status, current_ldm, version)
        VALUES ($1, $2, $3, $4, 1)`,
-      [id, carrierTypeKey, status, currentLdm],
+      [id, carrierTypeKey, status, currentLdm.valueIn('M')],
     );
   }
 
@@ -57,14 +58,14 @@ export class SqlCargoLoadPlanRepository implements CargoLoadPlanRepository {
         await client.query(
           `INSERT INTO cargo_plans.cargo_load_plans (id, carrier_type, status, current_ldm, version)
            VALUES ($1, $2, $3, $4, 1)`,
-          [id, carrierTypeKey, status, currentLdm],
+          [id, carrierTypeKey, status, currentLdm.valueIn('M')],
         );
       } else {
         const { rowCount } = await client.query(
           `UPDATE cargo_plans.cargo_load_plans
            SET carrier_type = $1, status = $2, current_ldm = $3, version = version + 1
            WHERE id = $4 AND version = $5`, // 🔥🔥🔥 optimistic lock check
-          [carrierTypeKey, status, currentLdm, id, version], // 🔥🔥🔥 currentLDM - is derived from the all units dimensions (like a local cache), and is also transactionally consistent (within 1 row)
+          [carrierTypeKey, status, currentLdm.valueIn('M'), id, version], // 🔥🔥🔥 currentLDM - is derived from the all units dimensions (like a local cache), and is also transactionally consistent (within 1 row)
         );
         if (rowCount === 0) { // 🔥🔥🔥 optimistic check failed
           const currentVersion = await this.fetchVersion(client, id); // 🔥🔥🔥 no updates? VERSION MISMATCH!
@@ -81,9 +82,8 @@ export class SqlCargoLoadPlanRepository implements CargoLoadPlanRepository {
       );
 
       for (const unit of assignedUnits) {
-        const { id: unitId, spec, cargoType, weight, requirements, totalHeightMm } = unit;
+        const { id: unitId, spec, cargoType, weight, requirements, cargoHeight } = unit;
         const palletTypeKey = PalletSpec.toTypeKey(spec);
-        const cargoHeightMm = totalHeightMm - spec.height;
         await client.query(
           `INSERT INTO cargo_plans.cargo_load_plan_units
              (id, load_plan_id, pallet_type, cargo_type, description, weight_kg, cargo_height_mm,
@@ -96,7 +96,7 @@ export class SqlCargoLoadPlanRepository implements CargoLoadPlanRepository {
             cargoType,
             null, // description – API-created units have none
             weight.valueInKg,
-            cargoHeightMm,
+            cargoHeight.valueIn('MM'),
             requirements.isTemperatureControlled,
             requirements.requiresSideLoading,
             requirements.isBulk,
@@ -148,14 +148,14 @@ export class SqlCargoLoadPlanRepository implements CargoLoadPlanRepository {
           highSecurityRequired: u.high_security_required,
         },
         Weight.from(parseFloat(u.weight_kg), 'KG'),
-        parseInt(u.cargo_height_mm, 10),
+        Length.from(parseInt(u.cargo_height_mm, 10), 'MM'),
       );
     });
 
     return new CargoLoadPlan(
       UUID.from<'CargoLoadPlan'>(row.id),
       carrier,
-      parseFloat(row.current_ldm),
+      Length.from(parseFloat(row.current_ldm), 'M'),
       units,
       row.status as CargoLoadPlanStatus,
       row.version,

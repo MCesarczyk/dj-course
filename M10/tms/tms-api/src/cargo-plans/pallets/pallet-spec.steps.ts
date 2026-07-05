@@ -8,6 +8,7 @@ import { PalletSpec } from './pallet-spec';
 import { CargoType } from '../cargo/cargo.types';
 import type { Material } from './pallet-spec';
 import { Weight } from '../../shared/weight';
+import { Length } from '../../shared/length';
 
 type FactoryKey = 'epal1' | 'industrial' | 'half' | 'cp1' | 'cp3' | 'h1';
 
@@ -47,10 +48,11 @@ function parseCargoTypes(s: string): CargoType[] {
   });
 }
 
-function parseDimensions(s: string): { width: number; length: number; height: number } {
+function parseDimensions(s: string): { width: Length; length: Length; height: Length } {
   const parts = s.split('x').map((p) => parseInt(p.trim(), 10));
   if (parts.length !== 3) throw new Error(`Invalid dimensions format: ${s}`);
-  return { width: parts[0], length: parts[1], height: parts[2] };
+  const [width, length, height] = parts.map((p) => Length.from(p, 'MM'));
+  return { width, length, height };
 }
 
 interface PalletSpecWorld {
@@ -97,9 +99,9 @@ Then('the spec label should be {string}', function (this: PalletSpecWorld, expec
 
 Then('the spec dimensions should be {int} x {int} x {int} mm', function (this: PalletSpecWorld, w: number, l: number, h: number) {
   assert(this.lastSpec, 'Expected pallet spec to exist');
-  assert.strictEqual(this.lastSpec!.width, w, `Expected width ${w}, got ${this.lastSpec!.width}`);
-  assert.strictEqual(this.lastSpec!.length, l, `Expected length ${l}, got ${this.lastSpec!.length}`);
-  assert.strictEqual(this.lastSpec!.height, h, `Expected height ${h}, got ${this.lastSpec!.height}`);
+  assert(this.lastSpec!.width.equals(Length.from(w, 'MM')), `Expected width ${w} mm, got ${this.lastSpec!.width.toString()}`);
+  assert(this.lastSpec!.length.equals(Length.from(l, 'MM')), `Expected length ${l} mm, got ${this.lastSpec!.length.toString()}`);
+  assert(this.lastSpec!.height.equals(Length.from(h, 'MM')), `Expected height ${h} mm, got ${this.lastSpec!.height.toString()}`);
 });
 
 Then('the spec max load should be {int} kg', function (this: PalletSpecWorld, expected: number) {

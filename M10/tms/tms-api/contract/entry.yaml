@@ -12,7 +12,11 @@ tags:
   - name: Drivers
     description: Driver records and license management
   - name: Vehicles
-    description: CRUD operations for vehicle records
+    description: CRUD operations for vehicle instances (egzemplarze) + documents & history
+  - name: VehicleBrands
+    description: Vehicle brand catalog (marki)
+  - name: VehicleModels
+    description: Vehicle model catalog (modele) — tractor units vs semi-trailers
   - name: TransportationOrders
     description: Transportation order records and filtering
   - name: Notifications
@@ -30,6 +34,20 @@ paths:
     $ref: '../src/vehicles/vehicles-openapi.yaml#/paths/~1vehicles'
   /vehicles/{id}:
     $ref: '../src/vehicles/vehicles-openapi.yaml#/paths/~1vehicles~1{id}'
+  /vehicles/{id}/documents:
+    $ref: '../src/vehicles/vehicles-openapi.yaml#/paths/~1vehicles~1{id}~1documents'
+  /vehicles/{id}/documents/{docId}:
+    $ref: '../src/vehicles/vehicles-openapi.yaml#/paths/~1vehicles~1{id}~1documents~1{docId}'
+  /vehicles/{id}/history:
+    $ref: '../src/vehicles/vehicles-openapi.yaml#/paths/~1vehicles~1{id}~1history'
+  /vehicle-brands:
+    $ref: '../src/vehicle-brands/vehicle-brands-openapi.yaml#/paths/~1vehicle-brands'
+  /vehicle-brands/{id}:
+    $ref: '../src/vehicle-brands/vehicle-brands-openapi.yaml#/paths/~1vehicle-brands~1{id}'
+  /vehicle-models:
+    $ref: '../src/vehicle-models/vehicle-models-openapi.yaml#/paths/~1vehicle-models'
+  /vehicle-models/{id}:
+    $ref: '../src/vehicle-models/vehicle-models-openapi.yaml#/paths/~1vehicle-models~1{id}'
   /drivers:
     $ref: '../src/drivers/drivers-openapi.yaml#/paths/~1drivers'
   /drivers/{id}:
@@ -48,8 +66,8 @@ paths:
     $ref: '../src/cargo-plans/cargo-plans-openapi.yaml#/paths/~1cargo-plans~1{id}~1cargo'
   /cargo-plans/{id}/cargo/{unitId}:
     $ref: '../src/cargo-plans/cargo-plans-openapi.yaml#/paths/~1cargo-plans~1{id}~1cargo~1{unitId}'
-  /cargo-plans/{id}/trailer:
-    $ref: '../src/cargo-plans/cargo-plans-openapi.yaml#/paths/~1cargo-plans~1{id}~1trailer'
+  /cargo-plans/{id}/carrier:
+    $ref: '../src/cargo-plans/cargo-plans-openapi.yaml#/paths/~1cargo-plans~1{id}~1carrier'
   /cargo-plans/{id}/finalize:
     $ref: '../src/cargo-plans/cargo-plans-openapi.yaml#/paths/~1cargo-plans~1{id}~1finalize'
   /:
@@ -93,6 +111,18 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     InternalServerError:
       description: An unexpected server-side error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: The request conflicts with the current state (e.g. duplicate or referenced resource).
       content:
         application/json:
           schema:

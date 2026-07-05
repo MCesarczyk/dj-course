@@ -1,12 +1,16 @@
 package cargo_plans
 
-// TrailerType represents a trailer registry key stored in DB.
-type TrailerType string
+// CarrierType represents a carrier registry key stored in DB.
+type CarrierType string
 
 const (
-	StandardCurtainside TrailerType = "standard-curtainside"
-	Mega                TrailerType = "mega"
-	Reefer              TrailerType = "reefer"
+	// MODULAR carriers (semi-trailers – need a tractor unit)
+	StandardCurtainside CarrierType = "standard-curtainside"
+	Mega                CarrierType = "mega"
+	Reefer              CarrierType = "reefer"
+	// MONOLITHIC carriers (self-contained rigid vehicle bodies – no tractor)
+	Van      CarrierType = "van"
+	BoxTruck CarrierType = "box-truck"
 )
 
 // PalletType represents a pallet spec registry key stored in DB.
@@ -40,10 +44,10 @@ const (
 	Finalized Status = "FINALIZED"
 )
 
-// trailerSpec holds static configuration for each trailer type.
-// Aligned with tms-api TrailerFactory capabilities.
-type trailerSpec struct {
-	Type                TrailerType
+// carrierSpec holds static configuration for each carrier type.
+// Aligned with tms-api CarrierFactory capabilities.
+type carrierSpec struct {
+	Type                CarrierType
 	HasClimateControl   bool
 	SupportsSideLoading bool
 	HasHighSecurityLock bool
@@ -54,16 +58,20 @@ type trailerSpec struct {
 type palletSpec struct {
 	Type         PalletType
 	AllowedCargo []CargoType
-	// LDM contribution per unit on a standard trailer (simplified)
+	// LDM contribution per unit on a standard carrier (simplified)
 	LdmPerUnit   float64
 	MaxWeightKg  float64
 	BaseHeightMm int
 }
 
-var trailerSpecs = []trailerSpec{
+var carrierSpecs = []carrierSpec{
 	{StandardCurtainside, false, true, false, false},
 	{Mega, false, true, false, false},
 	{Reefer, true, false, true, false},
+	// MONOLITHIC – dry freight, no special capabilities. Available for future seeds;
+	// carrierForCargo currently only picks the first three (semi-trailers).
+	{Van, false, false, false, false},
+	{BoxTruck, false, false, false, false},
 }
 
 var palletSpecs = []palletSpec{
@@ -79,12 +87,12 @@ var palletSpecs = []palletSpec{
 type PredefinedPlan struct {
 	ID          string
 	CargoType   CargoType
-	TrailerType TrailerType
+	CarrierType CarrierType
 	Status      Status
 }
 
 // PredefinedPlans lists seeded plans with deterministic IDs for API smoke tests.
-// Plans 0–4 are FINALIZED; plans 5–7 are DRAFT (used for mutation/deletion/trailer-change tests).
+// Plans 0–4 are FINALIZED; plans 5–7 are DRAFT (used for mutation/deletion/carrier-change tests).
 var PredefinedPlans = []PredefinedPlan{
 	{"11111111-1111-4111-a111-111111111101", Food, Reefer, Finalized},
 	{"22222222-2222-4222-a222-222222222202", Chemical, StandardCurtainside, Finalized},
@@ -106,7 +114,7 @@ var PredefinedUnitIDs = map[string][]string{
 // CargoLoadPlan represents a persisted aggregate row.
 type CargoLoadPlan struct {
 	ID          string
-	TrailerType TrailerType
+	CarrierType CarrierType
 	Status      Status
 	CurrentLdm  float64
 	Version     int

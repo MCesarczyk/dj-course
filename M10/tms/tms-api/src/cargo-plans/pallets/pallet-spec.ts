@@ -1,6 +1,9 @@
 import { CargoType } from '../cargo/cargo.types';
 import { Weight } from '../../shared/weight';
+import { Length } from '../../shared/length';
 import { UnknownPalletTypeError } from './pallet-spec.errors';
+
+const mm = (value: number): Length => Length.from(value, 'MM');
 
 export type Material = 'Wood' | 'Plastic' | 'Metal' | 'HDPE';
 
@@ -37,10 +40,10 @@ export class PalletSpec {
     public readonly label: string,
     public readonly material: Material,
     public readonly allowedCargoTypes: CargoType[],
-    public readonly width: number, // (!) 🤨🤨🤨 making "width" remain a primitive (number) is risky (if we have `width` inside a domain model, then it has some domain meaning here, so there is some calculation related to it, and we can't explicitly see what operations are allowed)
-    public readonly length: number, // (!) 🤨🤨🤨 same
+    public readonly width: Length, // 🔥🔥🔥 Length VO: only domain-meaningful operations (add / compare / convert) are possible
+    public readonly length: Length,
     /** Base height of the empty pallet */
-    public readonly height: number, // (!) 🤨🤨🤨 same
+    public readonly height: Length,
     public readonly maxLoadCapacity: Weight
   ) {
     this.validate();
@@ -52,7 +55,7 @@ export class PalletSpec {
   }
 
   isWeightExceeded(cargoWeight: Weight): boolean {
-    return cargoWeight.valueInKg > this.maxLoadCapacity.valueInKg;
+    return cargoWeight.isGreaterThan(this.maxLoadCapacity);
   }
 
   // 🔥🔥🔥 technical validation
@@ -63,35 +66,35 @@ export class PalletSpec {
     if (!this.allowedCargoTypes || this.allowedCargoTypes.length === 0) {
       throw new Error('Pallet must have at least one allowed cargo type');
     }
-    if (this.width <= 0 || this.length <= 0 || this.height <= 0) {
+    if (this.width.isZero() || this.length.isZero() || this.height.isZero()) {
       throw new Error('Dimensions must be positive values');
     }
-    if (this.maxLoadCapacity.valueInKg <= 0) {
+    if (this.maxLoadCapacity.isZero()) {
       throw new Error('Max load capacity must be a positive value');
     }
   }
 
   static epal1(): PalletSpec {
-    return new PalletSpec('EPAL 1', 'Wood', [CargoType.GENERAL, CargoType.FOOD, CargoType.ELECTRONICS], 800, 1200, 144, Weight.from(4000, 'KG'));
+    return new PalletSpec('EPAL 1', 'Wood', [CargoType.GENERAL, CargoType.FOOD, CargoType.ELECTRONICS], mm(800), mm(1200), mm(144), Weight.from(4000, 'KG'));
   }
 
   static industrial(): PalletSpec {
-    return new PalletSpec('ISO-2', 'Wood', [CargoType.GENERAL, CargoType.ELECTRONICS], 1000, 1200, 162, Weight.from(1500, 'KG'));
+    return new PalletSpec('ISO-2', 'Wood', [CargoType.GENERAL, CargoType.ELECTRONICS], mm(1000), mm(1200), mm(162), Weight.from(1500, 'KG'));
   }
 
   static half(): PalletSpec {
-    return new PalletSpec('EPAL-6', 'Wood', [CargoType.GENERAL, CargoType.FOOD], 600, 800, 144, Weight.from(750, 'KG'));
+    return new PalletSpec('EPAL-6', 'Wood', [CargoType.GENERAL, CargoType.FOOD], mm(600), mm(800), mm(144), Weight.from(750, 'KG'));
   }
 
   static cp1(): PalletSpec {
-    return new PalletSpec('CP1', 'Wood', [CargoType.CHEMICAL, CargoType.DANGEROUS_GOODS], 1000, 1200, 138, Weight.from(1190, 'KG'));
+    return new PalletSpec('CP1', 'Wood', [CargoType.CHEMICAL, CargoType.DANGEROUS_GOODS], mm(1000), mm(1200), mm(138), Weight.from(1190, 'KG'));
   }
 
   static cp3(): PalletSpec {
-    return new PalletSpec('CP-3', 'Wood', [CargoType.CHEMICAL, CargoType.DANGEROUS_GOODS], 1140, 1140, 138, Weight.from(1200, 'KG'));
+    return new PalletSpec('CP-3', 'Wood', [CargoType.CHEMICAL, CargoType.DANGEROUS_GOODS], mm(1140), mm(1140), mm(138), Weight.from(1200, 'KG'));
   }
 
   static h1(): PalletSpec {
-    return new PalletSpec('H1', 'HDPE', [CargoType.FOOD], 800, 1200, 160, Weight.from(5000, 'KG'));
+    return new PalletSpec('H1', 'HDPE', [CargoType.FOOD], mm(800), mm(1200), mm(160), Weight.from(5000, 'KG'));
   }
 }

@@ -16,6 +16,9 @@ export type PalletType = "epal1" | "industrial" | "half" | "cp1" | "cp3" | "h1";
 /** Type of cargo being transported */
 export type CargoType = "FOOD" | "CHEMICAL" | "ELECTRONICS" | "ADR" | "GENERAL";
 
+/** Shape of the carrier: MONOLITHIC (single self-contained vehicle body) or MODULAR (a towed semi-trailer that requires a tractor unit). */
+export type VehicleClass = "MONOLITHIC" | "MODULAR";
+
 /** Current status of the load plan */
 export type CargoLoadPlanStatus = "DRAFT" | "FINALIZED";
 
@@ -25,8 +28,16 @@ export type CargoLoadPlanStatus = "DRAFT" | "FINALIZED";
  */
 export type WeightUnit = "KG" | "TONNE" | "LB";
 
-/** Supported trailer types */
-export type TrailerType = "standard-curtainside" | "mega" | "reefer";
+/** Supported load-carrier types. MODULAR carriers are semi-trailers (need a separate tractor unit); MONOLITHIC carriers are self-contained rigid vehicle bodies. These are generic loadable-space categories — concrete brand-models live in the vehicles catalog. */
+export type CarrierType =
+  | "standard-curtainside"
+  | "mega"
+  | "reefer"
+  | "van"
+  | "box-truck";
+
+/** Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową). */
+export type VehicleKind = "TRACTOR_UNIT" | "SEMI_TRAILER" | "VAN" | "BOX_TRUCK";
 
 /** Pagination metadata attached to list responses. */
 export interface Pagination {
@@ -267,6 +278,49 @@ export interface Vehicle {
    * @example "51.1"
    */
   fuel_tank_capacity?: string | null;
+  /**
+   * Reference to a catalog model (vehicle_models.id)
+   * @example 3
+   */
+  model_id?: number | null;
+  /** Rozróżnienie ciągnik siodłowy / naczepa (zdenormalizowane pod filtr) */
+  kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | "VAN" | "BOX_TRUCK" | null;
+  /**
+   * Numer rejestracyjny
+   * @maxLength 20
+   * @example "WA 12345"
+   */
+  registration_number?: string | null;
+  /**
+   * Numer VIN
+   * @maxLength 17
+   * @example "YV2RT40A8FB123456"
+   */
+  vin?: string | null;
+  /**
+   * Data pierwszej rejestracji
+   * @format date
+   * @example "2021-03-15"
+   */
+  first_registration_date?: string | null;
+  /**
+   * Przebieg w kilometrach
+   * @example 145000
+   */
+  mileage_km?: number | null;
+  /**
+   * Status egzemplarza
+   * @maxLength 20
+   * @example "active"
+   */
+  status?: string | null;
+  /**
+   * Techniczne atrybuty zależne od typu (JSONB).
+   * Ciągnik: {power_kw, euro_norm, axles, fuel_type};
+   * naczepa: {euro_pallets, volume_m3, interior_height_m, has_tail_lift, has_refrigeration}.
+   * @example {"power_kw":331,"euro_norm":"EURO6","axles":2}
+   */
+  specs?: Record<string, any>;
 }
 
 /** Paginated list of vehicles. */
@@ -276,62 +330,294 @@ export interface VehicleListResponse {
   pagination: Pagination;
 }
 
-/** Payload for creating a new vehicle. Only `model` is required. */
+/** Payload for creating a new vehicle instance (egzemplarz). All fields are optional — use legacy make/model or link a catalog model via model_id. */
 export interface VehicleCreateInput {
   /**
-   * Vehicle manufacturer / brand
    * @maxLength 50
-   * @example "Toyota"
+   * @example "Volvo"
    */
   make?: string | null;
   /**
-   * Vehicle model name
    * @maxLength 50
-   * @example "Corolla"
+   * @example "FH 500"
    */
-  model: string;
-  /**
-   * Manufacturing year
-   * @example 2024
-   */
+  model?: string | null;
+  /** @example 2024 */
   year?: number | null;
   /**
-   * Fuel tank capacity in litres (positive number)
    * @format float
    * @min 0
    * @exclusiveMin true
-   * @example 55
+   * @example 600
    */
   fuel_tank_capacity?: number | null;
+  /** @example 3 */
+  model_id?: number | null;
+  kind?: "TRACTOR_UNIT" | "SEMI_TRAILER" | "VAN" | "BOX_TRUCK" | null;
+  /**
+   * @maxLength 20
+   * @example "WA 12345"
+   */
+  registration_number?: string | null;
+  /**
+   * @maxLength 17
+   * @example "YV2RT40A8FB123456"
+   */
+  vin?: string | null;
+  /**
+   * @format date
+   * @example "2021-03-15"
+   */
+  first_registration_date?: string | null;
+  /**
+   * @min 0
+   * @example 145000
+   */
+  mileage_km?: number | null;
+  /**
+   * @maxLength 20
+   * @example "active"
+   */
+  status?: string | null;
+  /** @example {"power_kw":331,"euro_norm":"EURO6","axles":2} */
+  specs?: Record<string, any>;
 }
 
+/** A vehicle model (model pojazdu). */
+export interface VehicleModel {
+  /** @example 1 */
+  id: number;
+  /** @example 1 */
+  brandId: number;
+  /**
+   * @maxLength 120
+   * @example "Scania R450"
+   */
+  name: string;
+  /** Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową). */
+  kind: VehicleKind;
+  /** Wymagane dla SEMI_TRAILER, puste dla TRACTOR_UNIT. */
+  trailerType?:
+    | "reefer"
+    | "curtain"
+    | "isotherm"
+    | "tipper"
+    | "platform"
+    | "tank"
+    | "container"
+    | null;
+}
+
+/** A vehicle brand (marka). */
+export interface VehicleBrand {
+  /** @example 1 */
+  id: number;
+  /**
+   * @maxLength 80
+   * @example "Volvo"
+   */
+  name: string;
+  /**
+   * @maxLength 80
+   * @example "Sweden"
+   */
+  country?: string | null;
+}
+
+/** A document (dokument) attached to a vehicle. */
+export interface VehicleDocument {
+  /** @example 1 */
+  id: number;
+  /** @example 3 */
+  vehicle_id: number;
+  /**
+   * registration_certificate | insurance_oc | insurance_ac | technical_inspection | tachograph | atp_certificate | other
+   * @example "insurance_oc"
+   */
+  doc_type: string;
+  /**
+   * @maxLength 60
+   * @example "OC/2026/12345"
+   */
+  document_number?: string | null;
+  /**
+   * @format date
+   * @example "2026-01-01"
+   */
+  issue_date?: string | null;
+  /**
+   * @format date
+   * @example "2026-12-31"
+   */
+  expiry_date?: string | null;
+  file_url?: string | null;
+  notes?: string | null;
+}
+
+/** A single history event (zdarzenie historii) of a vehicle. */
+export interface VehicleHistoryEvent {
+  /** @example 1 */
+  id: number;
+  /** @example 3 */
+  vehicle_id: number;
+  /**
+   * purchase | inspection | repair | accident | mileage_reading | status_change | sold
+   * @example "inspection"
+   */
+  event_type: string;
+  /**
+   * @format date
+   * @example "2026-05-10"
+   */
+  event_date: string;
+  /** @example 145000 */
+  mileage_km?: number | null;
+  /** @example "Badanie techniczne — wynik pozytywny" */
+  description?: string | null;
+}
+
+/** A vehicle instance with its catalog (model + brand) and nested documents and history. Returned by GET /vehicles/{id}. */
+export type VehicleDetail = Vehicle & {
+  /** A vehicle model (model pojazdu). */
+  model?: VehicleModel;
+  /** A vehicle brand (marka). */
+  brand?: VehicleBrand;
+  documents?: VehicleDocument[];
+  history?: VehicleHistoryEvent[];
+};
+
 /** Payload for updating an existing vehicle. All fields are optional (partial update). Provide only the fields you want to change. */
-export interface VehicleUpdateInput {
+export type VehicleUpdateInput = VehicleCreateInput;
+
+export interface VehicleDocumentListResponse {
+  data: VehicleDocument[];
+}
+
+export interface VehicleDocumentCreateInput {
+  /** @example "insurance_oc" */
+  doc_type:
+    | "registration_certificate"
+    | "insurance_oc"
+    | "insurance_ac"
+    | "technical_inspection"
+    | "tachograph"
+    | "atp_certificate"
+    | "other";
+  /** @maxLength 60 */
+  document_number?: string | null;
+  /** @format date */
+  issue_date?: string | null;
+  /** @format date */
+  expiry_date?: string | null;
+  file_url?: string | null;
+  notes?: string | null;
+}
+
+export interface VehicleHistoryListResponse {
+  data: VehicleHistoryEvent[];
+}
+
+export interface VehicleHistoryEventCreateInput {
+  /** @example "inspection" */
+  event_type:
+    | "purchase"
+    | "inspection"
+    | "repair"
+    | "accident"
+    | "mileage_reading"
+    | "status_change"
+    | "sold";
   /**
-   * Vehicle manufacturer / brand
-   * @maxLength 50
-   * @example "Toyota"
+   * @format date
+   * @example "2026-05-10"
    */
-  make?: string | null;
+  event_date: string;
   /**
-   * Vehicle model name
-   * @maxLength 50
-   * @example "Camry"
-   */
-  model?: string;
-  /**
-   * Manufacturing year
-   * @example 2025
-   */
-  year?: number | null;
-  /**
-   * Fuel tank capacity in litres (positive number)
-   * @format float
    * @min 0
-   * @exclusiveMin true
-   * @example 60
+   * @example 145000
    */
-  fuel_tank_capacity?: number | null;
+  mileage_km?: number | null;
+  description?: string | null;
+}
+
+export interface VehicleBrandListResponse {
+  data: VehicleBrand[];
+  /** Pagination metadata attached to list responses. */
+  pagination: Pagination;
+}
+
+export interface VehicleBrandCreateInput {
+  /**
+   * @minLength 1
+   * @maxLength 80
+   * @example "Scania"
+   */
+  name: string;
+  /**
+   * @maxLength 80
+   * @example "Sweden"
+   */
+  country?: string | null;
+}
+
+/** Partial update — only provided fields are changed. */
+export interface VehicleBrandUpdateInput {
+  /**
+   * @minLength 1
+   * @maxLength 80
+   */
+  name?: string;
+  /** @maxLength 80 */
+  country?: string | null;
+}
+
+export interface VehicleModelListResponse {
+  data: VehicleModel[];
+  /** Pagination metadata attached to list responses. */
+  pagination: Pagination;
+}
+
+export interface VehicleModelCreateInput {
+  /** @example 1 */
+  brandId: number;
+  /**
+   * @minLength 1
+   * @maxLength 120
+   * @example "Volvo FH 500"
+   */
+  name: string;
+  /** Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową). */
+  kind: VehicleKind;
+  trailerType?:
+    | "reefer"
+    | "curtain"
+    | "isotherm"
+    | "tipper"
+    | "platform"
+    | "tank"
+    | "container"
+    | null;
+}
+
+/** Partial update — only provided fields are changed. */
+export interface VehicleModelUpdateInput {
+  brandId?: number;
+  /**
+   * @minLength 1
+   * @maxLength 120
+   */
+  name?: string;
+  /** Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa). Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową). */
+  kind?: VehicleKind;
+  trailerType?:
+    | "reefer"
+    | "curtain"
+    | "isotherm"
+    | "tipper"
+    | "platform"
+    | "tank"
+    | "container"
+    | null;
 }
 
 /** A single driver record as returned in list and create responses. */
@@ -650,8 +936,8 @@ export interface NotificationListResponse {
 
 /** Payload for creating a new load plan. */
 export interface CreateLoadPlanInput {
-  /** Supported trailer types */
-  trailerType: TrailerType;
+  /** Supported load-carrier types. MODULAR carriers are semi-trailers (need a separate tractor unit); MONOLITHIC carriers are self-contained rigid vehicle bodies. These are generic loadable-space categories — concrete brand-models live in the vehicles catalog. */
+  carrierType: CarrierType;
 }
 
 /** Identifier of the newly created load plan. */
@@ -664,34 +950,17 @@ export interface CreateLoadPlanResponse {
   id: string;
 }
 
-/** Capabilities of the assigned trailer. */
-export interface TrailerCapabilities {
+/** Details of the load carrier assigned to the load plan. */
+export interface CarrierReadModel {
+  /** Supported load-carrier types. MODULAR carriers are semi-trailers (need a separate tractor unit); MONOLITHIC carriers are self-contained rigid vehicle bodies. These are generic loadable-space categories — concrete brand-models live in the vehicles catalog. */
+  type: CarrierType;
+  /** Shape of the carrier: MONOLITHIC (single self-contained vehicle body) or MODULAR (a towed semi-trailer that requires a tractor unit). */
+  vehicleClass: VehicleClass;
   /**
-   * Trailer has temperature/climate control
-   * @example false
-   */
-  hasClimateControl: boolean;
-  /**
-   * Trailer supports side loading
+   * True when the carrier is MODULAR (a semi-trailer) and therefore needs a separate tractor unit to be moved. This module does not reserve the tractor; the flag signals the requirement to downstream fleet/dispatch.
    * @example true
    */
-  supportsSideLoading: boolean;
-  /**
-   * Trailer has high-security locking
-   * @example false
-   */
-  hasHighSecurityLock: boolean;
-  /**
-   * Trailer supports bulk cargo
-   * @example false
-   */
-  isBulkReady: boolean;
-}
-
-/** Details of the trailer assigned to the load plan. */
-export interface TrailerReadModel {
-  /** Supported trailer types */
-  type: TrailerType;
+  requiresTractor: boolean;
   /** @example true */
   canCarryPallets: boolean;
   /**
@@ -700,46 +969,20 @@ export interface TrailerReadModel {
    */
   maxWeightCapacityKg: number;
   /**
-   * Internal trailer width in millimetres
-   * @example 2400
+   * Internal loading-space width in millimetres
+   * @example 2480
    */
   widthMm: number;
   /**
-   * Internal trailer height in millimetres
+   * Internal loading-space height in millimetres
    * @example 2700
    */
   heightMm: number;
   /**
-   * Maximum loading metres (LDM)
+   * Maximum loading metres (LDM). For sub-2.4 m bodies (vans) this is an approximation.
    * @example 13.6
    */
   maxLdm: number;
-  /** Capabilities of the assigned trailer. */
-  capabilities: TrailerCapabilities;
-}
-
-/** Special handling requirements for a cargo unit. */
-export interface CargoRequirementsInput {
-  /**
-   * Cargo requires a refrigerated trailer
-   * @example false
-   */
-  isTemperatureControlled: boolean;
-  /**
-   * Cargo must be loaded from the side
-   * @example false
-   */
-  requiresSideLoading: boolean;
-  /**
-   * Cargo is bulk (requires bulk-ready trailer)
-   * @example false
-   */
-  isBulk: boolean;
-  /**
-   * Cargo requires high-security locking
-   * @example false
-   */
-  highSecurityRequired: boolean;
 }
 
 /** A single pallet unit assigned to a load plan. */
@@ -773,8 +1016,6 @@ export interface PalletUnitReadModel {
   totalHeightMm: number;
   /** Human-readable product description (e.g. "FOOD – warzywa") */
   description?: string | null;
-  /** Special handling requirements for a cargo unit. */
-  requirements: CargoRequirementsInput;
 }
 
 /** Full state of a cargo load plan. */
@@ -795,8 +1036,8 @@ export interface CargoLoadPlanReadModel {
   version: number;
   /** Unit of weight measurement */
   weightUnit: WeightUnit;
-  /** Details of the trailer assigned to the load plan. */
-  trailer: TrailerReadModel;
+  /** Details of the load carrier assigned to the load plan. */
+  carrier: CarrierReadModel;
   /**
    * Currently used loading metres
    * @min 0
@@ -835,10 +1076,10 @@ export interface AddCargoInput {
   cargoHeightMm: number;
 }
 
-/** Payload for changing the trailer type on a load plan. */
-export interface ChangeTrailerInput {
-  /** Supported trailer types */
-  trailerType: TrailerType;
+/** Payload for changing the carrier type on a load plan. */
+export interface ChangeCarrierInput {
+  /** Supported load-carrier types. MODULAR carriers are semi-trailers (need a separate tractor unit); MONOLITHIC carriers are self-contained rigid vehicle bodies. These are generic loadable-space categories — concrete brand-models live in the vehicles catalog. */
+  carrierType: CarrierType;
 }
 
 /** Health check response body. */

@@ -1,3 +1,5 @@
+import type { Weight } from '../../shared/weight';
+
 export class UnknownPalletTypeError extends Error {
   constructor(type: string, allowed: string[]) {
     super(`Unknown pallet type: '${type}'. Allowed: ${allowed.join(', ')}`);
@@ -8,8 +10,8 @@ export class UnknownPalletTypeError extends Error {
 export class PalletWeightExceedsCapacityError {
   readonly kind = 'PalletWeightExceedsCapacityError' as const;
   readonly message: string;
-  constructor(readonly actualKg: number, readonly maxKg: number, readonly palletLabel: string) {
-    this.message = `Weight ${actualKg}kg exceeds ${palletLabel} capacity (${maxKg}kg)`;
+  constructor(readonly actual: Weight, readonly max: Weight, readonly palletLabel: string) {
+    this.message = `Weight ${actual.valueInKg}kg exceeds ${palletLabel} capacity (${max.valueInKg}kg)`;
   }
 }
 

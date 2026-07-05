@@ -1,0 +1,283 @@
+# Vehicle models (modele) – paths and schemas
+paths:
+  /vehicle-models:
+    get:
+      summary: List vehicle models
+      description: >
+        Returns a paginated list of vehicle models (modele). Each model belongs to
+        a brand and is either a TRACTOR_UNIT (ciągnik siodłowy) or a SEMI_TRAILER
+        (naczepa) — for trailers, `trailerType` describes the body kind.
+      operationId: getVehicleModels
+      tags:
+        - VehicleModels
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PageParam'
+        - $ref: '../../contract/entry.yaml#/components/parameters/LimitParam'
+        - name: brandId
+          in: query
+          description: Filter by brand id
+          required: false
+          schema:
+            type: string
+          example: '1'
+        - name: kind
+          in: query
+          description: Filter by kind (TRACTOR_UNIT, SEMI_TRAILER, VAN, BOX_TRUCK)
+          required: false
+          schema:
+            $ref: '#/components/schemas/VehicleKind'
+      responses:
+        '200':
+          description: Paginated list of vehicle models
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleModelListResponse'
+              example:
+                data:
+                  - id: 1
+                    brandId: 1
+                    name: Scania R450
+                    kind: TRACTOR_UNIT
+                    trailerType: null
+                  - id: 2
+                    brandId: 2
+                    name: Krone Cool Liner
+                    kind: SEMI_TRAILER
+                    trailerType: reefer
+                pagination:
+                  page: 1
+                  limit: 20
+                  total: 30
+                  totalPages: 2
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+    post:
+      summary: Create a vehicle model
+      operationId: createVehicleModel
+      tags:
+        - VehicleModels
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleModelCreateInput'
+            examples:
+              tractor:
+                summary: Tractor unit (ciągnik siodłowy)
+                value:
+                  brandId: 1
+                  name: Volvo FH 500
+                  kind: TRACTOR_UNIT
+              trailer:
+                summary: Semi-trailer (naczepa chłodnia)
+                value:
+                  brandId: 2
+                  name: Schmitz SKO 24
+                  kind: SEMI_TRAILER
+                  trailerType: reefer
+      responses:
+        '201':
+          description: Vehicle model created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleModel'
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '409':
+          $ref: '../../contract/entry.yaml#/components/responses/Conflict'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+  /vehicle-models/{id}:
+    get:
+      summary: Get vehicle model by ID
+      operationId: getVehicleModelById
+      tags:
+        - VehicleModels
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+      responses:
+        '200':
+          description: Vehicle model found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleModel'
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+    put:
+      summary: Update a vehicle model
+      operationId: updateVehicleModel
+      tags:
+        - VehicleModels
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleModelUpdateInput'
+            example:
+              name: Volvo FH 540
+      responses:
+        '200':
+          description: Vehicle model updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleModel'
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '../../contract/entry.yaml#/components/responses/Conflict'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+    delete:
+      summary: Delete a vehicle model
+      operationId: deleteVehicleModel
+      tags:
+        - VehicleModels
+      parameters:
+        - $ref: '../../contract/entry.yaml#/components/parameters/PathIdParam'
+      responses:
+        '204':
+          description: Vehicle model deleted
+        '400':
+          $ref: '../../contract/entry.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../../contract/entry.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '../../contract/entry.yaml#/components/responses/Conflict'
+        '500':
+          $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    VehicleKind:
+      type: string
+      description: >
+        Rodzaj pojazdu. Modularne: TRACTOR_UNIT (ciągnik siodłowy) + SEMI_TRAILER (naczepa).
+        Monolityczne (samodzielne): VAN (furgon) + BOX_TRUCK (ciężarówka ze stałą zabudową).
+      enum:
+        - TRACTOR_UNIT
+        - SEMI_TRAILER
+        - VAN
+        - BOX_TRUCK
+    TrailerType:
+      type: string
+      description: Rodzaj naczepy (tylko dla SEMI_TRAILER).
+      enum:
+        - reefer
+        - curtain
+        - isotherm
+        - tipper
+        - platform
+        - tank
+        - container
+    VehicleModel:
+      type: object
+      description: A vehicle model (model pojazdu).
+      required:
+        - id
+        - brandId
+        - name
+        - kind
+      properties:
+        id:
+          type: integer
+          example: 1
+        brandId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          maxLength: 120
+          example: Scania R450
+        kind:
+          $ref: '#/components/schemas/VehicleKind'
+        trailerType:
+          type: string
+          nullable: true
+          description: Wymagane dla SEMI_TRAILER, puste dla TRACTOR_UNIT.
+          enum:
+            - reefer
+            - curtain
+            - isotherm
+            - tipper
+            - platform
+            - tank
+            - container
+    VehicleModelListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VehicleModel'
+        pagination:
+          $ref: '../../contract/entry.yaml#/components/schemas/Pagination'
+    VehicleModelCreateInput:
+      type: object
+      required:
+        - brandId
+        - name
+        - kind
+      properties:
+        brandId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Volvo FH 500
+        kind:
+          $ref: '#/components/schemas/VehicleKind'
+        trailerType:
+          type: string
+          nullable: true
+          enum:
+            - reefer
+            - curtain
+            - isotherm
+            - tipper
+            - platform
+            - tank
+            - container
+    VehicleModelUpdateInput:
+      type: object
+      description: Partial update — only provided fields are changed.
+      properties:
+        brandId:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        kind:
+          $ref: '#/components/schemas/VehicleKind'
+        trailerType:
+          type: string
+          nullable: true
+          enum:
+            - reefer
+            - curtain
+            - isotherm
+            - tipper
+            - platform
+            - tank
+            - container

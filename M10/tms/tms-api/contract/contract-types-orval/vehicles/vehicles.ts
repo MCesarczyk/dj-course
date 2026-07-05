@@ -16,6 +16,13 @@ import type {
   GetVehiclesParams,
   Vehicle,
   VehicleCreateInput,
+  VehicleDetail,
+  VehicleDocument,
+  VehicleDocumentCreateInput,
+  VehicleDocumentListResponse,
+  VehicleHistoryEvent,
+  VehicleHistoryEventCreateInput,
+  VehicleHistoryListResponse,
   VehicleListResponse,
   VehicleUpdateInput
 } from '../model';
@@ -55,7 +62,7 @@ const createVehicle = (
  */
 const getVehicleById = (
     id: number, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<Vehicle>> => {
+ ): Promise<AxiosResponse<VehicleDetail>> => {
     return axiosInstance.get(
       `/vehicles/${id}`,options
     );
@@ -84,9 +91,71 @@ const deleteVehicle = (
       `/vehicles/${id}`,options
     );
   }
-return {getVehicles,createVehicle,getVehicleById,updateVehicle,deleteVehicle}};
+/**
+ * Returns documents (dokumenty) attached to a vehicle.
+ * @summary List vehicle documents
+ */
+const getVehicleDocuments = (
+    id: number, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<VehicleDocumentListResponse>> => {
+    return axiosInstance.get(
+      `/vehicles/${id}/documents`,options
+    );
+  }
+/**
+ * @summary Add a vehicle document
+ */
+const createVehicleDocument = (
+    id: number,
+    vehicleDocumentCreateInput: VehicleDocumentCreateInput, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<VehicleDocument>> => {
+    return axiosInstance.post(
+      `/vehicles/${id}/documents`,
+      vehicleDocumentCreateInput,options
+    );
+  }
+/**
+ * @summary Delete a vehicle document
+ */
+const deleteVehicleDocument = (
+    id: number,
+    docId: number, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<void>> => {
+    return axiosInstance.delete(
+      `/vehicles/${id}/documents/${docId}`,options
+    );
+  }
+/**
+ * Returns the short history (krótka historia) of a vehicle.
+ * @summary List vehicle history events
+ */
+const getVehicleHistory = (
+    id: number, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<VehicleHistoryListResponse>> => {
+    return axiosInstance.get(
+      `/vehicles/${id}/history`,options
+    );
+  }
+/**
+ * @summary Add a vehicle history event
+ */
+const createVehicleHistoryEvent = (
+    id: number,
+    vehicleHistoryEventCreateInput: VehicleHistoryEventCreateInput, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<VehicleHistoryEvent>> => {
+    return axiosInstance.post(
+      `/vehicles/${id}/history`,
+      vehicleHistoryEventCreateInput,options
+    );
+  }
+return {getVehicles,createVehicle,getVehicleById,updateVehicle,deleteVehicle,getVehicleDocuments,createVehicleDocument,deleteVehicleDocument,getVehicleHistory,createVehicleHistoryEvent}};
 export type GetVehiclesResult = AxiosResponse<VehicleListResponse>
 export type CreateVehicleResult = AxiosResponse<Vehicle>
-export type GetVehicleByIdResult = AxiosResponse<Vehicle>
+export type GetVehicleByIdResult = AxiosResponse<VehicleDetail>
 export type UpdateVehicleResult = AxiosResponse<Vehicle>
 export type DeleteVehicleResult = AxiosResponse<void>
+export type GetVehicleDocumentsResult = AxiosResponse<VehicleDocumentListResponse>
+export type CreateVehicleDocumentResult = AxiosResponse<VehicleDocument>
+export type DeleteVehicleDocumentResult = AxiosResponse<void>
+export type GetVehicleHistoryResult = AxiosResponse<VehicleHistoryListResponse>
+export type CreateVehicleHistoryEventResult = AxiosResponse<VehicleHistoryEvent>

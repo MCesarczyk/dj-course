@@ -1,0 +1,426 @@
+###
+# Fleet API — test suite (httpyac assertions)
+#
+# Runnable end-to-end regression tests for the vehicle catalog & instances.
+# Self-contained: creates its own brand/model/vehicle, asserts behaviour,
+# then deletes everything it created (safe to re-run).
+#
+# Run headless:   npx httpyac send .vehicles-tests.http --all
+# Or click each request in the httpyac / REST client UI.
+#
+# Assertion notes (httpyac):
+#   * Equality/paths use the `?? body <path> <op> <value>` form, where <path>
+#     is evaluated against the parsed JSON body (arrays: data[0].kind).
+#   * `?? js` is intentionally NOT used — in headless batch runs it can bleed
+#     into the next request body. Stick to `?? status` and `?? body`.
+###
+
+@baseUrl = http://localhost:3000
+@brandsUrl = {{baseUrl}}/vehicle-brands
+@modelsUrl = {{baseUrl}}/vehicle-models
+@vehiclesUrl = {{baseUrl}}/vehicles
+@missingId = 999999
+
+# Unique suffix so the suite is re-runnable without cleanup collisions.
+{{
+  exports.suffix = Date.now();
+}}
+
+###
+# --- Vehicle brands (marki) --------------------------------------------------
+###
+
+POST {{brandsUrl}}
+Content-Type: application/json
+
+{
+  "name": "TestBrand {{suffix}}",
+  "country": "Poland"
+}
+
+{{
+  exports.brandId = response.parsedBody.id;
+}}
+
+?? status == 201
+?? body id > 0
+?? body name == TestBrand {{suffix}}
+
+###
+GET {{brandsUrl}}/{{brandId}}
+
+?? status == 200
+?? body id == {{brandId}}
+
+###
+GET {{brandsUrl}}?page=1&limit=5
+
+?? status == 200
+?? body pagination.total >= 1
+?? body data[0].id > 0
+
+### Duplicate name -> 409
+POST {{brandsUrl}}
+Content-Type: application/json
+
+{
+  "name": "TestBrand {{suffix}}"
+}
+
+?? status == 409
+
+### Missing required name -> 400
+POST {{brandsUrl}}
+Content-Type: application/json
+
+{
+  "country": "Germany"
+}
+
+?? status == 400
+
+### Update brand
+PUT {{brandsUrl}}/{{brandId}}
+Content-Type: application/json
+
+{
+  "country": "Austria"
+}
+
+?? status == 200
+?? body country == Austria
+
+### Missing brand -> 404
+GET {{brandsUrl}}/{{missingId}}
+
+?? status == 404
+
+### Method not allowed -> 405
+PATCH {{brandsUrl}}
+
+?? status == 405
+
+###
+# --- Vehicle models (modele) — ciagnik vs naczepa ----------------------------
+###
+
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": {{brandId}},
+  "name": "Test Tractor {{suffix}}",
+  "kind": "TRACTOR_UNIT"
+}
+
+{{
+  exports.tractorModelId = response.parsedBody.id;
+}}
+
+?? status == 201
+?? body kind == TRACTOR_UNIT
+?? body trailerType == null
+
+###
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": {{brandId}},
+  "name": "Test Trailer {{suffix}}",
+  "kind": "SEMI_TRAILER",
+  "trailerType": "reefer"
+}
+
+{{
+  exports.trailerModelId = response.parsedBody.id;
+}}
+
+?? status == 201
+?? body trailerType == reefer
+
+### Invalid: semi-trailer without trailerType -> 400
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": {{brandId}},
+  "name": "Broken Trailer {{suffix}}",
+  "kind": "SEMI_TRAILER"
+}
+
+?? status == 400
+
+### Invalid: tractor with trailerType -> 400
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": {{brandId}},
+  "name": "Broken Tractor {{suffix}}",
+  "kind": "TRACTOR_UNIT",
+  "trailerType": "curtain"
+}
+
+?? status == 400
+
+### Invalid: unknown brandId -> 400
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": {{missingId}},
+  "name": "Ghost {{suffix}}",
+  "kind": "TRACTOR_UNIT"
+}
+
+?? status == 400
+
+### Filter: only semi-trailers
+GET {{modelsUrl}}?kind=SEMI_TRAILER&limit=100
+
+?? status == 200
+?? body data[0].kind == SEMI_TRAILER
+
+### Invalid kind filter -> 400
+GET {{modelsUrl}}?kind=SPACESHIP
+
+?? status == 400
+
+### Get model by id
+GET {{modelsUrl}}/{{tractorModelId}}
+
+?? status == 200
+?? body kind == TRACTOR_UNIT
+
+### Update model
+PUT {{modelsUrl}}/{{tractorModelId}}
+Content-Type: application/json
+
+{
+  "name": "Test Tractor {{suffix}} v2"
+}
+
+?? status == 200
+?? body name == Test Tractor {{suffix}} v2
+
+###
+# --- Vehicles (egzemplarze) --------------------------------------------------
+###
+
+### List (paginated)
+GET {{vehiclesUrl}}?page=1&limit=5
+
+?? status == 200
+?? body data[0].id > 0
+
+### Filter: only tractor units
+GET {{vehiclesUrl}}?kind=TRACTOR_UNIT&limit=100
+
+?? status == 200
+?? body data[0].kind == TRACTOR_UNIT
+
+POST {{vehiclesUrl}}
+Content-Type: application/json
+
+{
+  "model_id": {{tractorModelId}},
+  "kind": "TRACTOR_UNIT",
+  "make": "TestMake",
+  "model": "Test Tractor",
+  "year": 2024,
+  "fuel_tank_capacity": 600,
+  "registration_number": "WA {{suffix}}",
+  "vin": "TESTVIN0000000123",
+  "first_registration_date": "2024-03-15",
+  "mileage_km": 12000,
+  "status": "active",
+  "specs": { "power_kw": 338, "euro_norm": "EURO6", "axles": 2 }
+}
+
+{{
+  exports.tractorVehId = response.parsedBody.id;
+}}
+
+?? status == 201
+?? body id > 0
+?? body kind == TRACTOR_UNIT
+
+###
+POST {{vehiclesUrl}}
+Content-Type: application/json
+
+{
+  "model_id": {{trailerModelId}},
+  "kind": "SEMI_TRAILER",
+  "registration_number": "WB {{suffix}}",
+  "mileage_km": 45000,
+  "specs": { "euro_pallets": 33, "volume_m3": 86.5, "has_refrigeration": true }
+}
+
+{{
+  exports.trailerVehId = response.parsedBody.id;
+}}
+
+?? status == 201
+
+### Invalid kind -> 400
+POST {{vehiclesUrl}}
+Content-Type: application/json
+
+{
+  "kind": "SPACESHIP"
+}
+
+?? status == 400
+
+### Unknown model_id -> 400
+POST {{vehiclesUrl}}
+Content-Type: application/json
+
+{
+  "model_id": {{missingId}}
+}
+
+?? status == 400
+
+### Get by id — nested model + brand + documents + history
+GET {{vehiclesUrl}}/{{tractorVehId}}
+
+?? status == 200
+?? body model.id == {{tractorModelId}}
+?? body brand.id == {{brandId}}
+?? body documents exists
+?? body history exists
+
+### Missing vehicle -> 404
+GET {{vehiclesUrl}}/{{missingId}}
+
+?? status == 404
+
+### Update vehicle (mileage + status)
+PUT {{vehiclesUrl}}/{{tractorVehId}}
+Content-Type: application/json
+
+{
+  "mileage_km": 18000,
+  "status": "in_service"
+}
+
+?? status == 200
+?? body mileage_km == 18000
+
+###
+# --- Vehicle documents (dokumenty) -------------------------------------------
+###
+
+POST {{vehiclesUrl}}/{{tractorVehId}}/documents
+Content-Type: application/json
+
+{
+  "doc_type": "insurance_oc",
+  "document_number": "OC/2026/{{suffix}}",
+  "issue_date": "2026-01-01",
+  "expiry_date": "2026-12-31"
+}
+
+{{
+  exports.docId = response.parsedBody.id;
+}}
+
+?? status == 201
+?? body docType == insurance_oc
+
+### List documents
+GET {{vehiclesUrl}}/{{tractorVehId}}/documents
+
+?? status == 200
+?? body data[0].id > 0
+
+### Invalid document type -> 400
+POST {{vehiclesUrl}}/{{tractorVehId}}/documents
+Content-Type: application/json
+
+{
+  "doc_type": "not_a_real_type"
+}
+
+?? status == 400
+
+### Documents for missing vehicle -> 404
+GET {{vehiclesUrl}}/{{missingId}}/documents
+
+?? status == 404
+
+### Delete document
+DELETE {{vehiclesUrl}}/{{tractorVehId}}/documents/{{docId}}
+
+?? status == 204
+
+### Delete missing document -> 404
+DELETE {{vehiclesUrl}}/{{tractorVehId}}/documents/{{missingId}}
+
+?? status == 404
+
+###
+# --- Vehicle history (krotka historia) ---------------------------------------
+###
+
+### Add inspection event
+POST {{vehiclesUrl}}/{{tractorVehId}}/history
+Content-Type: application/json
+
+{
+  "event_type": "inspection",
+  "event_date": "2026-05-10",
+  "mileage_km": 15000,
+  "description": "Badanie techniczne - wynik pozytywny"
+}
+
+?? status == 201
+?? body eventType == inspection
+
+### List history
+GET {{vehiclesUrl}}/{{tractorVehId}}/history
+
+?? status == 200
+?? body data[0].id > 0
+
+### Invalid: missing event_date -> 400
+POST {{vehiclesUrl}}/{{tractorVehId}}/history
+Content-Type: application/json
+
+{
+  "event_type": "inspection"
+}
+
+?? status == 400
+
+###
+# --- Cleanup (usun zasoby utworzone przez suite) -----------------------------
+###
+
+### Delete tractor vehicle (cascades documents + history)
+DELETE {{vehiclesUrl}}/{{tractorVehId}}
+
+?? status == 204
+
+### Delete trailer vehicle
+DELETE {{vehiclesUrl}}/{{trailerVehId}}
+
+?? status == 204
+
+### Delete tractor model
+DELETE {{modelsUrl}}/{{tractorModelId}}
+
+?? status == 204
+
+### Delete trailer model
+DELETE {{modelsUrl}}/{{trailerModelId}}
+
+?? status == 204
+
+### Delete brand
+DELETE {{brandsUrl}}/{{brandId}}
+
+?? status == 204

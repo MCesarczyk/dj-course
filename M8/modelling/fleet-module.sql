@@ -150,7 +150,10 @@ CREATE TABLE spare_parts (
     shelf               varchar(50),                    -- warehouse shelf
     stock_quantity      decimal(10,3) NOT NULL DEFAULT 0,
     min_stock_threshold decimal(10,3) NOT NULL DEFAULT 0,  -- alert below this level
-    unit                varchar(20)   NOT NULL          -- pcs, L, kg …
+    unit                varchar(20)   NOT NULL,         -- pcs, L, kg …
+    -- Generated column lets us partial-index the "alert" subset of rows
+    -- instead of computing the comparison at query time.
+    is_low_stock        boolean       GENERATED ALWAYS AS (stock_quantity < min_stock_threshold) STORED
 );
 
 -- ---------------------------------------------------------------------------
@@ -364,9 +367,10 @@ CREATE INDEX idx_vehicle_documents_expiry       ON vehicle_documents (expiry_dat
 CREATE INDEX idx_insurance_policies_vehicle_id ON insurance_policies (vehicle_id);
 CREATE INDEX idx_insurance_policies_valid_to   ON insurance_policies (valid_to);
 -- Composite covers "instalments for policy X" + the same ordered by due_date.
--- NOTE: fleet-wide "what's due this week across all policies" no longer has a
--- supporting index; re-add a standalone (due_date) index if that query is needed.
 CREATE INDEX idx_policy_instalments_policy_due ON policy_instalments (policy_id, due_date);
+-- Partial: only ~5–10 % of rows are unpaid at any time; "overdue/upcoming" dashboards
+-- target this subset → small, fast index.
+CREATE INDEX idx_policy_instalments_unpaid     ON policy_instalments (due_date) WHERE paid_date IS NULL;
 
 -- Inspections
 -- Composite covers "next-due inspection for vehicle X of type Y".
@@ -391,6 +395,8 @@ CREATE INDEX idx_tyre_swap_history_service_order   ON tyre_swap_history (service
 
 -- Spare parts
 -- (spare_parts.oem_number is UNIQUE → backed by an implicit unique btree)
+-- Partial on the generated is_low_stock column → indexes only rows requiring restock.
+CREATE INDEX idx_spare_parts_low_stock             ON spare_parts (id) WHERE is_low_stock;
 CREATE INDEX idx_spare_part_aliases_part_id        ON spare_part_aliases (part_id);
 CREATE INDEX idx_spare_part_aliases_alias_number   ON spare_part_aliases (alias_number);
 
@@ -399,7 +405,9 @@ CREATE INDEX idx_alert_recipient_rules_rule_id     ON alert_recipient_rules (ale
 -- DESC on raised_at matches "show me latest alerts for vehicle X" pattern.
 CREATE INDEX idx_alerts_vehicle_raised             ON alerts (vehicle_id, raised_at DESC);
 CREATE INDEX idx_alerts_rule_id                    ON alerts (alert_rule_id);
-CREATE INDEX idx_alerts_status                     ON alerts (status);
+-- Partial: dashboard always queries status='pending'. Pre-sorted by raised_at DESC.
+-- Replaces a full-table index on a low-cardinality column.
+CREATE INDEX idx_alerts_pending_by_raised          ON alerts (raised_at DESC) WHERE status = 'pending';
 CREATE INDEX idx_alerts_assigned_to                ON alerts (assigned_to) WHERE assigned_to IS NOT NULL;
 
 -- vehicles.specs — partial unique indexes to enforce uniqueness of key identifiers

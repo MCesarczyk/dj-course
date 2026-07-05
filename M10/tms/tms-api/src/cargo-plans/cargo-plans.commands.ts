@@ -1,8 +1,9 @@
 import type { CargoType } from './cargo/cargo.types';
 import type { Weight } from '../shared/weight';
+import type { Length } from '../shared/length';
 
 export interface CreateLoadPlanCommand {
-  trailerType: string;
+  carrierType: string;
 }
 
 export interface AddCargoCommand {
@@ -10,7 +11,7 @@ export interface AddCargoCommand {
   palletType: string;
   cargoType: CargoType;
   weight: Weight;
-  cargoHeightMm: number;
+  cargoHeight: Length;
 }
 
 export interface RemoveCargoCommand {
@@ -18,7 +19,7 @@ export interface RemoveCargoCommand {
   unitId: string;
 }
 
-export interface ChangeTrailerCommand {
+export interface ChangeCarrierCommand {
   loadPlanId: string;
-  trailerType: string;
+  carrierType: string;
 }

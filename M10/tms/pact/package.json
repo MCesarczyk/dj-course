@@ -5,7 +5,14 @@
   "scripts": {
     "test:consumer": "ts-node consumer/pact-test.ts",
     "test:provider": "ts-node provider/verify-pact.ts",
-    "test": "npm run test:consumer && npm run test:provider"
+    "test:provider:local": "PACT_LOCAL=true ts-node provider/verify-pact.ts",
+    "test": "npm run test:consumer && npm run test:provider",
+    "demo": "ts-node consumer/console-demo.ts",
+    "pact:publish": "pact-broker publish ./pacts --broker-base-url=${PACT_BROKER_URL:-http://localhost:9292} --consumer-app-version=$(git rev-parse --short HEAD) --branch=$(git rev-parse --abbrev-ref HEAD)",
+    "can-i-deploy:consumer": "pact-broker can-i-deploy --pacticipant CargoPlanConsole --version=$(git rev-parse --short HEAD) --to-environment production --broker-base-url=${PACT_BROKER_URL:-http://localhost:9292}",
+    "can-i-deploy:provider": "pact-broker can-i-deploy --pacticipant TmsApi --version=$(git rev-parse --short HEAD) --to-environment production --broker-base-url=${PACT_BROKER_URL:-http://localhost:9292}",
+    "record-deployment:consumer": "pact-broker record-deployment --pacticipant CargoPlanConsole --version=$(git rev-parse --short HEAD) --environment production --broker-base-url=${PACT_BROKER_URL:-http://localhost:9292}",
+    "record-deployment:provider": "pact-broker record-deployment --pacticipant TmsApi --version=$(git rev-parse --short HEAD) --environment production --broker-base-url=${PACT_BROKER_URL:-http://localhost:9292}"
   },
   "devDependencies": {
     "@pact-foundation/pact": "^15.0.0",

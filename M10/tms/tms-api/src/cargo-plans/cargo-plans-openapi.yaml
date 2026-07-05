@@ -3,7 +3,7 @@ paths:
   /cargo-plans:
     post:
       summary: Create a load plan
-      description: Creates a new cargo load plan for a given trailer type.
+      description: Creates a new cargo load plan for a given carrier type (a semi-trailer or a rigid vehicle body).
       operationId: createLoadPlan
       tags:
         - CargoPlans
@@ -14,7 +14,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateLoadPlanInput'
             example:
-              trailerType: standard-curtainside
+              carrierType: standard-curtainside
       responses:
         '201':
           description: Load plan created successfully
@@ -25,13 +25,13 @@ paths:
               example:
                 id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
         '400':
-          description: Missing or invalid trailerType.
+          description: Missing or invalid carrierType.
           content:
             application/json:
               schema:
                 $ref: '../../contract/entry.yaml#/components/schemas/ErrorResponse'
               example:
-                error: "trailerType is required. Allowed: standard-curtainside, mega, reefer"
+                error: "carrierType is required. Allowed: standard-curtainside, mega, reefer, van, box-truck"
         '500':
           $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
 
@@ -56,18 +56,15 @@ paths:
                 id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
                 status: DRAFT
                 weightUnit: KG
-                trailer:
+                carrier:
                   type: standard-curtainside
+                  vehicleClass: MODULAR
+                  requiresTractor: true
                   canCarryPallets: true
                   maxWeightCapacityKg: 24000
-                  widthMm: 2400
+                  widthMm: 2480
                   heightMm: 2700
                   maxLdm: 13.6
-                  capabilities:
-                    hasClimateControl: false
-                    supportsSideLoading: true
-                    hasHighSecurityLock: false
-                    isBulkReady: false
                 version: 3
                 currentLdm: 2.4
                 plannedWeight: 600
@@ -77,11 +74,6 @@ paths:
                     cargoType: FOOD
                     weight: 600
                     totalHeightMm: 1400
-                    requirements:
-                      isTemperatureControlled: false
-                      requiresSideLoading: false
-                      isBulk: false
-                      highSecurityRequired: false
         '404':
           description: No load plan exists with the given ID.
           content:
@@ -170,11 +162,11 @@ paths:
         '500':
           $ref: '../../contract/entry.yaml#/components/responses/InternalServerError'
 
-  /cargo-plans/{id}/trailer:
+  /cargo-plans/{id}/carrier:
     put:
-      summary: Change trailer type
-      description: Replaces the trailer on a draft load plan. All currently assigned cargo units are re-validated against the new trailer's capabilities and capacity.
-      operationId: changeTrailerType
+      summary: Change carrier type
+      description: Replaces the carrier on a draft load plan. All currently assigned cargo units are re-validated against the new carrier's capabilities and capacity.
+      operationId: changeCarrierType
       tags:
         - CargoPlans
       parameters:
@@ -184,20 +176,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ChangeTrailerInput'
+              $ref: '#/components/schemas/ChangeCarrierInput'
             example:
-              trailerType: reefer
+              carrierType: reefer
       responses:
         '204':
-          description: Trailer type changed successfully – no body returned.
+          description: Carrier type changed successfully – no body returned.
         '400':
-          description: Invalid trailerType or re-validation of existing cargo failed.
+          description: Invalid carrierType or re-validation of existing cargo failed.
           content:
             application/json:
               schema:
                 $ref: '../../contract/entry.yaml#/components/schemas/ErrorResponse'
               example:
-                error: "trailerType is required. Allowed: standard-curtainside, mega, reefer"
+                error: "carrierType is required. Allowed: standard-curtainside, mega, reefer, van, box-truck"
         '404':
           description: No load plan exists with the given ID.
           content:
@@ -212,7 +204,7 @@ paths:
   /cargo-plans/{id}/finalize:
     post:
       summary: Finalize a load plan
-      description: Marks the load plan as FINALIZED. A finalized plan cannot be modified. The plan must have at least one cargo unit and must not exceed trailer capacity.
+      description: Marks the load plan as FINALIZED. A finalized plan cannot be modified. The plan must have at least one cargo unit and must not exceed carrier capacity.
       operationId: finalizeLoadPlan
       tags:
         - CargoPlans
@@ -269,13 +261,26 @@ components:
         - TONNE
         - LB
       default: KG
-    TrailerType:
+    CarrierType:
       type: string
-      description: Supported trailer types
+      description: >
+        Supported load-carrier types. MODULAR carriers are semi-trailers (need a separate
+        tractor unit); MONOLITHIC carriers are self-contained rigid vehicle bodies. These are
+        generic loadable-space categories — concrete brand-models live in the vehicles catalog.
       enum:
         - standard-curtainside
         - mega
         - reefer
+        - van
+        - box-truck
+    VehicleClass:
+      type: string
+      description: >
+        Shape of the carrier: MONOLITHIC (single self-contained vehicle body) or
+        MODULAR (a towed semi-trailer that requires a tractor unit).
+      enum:
+        - MONOLITHIC
+        - MODULAR
 
     PalletType:
       type: string
@@ -305,72 +310,30 @@ components:
         - DRAFT
         - FINALIZED
 
-    CargoRequirementsInput:
+    CarrierReadModel:
       type: object
-      description: Special handling requirements for a cargo unit.
-      required:
-        - isTemperatureControlled
-        - requiresSideLoading
-        - isBulk
-        - highSecurityRequired
-      properties:
-        isTemperatureControlled:
-          type: boolean
-          description: Cargo requires a refrigerated trailer
-          example: false
-        requiresSideLoading:
-          type: boolean
-          description: Cargo must be loaded from the side
-          example: false
-        isBulk:
-          type: boolean
-          description: Cargo is bulk (requires bulk-ready trailer)
-          example: false
-        highSecurityRequired:
-          type: boolean
-          description: Cargo requires high-security locking
-          example: false
-
-    TrailerCapabilities:
-      type: object
-      description: Capabilities of the assigned trailer.
-      required:
-        - hasClimateControl
-        - supportsSideLoading
-        - hasHighSecurityLock
-        - isBulkReady
-      properties:
-        hasClimateControl:
-          type: boolean
-          description: Trailer has temperature/climate control
-          example: false
-        supportsSideLoading:
-          type: boolean
-          description: Trailer supports side loading
-          example: true
-        hasHighSecurityLock:
-          type: boolean
-          description: Trailer has high-security locking
-          example: false
-        isBulkReady:
-          type: boolean
-          description: Trailer supports bulk cargo
-          example: false
-
-    TrailerReadModel:
-      type: object
-      description: Details of the trailer assigned to the load plan.
+      description: Details of the load carrier assigned to the load plan.
       required:
         - type
+        - vehicleClass
+        - requiresTractor
         - canCarryPallets
         - maxWeightCapacityKg
         - widthMm
         - heightMm
         - maxLdm
-        - capabilities
       properties:
         type:
-          $ref: '#/components/schemas/TrailerType'
+          $ref: '#/components/schemas/CarrierType'
+        vehicleClass:
+          $ref: '#/components/schemas/VehicleClass'
+        requiresTractor:
+          type: boolean
+          description: >
+            True when the carrier is MODULAR (a semi-trailer) and therefore needs a separate
+            tractor unit to be moved. This module does not reserve the tractor; the flag signals
+            the requirement to downstream fleet/dispatch.
+          example: true
         canCarryPallets:
           type: boolean
           example: true
@@ -380,18 +343,16 @@ components:
           example: 24000
         widthMm:
           type: integer
-          description: Internal trailer width in millimetres
-          example: 2400
+          description: Internal loading-space width in millimetres
+          example: 2480
         heightMm:
           type: integer
-          description: Internal trailer height in millimetres
+          description: Internal loading-space height in millimetres
           example: 2700
         maxLdm:
           type: number
-          description: Maximum loading metres (LDM)
+          description: Maximum loading metres (LDM). For sub-2.4 m bodies (vans) this is an approximation.
           example: 13.6
-        capabilities:
-          $ref: '#/components/schemas/TrailerCapabilities'
 
     PalletUnitReadModel:
       type: object
@@ -402,7 +363,6 @@ components:
         - cargoType
         - weight
         - totalHeightMm
-        - requirements
       properties:
         id:
           type: string
@@ -431,8 +391,6 @@ components:
           type: string
           nullable: true
           description: Human-readable product description (e.g. "FOOD – warzywa")
-        requirements:
-          $ref: '#/components/schemas/CargoRequirementsInput'
 
     CargoLoadPlanReadModel:
       type: object
@@ -442,7 +400,7 @@ components:
         - status
         - version
         - weightUnit
-        - trailer
+        - carrier
         - currentLdm
         - plannedWeight
         - units
@@ -461,8 +419,8 @@ components:
           example: 3
         weightUnit:
           $ref: '#/components/schemas/WeightUnit'
-        trailer:
-          $ref: '#/components/schemas/TrailerReadModel'
+        carrier:
+          $ref: '#/components/schemas/CarrierReadModel'
         currentLdm:
           type: number
           description: Currently used loading metres
@@ -483,10 +441,10 @@ components:
       type: object
       description: Payload for creating a new load plan.
       required:
-        - trailerType
+        - carrierType
       properties:
-        trailerType:
-          $ref: '#/components/schemas/TrailerType'
+        carrierType:
+          $ref: '#/components/schemas/CarrierType'
 
     CreateLoadPlanResponse:
       type: object
@@ -526,11 +484,11 @@ components:
           exclusiveMinimum: true
           example: 1200
 
-    ChangeTrailerInput:
+    ChangeCarrierInput:
       type: object
-      description: Payload for changing the trailer type on a load plan.
+      description: Payload for changing the carrier type on a load plan.
       required:
-        - trailerType
+        - carrierType
       properties:
-        trailerType:
-          $ref: '#/components/schemas/TrailerType'
+        carrierType:
+          $ref: '#/components/schemas/CarrierType'

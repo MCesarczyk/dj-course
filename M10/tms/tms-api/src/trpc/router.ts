@@ -24,7 +24,7 @@ export const appRouter = router({
   getVehicleById: publicProcedure
     .input(z.string())
     .query(async ({ input }) => {
-      return await getVehicleById(input);
+      return await getVehicleById(Number(input));
     }),
 
   createVehicle: publicProcedure
@@ -53,13 +53,13 @@ export const appRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      return await updateVehicle(input.id, input.data);
+      return await updateVehicle(Number(input.id), input.data);
     }),
 
   deleteVehicle: publicProcedure
     .input(z.string())
     .mutation(async ({ input }) => {
-      return await deleteVehicle(input);
+      return await deleteVehicle(Number(input));
     }),
 });
 

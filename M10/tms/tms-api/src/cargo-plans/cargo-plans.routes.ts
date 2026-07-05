@@ -4,13 +4,13 @@ import express from 'express';
 import logger from '../logger';
 import { service } from './fake-dependency-injection';
 import { OptimisticLockError } from '../shared/optimistic-lock-error';
-import { TrailerFactory } from './trailers';
-import { PalletSpec } from './pallets/pallet-spec';
 import { CargoPlans } from '../types/CargoPlansRoute';
 import { ErrorResponse } from '../types/data-contracts';
 import { parseCargoType } from './cargo/cargo.types';
 import { Weight } from '../shared/weight';
+import { Length } from '../shared/length';
 import { type CargoPlanServiceError } from './cargo-plans.errors';
+import { cargoPlanValidators, sendValidated, validate } from './cargo-plans.validation';
 
 const router = express.Router();
 
@@ -25,20 +25,24 @@ router.post('/', async (
   >,
   res: Response<CargoPlans.CreateLoadPlan.ResponseBody | ErrorResponse>,
 ) => {
-  const { trailerType } = req.body;
-  if (!trailerType || !TrailerFactory.allowedTypes().includes(trailerType)) {
-    return res
-      .status(400)
-      .json({ error: `Unknown trailerType: '${trailerType}'. Allowed: ${TrailerFactory.allowedTypes().join(', ')}` });
-  }
+  const v = cargoPlanValidators.createLoadPlan;
 
-  const result = await service.createLoadPlan({ trailerType });
+  const headers = validate(v.headers, req.headers);
+  if (!headers.success) return res.status(400).json({ error: headers.error });
+
+  const query = validate(v.query, req.query);
+  if (!query.success) return res.status(400).json({ error: query.error });
+
+  const body = validate(v.body, req.body);
+  if (!body.success) return res.status(400).json({ error: body.error });
+
+  const result = await service.createLoadPlan({ carrierType: body.data.carrierType });
   if (!result.success) {
     return handleResultError(res, result.error, 'Failed to create load plan');
   }
 
-  logger.info('Load plan created', { plan_id: result.value, trailer_type: trailerType });
-  res.status(201).json({ id: result.value });
+  logger.info('Load plan created', { plan_id: result.value, carrier_type: body.data.carrierType });
+  return sendValidated(res, 201, v.response, { id: result.value }, 'createLoadPlan response');
 });
 
 // ── GET /:id — Get load plan details ────────────────────────────────────────
@@ -52,13 +56,21 @@ router.get('/:id', async (
   >,
   res: Response<CargoPlans.GetLoadPlan.ResponseBody | ErrorResponse>,
 ) => {
-  const weightUnit = Weight.parseUnit(req.query.weightUnit);
-  const readModel = await service.findPlan(req.params.id, weightUnit);
+  const v = cargoPlanValidators.getLoadPlan;
+
+  const params = validate(v.params, req.params);
+  if (!params.success) return res.status(400).json({ error: params.error });
+
+  const query = validate(v.query, req.query);
+  if (!query.success) return res.status(400).json({ error: query.error });
+
+  const weightUnit = Weight.parseUnit(query.data.weightUnit);
+  const readModel = await service.findPlan(params.data.id, weightUnit);
   if (!readModel) {
-    logger.warn('Failed to fetch load plan', { plan_id: req.params.id });
-    return res.status(404).json({ error: `Load plan '${req.params.id}' not found` });
+    logger.warn('Failed to fetch load plan', { plan_id: params.data.id });
+    return res.status(404).json({ error: `Load plan '${params.data.id}' not found` });
   }
-  res.json(readModel);
+  return sendValidated(res, 200, v.response, readModel, 'getLoadPlan response');
 });
 
 // ── POST /:id/cargo — Add cargo to plan ─────────────────────────────────────
@@ -72,28 +84,36 @@ router.post('/:id/cargo', async (
   >,
   res: Response<CargoPlans.AddCargoToLoadPlan.ResponseBody | ErrorResponse>,
 ) => {
-  const { palletType, cargoType: rawCargoType, weightKg, cargoHeightMm } = req.body;
-  if (!palletType || !PalletSpec.allowedTypes().includes(palletType)) {
-    return res
-      .status(400)
-      .json({ error: `Unknown palletType: '${palletType}'. Allowed: ${PalletSpec.allowedTypes().join(', ')}` });
-  }
-  const cargoType = parseCargoType(rawCargoType);
+  const v = cargoPlanValidators.addCargoToLoadPlan;
+
+  const headers = validate(v.headers, req.headers);
+  if (!headers.success) return res.status(400).json({ error: headers.error });
+
+  const params = validate(v.params, req.params);
+  if (!params.success) return res.status(400).json({ error: params.error });
+
+  const query = validate(v.query, req.query);
+  if (!query.success) return res.status(400).json({ error: query.error });
+
+  const body = validate(v.body, req.body);
+  if (!body.success) return res.status(400).json({ error: body.error });
+
+  const cargoType = parseCargoType(body.data.cargoType);
   if (!cargoType) {
-    return res.status(400).json({ error: `Unknown cargoType: ${rawCargoType}` });
+    return res.status(400).json({ error: `Unknown cargoType: ${body.data.cargoType}` });
   }
   const result = await service.addCargoToPlan({
-    loadPlanId: req.params.id,
-    palletType,
+    loadPlanId: params.data.id,
+    palletType: body.data.palletType,
     cargoType,
-    weight: Weight.from(weightKg, 'KG'),
-    cargoHeightMm,
+    weight: Weight.from(body.data.weightKg, 'KG'),
+    cargoHeight: Length.from(body.data.cargoHeightMm, 'MM'),
   });
   if (!result.success) {
     return handleResultError(res, result.error, 'Failed to add cargo to plan');
   }
-  logger.info('Cargo added to plan', { plan_id: req.params.id, pallet_type: palletType });
-  res.status(204).send();
+  logger.info('Cargo added to plan', { plan_id: params.data.id, pallet_type: body.data.palletType });
+  return res.status(204).send();
 });
 
 // ── DELETE /:id/cargo/:unitId — Remove cargo from plan ──────────────────────
@@ -107,44 +127,59 @@ router.delete('/:id/cargo/:unitId', async (
   >,
   res: Response<CargoPlans.RemoveCargoFromLoadPlan.ResponseBody | ErrorResponse>,
 ) => {
+  const v = cargoPlanValidators.removeCargoFromLoadPlan;
+
+  const params = validate(v.params, req.params);
+  if (!params.success) return res.status(400).json({ error: params.error });
+
+  const query = validate(v.query, req.query);
+  if (!query.success) return res.status(400).json({ error: query.error });
+
   const result = await service.removeCargoFromPlan({
-    loadPlanId: req.params.id,
-    unitId: req.params.unitId,
+    loadPlanId: params.data.id,
+    unitId: params.data.unitId,
   });
   if (!result.success) {
     return handleResultError(res, result.error, 'Failed to remove cargo from plan');
   }
-  logger.info('Cargo removed from plan', { plan_id: req.params.id, unit_id: req.params.unitId });
-  res.status(204).send();
+  logger.info('Cargo removed from plan', { plan_id: params.data.id, unit_id: params.data.unitId });
+  return res.status(204).send();
 });
 
-// ── PUT /:id/trailer — Change trailer type ──────────────────────────────────
+// ── PUT /:id/carrier — Change carrier type ──────────────────────────────────
 
-router.put('/:id/trailer', async (
+router.put('/:id/carrier', async (
   req: Request<
-    CargoPlans.ChangeTrailerType.RequestParams,
-    CargoPlans.ChangeTrailerType.ResponseBody | ErrorResponse,
-    CargoPlans.ChangeTrailerType.RequestBody,
-    CargoPlans.ChangeTrailerType.RequestQuery
+    CargoPlans.ChangeCarrierType.RequestParams,
+    CargoPlans.ChangeCarrierType.ResponseBody | ErrorResponse,
+    CargoPlans.ChangeCarrierType.RequestBody,
+    CargoPlans.ChangeCarrierType.RequestQuery
   >,
-  res: Response<CargoPlans.ChangeTrailerType.ResponseBody | ErrorResponse>,
+  res: Response<CargoPlans.ChangeCarrierType.ResponseBody | ErrorResponse>,
 ) => {
-  const { trailerType } = req.body;
-  if (!trailerType || !TrailerFactory.allowedTypes().includes(trailerType)) {
-    return res
-      .status(400)
-      .json({ error: `Unknown trailerType: '${trailerType}'. Allowed: ${TrailerFactory.allowedTypes().join(', ')}` });
-  }
+  const v = cargoPlanValidators.changeCarrierType;
 
-  const result = await service.changeTrailerType({
-    loadPlanId: req.params.id,
-    trailerType,
+  const headers = validate(v.headers, req.headers);
+  if (!headers.success) return res.status(400).json({ error: headers.error });
+
+  const params = validate(v.params, req.params);
+  if (!params.success) return res.status(400).json({ error: params.error });
+
+  const query = validate(v.query, req.query);
+  if (!query.success) return res.status(400).json({ error: query.error });
+
+  const body = validate(v.body, req.body);
+  if (!body.success) return res.status(400).json({ error: body.error });
+
+  const result = await service.changeCarrierType({
+    loadPlanId: params.data.id,
+    carrierType: body.data.carrierType,
   });
   if (!result.success) {
-    return handleResultError(res, result.error, 'Failed to change trailer type');
+    return handleResultError(res, result.error, 'Failed to change carrier type');
   }
-  logger.info('Trailer type changed', { plan_id: req.params.id, trailer_type: trailerType });
-  res.status(204).send();
+  logger.info('Carrier type changed', { plan_id: params.data.id, carrier_type: body.data.carrierType });
+  return res.status(204).send();
 });
 
 // ── POST /:id/finalize — Finalize the plan ──────────────────────────────────
@@ -158,12 +193,20 @@ router.post('/:id/finalize', async (
   >,
   res: Response<CargoPlans.FinalizeLoadPlan.ResponseBody | ErrorResponse>,
 ) => {
-  const result = await service.finalizeLoadPlan(req.params.id);
+  const v = cargoPlanValidators.finalizeLoadPlan;
+
+  const params = validate(v.params, req.params);
+  if (!params.success) return res.status(400).json({ error: params.error });
+
+  const query = validate(v.query, req.query);
+  if (!query.success) return res.status(400).json({ error: query.error });
+
+  const result = await service.finalizeLoadPlan(params.data.id);
   if (!result.success) {
     return handleResultError(res, result.error, 'Failed to finalize load plan');
   }
-  logger.info('Load plan finalized', { plan_id: req.params.id });
-  res.status(204).send();
+  logger.info('Load plan finalized', { plan_id: params.data.id });
+  return res.status(204).send();
 });
 
 // ── Error handling ──────────────────────────────────────────────────────────
@@ -193,10 +236,10 @@ function handleResultError(
     case 'LdmCapacityExceededError':
       logger.warn(context, { error: err.message });
       return res.status(422).json({ error: err.message });
-    case 'CargoTooTallForTrailerError':
+    case 'CargoTooTallForCarrierError':
       logger.warn(context, { error: err.message });
       return res.status(422).json({ error: err.message });
-    case 'TrailerCapabilityMismatchError':
+    case 'CarrierCapabilityMismatchError':
       logger.warn(context, { error: err.message });
       return res.status(422).json({ error: err.message });
     case 'IncompatibleCargoColoadingError':

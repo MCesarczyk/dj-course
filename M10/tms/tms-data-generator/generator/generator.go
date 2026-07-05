@@ -63,9 +63,18 @@ func Generate(outputFile string) error {
 	go func() {
 		defer wg.Done()
 		startVehicles := time.Now()
-		fmt.Println("Generating vehicles...", time.Now())
-		vehiclesStatements = vehicles.GenerateInsertStatements(vehicles.GenerateVehicles(config.VEHICLES))
-		fmt.Println("done generating vehicles", time.Now(), time.Since(startVehicles))
+		fmt.Println("Generating fleet (brands, models, vehicles, documents, history)...", time.Now())
+		fleet := vehicles.GenerateFleet(config.VEHICLES)
+		// Order matters for foreign keys: brands → models → vehicles → docs/history.
+		var vb strings.Builder
+		vb.WriteString(vehicles.GenerateBrandsInsertStatements(fleet.Brands))
+		vb.WriteString(vehicles.GenerateModelsInsertStatements(fleet.Models))
+		vb.WriteString(vehicles.GenerateVehiclesInsertStatements(fleet.Vehicles))
+		vb.WriteString(vehicles.GenerateDocumentsInsertStatements(fleet.Documents))
+		vb.WriteString(vehicles.GenerateHistoryInsertStatements(fleet.History))
+		vb.WriteString(vehicles.GenerateSequenceResyncStatements(fleet))
+		vehiclesStatements = vb.String()
+		fmt.Println("done generating fleet", time.Now(), time.Since(startVehicles))
 	}()
 	go func() {
 		defer wg.Done()

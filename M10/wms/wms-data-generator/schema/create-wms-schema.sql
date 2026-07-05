@@ -34,7 +34,8 @@ CREATE TABLE warehouse (
     warehouse_id SERIAL PRIMARY KEY,
     location_id INTEGER NOT NULL REFERENCES location(location_id),
     name TEXT NOT NULL,
-    description TEXT NOT NULL
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED','MAINTENANCE','INACTIVE'))
 );
 -- Basic FK index only
 CREATE INDEX idx_warehouse_location_id ON warehouse(location_id);
@@ -44,7 +45,8 @@ CREATE TABLE zone (
     zone_id SERIAL PRIMARY KEY,
     warehouse_id INTEGER NOT NULL REFERENCES warehouse(warehouse_id),
     name TEXT NOT NULL,
-    description TEXT NOT NULL
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED','MAINTENANCE','INACTIVE'))
 );
 CREATE INDEX idx_zone_warehouse_id ON zone(warehouse_id);
 
@@ -54,7 +56,8 @@ CREATE TABLE aisle (
     zone_id INTEGER NOT NULL REFERENCES zone(zone_id),
     label TEXT NOT NULL,
     width INTEGER NOT NULL,
-    width_unit TEXT NOT NULL
+    width_unit TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED','MAINTENANCE','INACTIVE'))
 );
 CREATE INDEX idx_aisle_zone_id ON aisle(zone_id);
 
@@ -64,7 +67,8 @@ CREATE TABLE rack (
     aisle_id INTEGER NOT NULL REFERENCES aisle(aisle_id),
     label TEXT NOT NULL,
     max_height INTEGER NOT NULL,
-    height_unit TEXT NOT NULL
+    height_unit TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED','MAINTENANCE','INACTIVE'))
 );
 CREATE INDEX idx_rack_aisle_id ON rack(aisle_id);
 
@@ -74,7 +78,8 @@ CREATE TABLE shelf (
     rack_id INTEGER NOT NULL REFERENCES rack(rack_id),
     level TEXT NOT NULL,
     max_weight NUMERIC NOT NULL,
-    max_volume NUMERIC NOT NULL
+    max_volume NUMERIC NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED','MAINTENANCE','INACTIVE'))
 );
 CREATE INDEX idx_shelf_rack_id ON shelf(rack_id);
 
@@ -189,7 +194,7 @@ CREATE TABLE storage_reservation (
     reserved_volume NUMERIC NOT NULL,
     reserved_from TIMESTAMP NOT NULL,
     reserved_until TIMESTAMP NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('PENDING','ACTIVE','EXPIRED','CANCELLED')) DEFAULT 'PENDING'
+    status TEXT NOT NULL CHECK (status IN ('PENDING','ACTIVE','EXPIRED','CANCELLED','FULFILLED')) DEFAULT 'PENDING'
 );
 CREATE INDEX idx_storage_reservation_request_id ON storage_reservation(request_id);
 CREATE INDEX idx_storage_reservation_party_id ON storage_reservation(party_id);
@@ -205,7 +210,8 @@ CREATE TABLE storage_record (
     actual_exit_date TIMESTAMP,
     cargo_description TEXT NOT NULL,
     cargo_weight NUMERIC NOT NULL,
-    cargo_volume NUMERIC NOT NULL
+    cargo_volume NUMERIC NOT NULL,
+    condition TEXT NOT NULL DEFAULT 'GOOD' CHECK (condition IN ('GOOD','DAMAGED','LOST'))
 );
 CREATE INDEX idx_storage_record_request_id ON storage_record(request_id);
 CREATE INDEX idx_storage_record_party_id ON storage_record(party_id);

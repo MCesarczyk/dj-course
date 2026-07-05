@@ -5,7 +5,6 @@
  * Transportation Management System API
  * OpenAPI spec version: 1.0.0
  */
-import type { CargoRequirementsInput } from './cargoRequirementsInput';
 import type { CargoType } from './cargoType';
 
 /**
@@ -32,5 +31,4 @@ export interface PalletUnitReadModel {
    * @nullable
    */
   description?: string | null;
-  requirements: CargoRequirementsInput;
 }

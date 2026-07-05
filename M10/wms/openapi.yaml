@@ -1,522 +1,3193 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: WMS API (Warehouse Management System)
-  description: |
-    API for warehouse management - employees, contractors, payments, storage event history.
+  description: API for warehouse management - employees, contractors, payments, storage
+    event history, inventory state.
   version: 1.0.0
-
 servers:
-  - url: /
-    description: Base API URL
-
+- url: /
+  description: Base API URL
 paths:
-  # --- Health ---
   /health:
     get:
-      summary: Service health check
-      description: Returns service status, uptime, version, and dependency status (PostgreSQL).
-      operationId: health
       tags:
-        - Health
+      - Health
+      summary: Service health check
+      description: Returns service status, uptime, version, and dependency status
+        (PostgreSQL).
+      operationId: health
       responses:
         '200':
-          description: Service is running correctly
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
         '503':
-          description: Service unavailable (e.g. PostgreSQL connection error)
+          description: Service Unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
-
-  # --- Storage ---
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /payments:
+    get:
+      tags:
+      - Payments
+      summary: Payment list
+      description: Returns a list of payments with optional filtering by status and
+        party_id.
+      operationId: getPaymentsList
+      parameters:
+      - name: status
+        in: query
+        description: Filter by payment status
+        required: false
+        schema:
+          title: Status
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by payment status
+          default: null
+      - name: party_id
+        in: query
+        description: Filter by party ID (contractor)
+        required: false
+        schema:
+          title: Party Id
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Filter by party ID (contractor)
+          default: null
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentList'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /storage/{record_id}:
+    get:
+      tags:
+      - StorageOperations
+      summary: Storage record details
+      operationId: getStorageRecord
+      parameters:
+      - name: record_id
+        in: path
+        description: Storage record ID (storage_record_id)
+        required: true
+        schema:
+          title: Record Id
+          type: integer
+          description: Storage record ID (storage_record_id)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageRecord'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /storage/records:
+    get:
+      tags:
+      - StorageOperations
+      summary: Storage-record register (open + closed), filterable
+      description: 'Every storage record with its derived status. Unlike /inventory
+        (current stock only), this includes dispatched/lost records. Filters: partyId,
+        warehouseId, shelfId, status.'
+      operationId: listStorageRecords
+      parameters:
+      - name: partyId
+        in: query
+        required: false
+        schema:
+          title: Partyid
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+      - name: warehouseId
+        in: query
+        required: false
+        schema:
+          title: Warehouseid
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+      - name: shelfId
+        in: query
+        required: false
+        schema:
+          title: Shelfid
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/RecordStatus'
+          - type: 'null'
+          default: null
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageRecordList'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
   /storage/{record_id}/events:
     get:
+      tags:
+      - Storage
       summary: Storage record event history
       description: Returns cargo event history for the given storage record.
       operationId: getStorageEventHistory
-      tags:
-        - Storage
       parameters:
-        - name: record_id
-          in: path
-          required: true
+      - name: record_id
+        in: path
+        description: Storage record ID (storage_record_id)
+        required: true
+        schema:
+          title: Record Id
+          type: integer
           description: Storage record ID (storage_record_id)
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: List of storage events
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageEventList'
+        '422':
+          description: Unprocessable Entity
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/StorageEvent'
-
-  # --- Employees ---
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /storage/receipts:
+    post:
+      tags:
+      - StorageOperations
+      summary: Receive goods onto a shelf (przyjęcie)
+      description: Creates a storage record against a request; owner is derived from
+        the request. Logs a RECEIVED event.
+      operationId: receiveGoods
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiptCreate'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageRecord'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /storage/reservations/{reservation_id}/fulfill:
+    post:
+      tags:
+      - StorageOperations
+      summary: Receive goods against a reservation (przyjęcie realizujące rezerwację)
+      description: 'Converts an ACTIVE reservation into stored goods: creates a storage
+        record on the reserved shelf (owner/request from the reservation), marks the
+        reservation FULFILLED, and logs a RECEIVED event. Cargo defaults to the reserved
+        amounts.'
+      operationId: fulfillReservation
+      parameters:
+      - name: reservation_id
+        in: path
+        required: true
+        schema:
+          title: Reservation Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationFulfill'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageRecord'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /storage/{record_id}/move:
+    post:
+      tags:
+      - StorageOperations
+      summary: Move stored goods to another shelf (przesunięcie)
+      description: Relocates an open record within the same warehouse. Logs a MOVED
+        event.
+      operationId: moveGoods
+      parameters:
+      - name: record_id
+        in: path
+        description: Storage record ID (storage_record_id)
+        required: true
+        schema:
+          title: Record Id
+          type: integer
+          description: Storage record ID (storage_record_id)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageRecord'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /storage/{record_id}/dispatch:
+    post:
+      tags:
+      - StorageOperations
+      summary: Dispatch goods from the warehouse (wydanie)
+      description: Closes an open record (sets exit date). Logs a DISPATCHED event.
+      operationId: dispatchGoods
+      parameters:
+      - name: record_id
+        in: path
+        description: Storage record ID (storage_record_id)
+        required: true
+        schema:
+          title: Record Id
+          type: integer
+          description: Storage record ID (storage_record_id)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageRecord'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /storage/{record_id}/damage:
+    post:
+      tags:
+      - StorageOperations
+      summary: Flag stored goods as damaged (uszkodzenie)
+      description: Sets condition=DAMAGED. Goods stay on the shelf (still occupied).
+        Logs a DAMAGED event.
+      operationId: reportDamage
+      parameters:
+      - name: record_id
+        in: path
+        description: Storage record ID (storage_record_id)
+        required: true
+        schema:
+          title: Record Id
+          type: integer
+          description: Storage record ID (storage_record_id)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConditionReport'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageRecord'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /storage/{record_id}/loss:
+    post:
+      tags:
+      - StorageOperations
+      summary: Write off stored goods as lost (zaginięcie)
+      description: Sets condition=LOST and actual_exit_date — removed from stock,
+        distinct from DISPATCHED. Logs a LOST event.
+      operationId: reportLoss
+      parameters:
+      - name: record_id
+        in: path
+        description: Storage record ID (storage_record_id)
+        required: true
+        schema:
+          title: Record Id
+          type: integer
+          description: Storage record ID (storage_record_id)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConditionReport'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageRecord'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
   /employees:
     get:
+      tags:
+      - Employees
       summary: Employee list
       description: Returns a list of all employees with their contact and role data.
       operationId: getEmployees
-      tags:
-        - Employees
       responses:
         '200':
-          description: List of employees
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeList'
+        '422':
+          description: Unprocessable Entity
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/EmployeeListItem'
-
+                  $ref: '#/components/schemas/ValidationErrorModel'
   /employees/{employee_id}:
     get:
+      tags:
+      - Employees
       summary: Employee details
       description: Returns details of a single employee.
       operationId: getEmployee
-      tags:
-        - Employees
       parameters:
-        - name: employee_id
-          in: path
-          required: true
+      - name: employee_id
+        in: path
+        description: Employee ID (party_id)
+        required: true
+        schema:
+          title: Employee Id
+          type: integer
           description: Employee ID (party_id)
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: Employee data
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/EmployeeListItem'
         '404':
-          description: Employee not found
+          description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-
-  # --- Warehouse ---
-  /warehouse/{warehouse_id}:
-    get:
-      summary: Warehouse employees
-      description: Returns a list of employees assigned to the given warehouse.
-      operationId: getWarehouseEmployees
-      tags:
-        - Warehouse
-      parameters:
-        - name: warehouse_id
-          in: path
-          required: true
-          description: Warehouse ID
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: List of warehouse employees
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/EmployeeListItem'
-
-  # --- Contractors ---
+                  $ref: '#/components/schemas/ValidationErrorModel'
   /contractors:
     get:
+      tags:
+      - Contractors
       summary: Contractor list
       description: Returns a list of contractors (companies) with basic data.
       operationId: getContractors
-      tags:
-        - Contractors
       responses:
         '200':
-          description: List of contractors
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractorSummaryList'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ContractorSummary'
-        '500':
-          description: Data validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
+                  $ref: '#/components/schemas/ValidationErrorModel'
   /contractors/{id}:
     get:
-      summary: Contractor details
-      description: Returns full contractor data including addresses and representative employees.
-      operationId: getContractorDetails
       tags:
-        - Contractors
+      - Contractors
+      summary: Contractor details
+      description: Returns full contractor data including addresses and representative
+        employees.
+      operationId: getContractorDetails
       parameters:
-        - name: id
-          in: path
-          required: true
+      - name: id
+        in: path
+        description: Contractor ID (party_id)
+        required: true
+        schema:
+          title: Id
+          type: integer
           description: Contractor ID (party_id)
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: Contractor details
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ContractorDetails'
         '404':
-          description: Contractor not found
+          description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Data validation error
+          description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-
-    patch:
-      summary: Update contractor status
-      description: Updates contractor status (ACTIVE/INACTIVE).
-      operationId: updateContractorStatus
-      tags:
-        - Contractors
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: Contractor ID (party_id)
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ContractorStatusUpdate'
-      responses:
-        '200':
-          description: Status updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ContractorStatusUpdateResponse'
-        '400':
-          description: Invalid request body
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Contractor not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  # --- Payments ---
-  /payments:
-    get:
-      summary: Payment list
-      description: Returns a list of payments with optional filtering by status and party_id.
-      operationId: getPaymentsList
-      tags:
-        - Payments
-      parameters:
-        - name: status
-          in: query
-          required: false
-          description: Filter by payment status
-          schema:
-            type: string
-        - name: party_id
-          in: query
-          required: false
-          description: Filter by party ID (contractor)
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: List of payments
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Payment'
-
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    patch:
+      tags:
+      - Contractors
+      summary: Update contractor status
+      description: Updates contractor status (ACTIVE/INACTIVE).
+      operationId: updateContractorStatus
+      parameters:
+      - name: id
+        in: path
+        description: Contractor ID (party_id)
+        required: true
+        schema:
+          title: Id
+          type: integer
+          description: Contractor ID (party_id)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContractorStatusUpdate'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractorStatusUpdateResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /warehouses:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: List warehouses
+      operationId: listWarehouses
+      parameters:
+      - name: includeInactive
+        in: query
+        description: Include soft-deleted (INACTIVE) rows
+        required: false
+        schema:
+          title: Includeinactive
+          type: boolean
+          description: Include soft-deleted (INACTIVE) rows
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarehouseList'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    post:
+      tags:
+      - WarehouseStructure
+      summary: Create warehouse (with its location)
+      operationId: createWarehouse
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseCreate'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /warehouses/{warehouse_id}:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: Warehouse details
+      operationId: getWarehouse
+      parameters:
+      - name: warehouse_id
+        in: path
+        required: true
+        schema:
+          title: Warehouse Id
+          type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    delete:
+      tags:
+      - WarehouseStructure
+      summary: Soft-delete warehouse (status -> INACTIVE)
+      description: Blocked with 409 while the warehouse still has active zones.
+      operationId: deleteWarehouse
+      parameters:
+      - name: warehouse_id
+        in: path
+        required: true
+        schema:
+          title: Warehouse Id
+          type: integer
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    patch:
+      tags:
+      - WarehouseStructure
+      summary: Update warehouse (name/description/status)
+      operationId: updateWarehouse
+      parameters:
+      - name: warehouse_id
+        in: path
+        required: true
+        schema:
+          title: Warehouse Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseUpdate'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /warehouses/{warehouse_id}/employees:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: Employees assigned to a warehouse
+      description: Employees assigned to a warehouse, with their roles.
+      operationId: getWarehouseEmployees
+      parameters:
+      - name: warehouse_id
+        in: path
+        required: true
+        schema:
+          title: Warehouse Id
+          type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeList'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /warehouses/{warehouse_id}/inventory:
+    get:
+      tags:
+      - Inventory
+      summary: Stored-goods rollup per zone for a warehouse
+      description: Stored-goods rollup (open storage records) aggregated per active
+        zone.
+      operationId: getWarehouseInventory
+      parameters:
+      - name: warehouse_id
+        in: path
+        required: true
+        schema:
+          title: Warehouse Id
+          type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarehouseInventory'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /warehouses/{warehouse_id}/zones:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: List zones of a warehouse
+      operationId: listWarehouseZones
+      parameters:
+      - name: warehouse_id
+        in: path
+        required: true
+        schema:
+          title: Warehouse Id
+          type: integer
+      - name: includeInactive
+        in: query
+        description: Include soft-deleted (INACTIVE) rows
+        required: false
+        schema:
+          title: Includeinactive
+          type: boolean
+          description: Include soft-deleted (INACTIVE) rows
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneList'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    post:
+      tags:
+      - WarehouseStructure
+      summary: Create zone in a warehouse
+      operationId: createWarehouseZone
+      parameters:
+      - name: warehouse_id
+        in: path
+        required: true
+        schema:
+          title: Warehouse Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ZoneCreate'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Zone'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /zones/{zone_id}:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: Zone details
+      operationId: getZone
+      parameters:
+      - name: zone_id
+        in: path
+        required: true
+        schema:
+          title: Zone Id
+          type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Zone'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    delete:
+      tags:
+      - WarehouseStructure
+      summary: Soft-delete zone (blocked 409 if active aisles)
+      operationId: deleteZone
+      parameters:
+      - name: zone_id
+        in: path
+        required: true
+        schema:
+          title: Zone Id
+          type: integer
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    patch:
+      tags:
+      - WarehouseStructure
+      summary: Update zone
+      operationId: updateZone
+      parameters:
+      - name: zone_id
+        in: path
+        required: true
+        schema:
+          title: Zone Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ZoneUpdate'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Zone'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /zones/{zone_id}/aisles:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: List aisles of a zone
+      operationId: listZoneAisles
+      parameters:
+      - name: zone_id
+        in: path
+        required: true
+        schema:
+          title: Zone Id
+          type: integer
+      - name: includeInactive
+        in: query
+        description: Include soft-deleted (INACTIVE) rows
+        required: false
+        schema:
+          title: Includeinactive
+          type: boolean
+          description: Include soft-deleted (INACTIVE) rows
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AisleList'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    post:
+      tags:
+      - WarehouseStructure
+      summary: Create aisle in a zone
+      operationId: createZoneAisle
+      parameters:
+      - name: zone_id
+        in: path
+        required: true
+        schema:
+          title: Zone Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AisleCreate'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aisle'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /aisles/{aisle_id}:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: Aisle details
+      operationId: getAisle
+      parameters:
+      - name: aisle_id
+        in: path
+        required: true
+        schema:
+          title: Aisle Id
+          type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aisle'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    delete:
+      tags:
+      - WarehouseStructure
+      summary: Soft-delete aisle (blocked 409 if active racks)
+      operationId: deleteAisle
+      parameters:
+      - name: aisle_id
+        in: path
+        required: true
+        schema:
+          title: Aisle Id
+          type: integer
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    patch:
+      tags:
+      - WarehouseStructure
+      summary: Update aisle
+      operationId: updateAisle
+      parameters:
+      - name: aisle_id
+        in: path
+        required: true
+        schema:
+          title: Aisle Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AisleUpdate'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aisle'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /aisles/{aisle_id}/racks:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: List racks of an aisle
+      operationId: listAisleRacks
+      parameters:
+      - name: aisle_id
+        in: path
+        required: true
+        schema:
+          title: Aisle Id
+          type: integer
+      - name: includeInactive
+        in: query
+        description: Include soft-deleted (INACTIVE) rows
+        required: false
+        schema:
+          title: Includeinactive
+          type: boolean
+          description: Include soft-deleted (INACTIVE) rows
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RackList'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    post:
+      tags:
+      - WarehouseStructure
+      summary: Create rack in an aisle
+      operationId: createAisleRack
+      parameters:
+      - name: aisle_id
+        in: path
+        required: true
+        schema:
+          title: Aisle Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RackCreate'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rack'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /racks/{rack_id}:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: Rack details
+      operationId: getRack
+      parameters:
+      - name: rack_id
+        in: path
+        required: true
+        schema:
+          title: Rack Id
+          type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rack'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    delete:
+      tags:
+      - WarehouseStructure
+      summary: Soft-delete rack (blocked 409 if active shelves)
+      operationId: deleteRack
+      parameters:
+      - name: rack_id
+        in: path
+        required: true
+        schema:
+          title: Rack Id
+          type: integer
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    patch:
+      tags:
+      - WarehouseStructure
+      summary: Update rack
+      operationId: updateRack
+      parameters:
+      - name: rack_id
+        in: path
+        required: true
+        schema:
+          title: Rack Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RackUpdate'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rack'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /racks/{rack_id}/shelves:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: List shelves of a rack (with occupancy)
+      operationId: listRackShelves
+      parameters:
+      - name: rack_id
+        in: path
+        required: true
+        schema:
+          title: Rack Id
+          type: integer
+      - name: includeInactive
+        in: query
+        description: Include soft-deleted (INACTIVE) rows
+        required: false
+        schema:
+          title: Includeinactive
+          type: boolean
+          description: Include soft-deleted (INACTIVE) rows
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShelfList'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    post:
+      tags:
+      - WarehouseStructure
+      summary: Create shelf in a rack
+      operationId: createRackShelf
+      parameters:
+      - name: rack_id
+        in: path
+        required: true
+        schema:
+          title: Rack Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShelfCreate'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shelf'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /racks/{rack_id}/shelves:bulk:
+    post:
+      tags:
+      - WarehouseStructure
+      summary: Bulk-provision N identical shelves in a rack
+      operationId: bulkCreateRackShelves
+      parameters:
+      - name: rack_id
+        in: path
+        required: true
+        schema:
+          title: Rack Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShelfBulkCreate'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShelfList'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /shelves/{shelf_id}:
+    get:
+      tags:
+      - WarehouseStructure
+      summary: Shelf details (capacity + live occupancy + locationCode)
+      operationId: getShelf
+      parameters:
+      - name: shelf_id
+        in: path
+        required: true
+        schema:
+          title: Shelf Id
+          type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shelf'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    delete:
+      tags:
+      - WarehouseStructure
+      summary: Soft-delete shelf (blocked 409 if active reservations/open records)
+      operationId: deleteShelf
+      parameters:
+      - name: shelf_id
+        in: path
+        required: true
+        schema:
+          title: Shelf Id
+          type: integer
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+    patch:
+      tags:
+      - WarehouseStructure
+      summary: Update shelf
+      operationId: updateShelf
+      parameters:
+      - name: shelf_id
+        in: path
+        required: true
+        schema:
+          title: Shelf Id
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShelfUpdate'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shelf'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
+  /inventory:
+    get:
+      tags:
+      - Inventory
+      summary: Currently stored cargo lots (filterable)
+      description: Open storage records, optionally filtered by party / warehouse
+        / zone / shelf. Each item carries its locationCode.
+      operationId: listInventory
+      parameters:
+      - name: partyId
+        in: query
+        description: Owner of the cargo (answers "where is customer X's goods?")
+        required: false
+        schema:
+          title: Partyid
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Owner of the cargo (answers "where is customer X's goods?")
+          default: null
+      - name: warehouseId
+        in: query
+        description: Restrict to one warehouse
+        required: false
+        schema:
+          title: Warehouseid
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Restrict to one warehouse
+          default: null
+      - name: zoneId
+        in: query
+        description: Restrict to one zone
+        required: false
+        schema:
+          title: Zoneid
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Restrict to one zone
+          default: null
+      - name: shelfId
+        in: query
+        description: Cargo on a specific shelf (replaces the old /shelves/{id}/contents)
+        required: false
+        schema:
+          title: Shelfid
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Cargo on a specific shelf (replaces the old /shelves/{id}/contents)
+          default: null
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageRecordItemList'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationErrorModel'
 components:
   schemas:
-    # --- Health ---
     HealthStatus:
-      type: object
+      title: HealthStatus
       required:
-        - status
-        - timestamp
-        - uptime_seconds
-        - dependencies
+      - status
+      - timestamp
+      - uptime_seconds
+      - version
+      - dependencies
+      type: object
       properties:
         status:
+          title: Status
           type: string
-          enum: [UP, DOWN]
-          description: Overall service status
+          description: 'Overall service status: UP or DOWN'
         timestamp:
+          title: Timestamp
           type: number
-          format: double
           description: Unix timestamp
         uptime_seconds:
+          title: Uptime Seconds
           type: integer
           description: Service uptime in seconds
         version:
+          title: Version
           type: string
-          description: Application version (e.g. from VERSION env variable)
+          description: Application version (from VERSION env var)
         dependencies:
+          title: Dependencies
           type: object
           additionalProperties:
             type: string
-            enum: [UP, DOWN]
-          description: Dependency status (e.g. postgres)
-
-    # --- Storage ---
+          description: 'Per-dependency status (e.g. {"postgres": "UP"})'
+      description: Service status, uptime and dependency health.
+    PaymentList:
+      title: PaymentList
+      type: array
+      items:
+        $ref: '#/components/schemas/Payment'
+      description: List of payments.
+    Payment:
+      title: Payment
+      required:
+      - payment_id
+      type: object
+      properties:
+        payment_id:
+          title: Payment Id
+          type: integer
+        storage_record_id:
+          title: Storage Record Id
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        party_id:
+          title: Party Id
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        amount:
+          title: Amount
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
+        currency:
+          title: Currency
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        status:
+          title: Status
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        payment_date:
+          title: Payment Date
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        external_reference:
+          title: External Reference
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+    StorageRecord:
+      title: StorageRecord
+      required:
+      - recordId
+      - requestId
+      - partyId
+      - shelfId
+      - cargoWeight
+      - cargoVolume
+      - status
+      type: object
+      properties:
+        recordId:
+          title: Recordid
+          type: string
+        requestId:
+          title: Requestid
+          type: string
+        partyId:
+          title: Partyid
+          type: string
+        partyName:
+          title: Partyname
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        shelfId:
+          title: Shelfid
+          type: string
+        locationCode:
+          title: Locationcode
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        cargoDescription:
+          title: Cargodescription
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        cargoWeight:
+          title: Cargoweight
+          type: number
+        cargoVolume:
+          title: Cargovolume
+          type: number
+        entryDate:
+          title: Entrydate
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        exitDate:
+          title: Exitdate
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        condition:
+          title: Condition
+          type: string
+          default: GOOD
+        status:
+          title: Status
+          type: string
+      description: Full storage-record response (open or closed).
+    ErrorResponse:
+      title: ErrorResponse
+      required:
+      - error
+      type: object
+      properties:
+        error:
+          title: Error
+          type: string
+          description: Human-readable error message
+      description: Standard error envelope.
+    StorageRecordList:
+      title: StorageRecordList
+      type: array
+      items:
+        $ref: '#/components/schemas/StorageRecord'
+      description: List of storage records.
+    RecordStatus:
+      title: RecordStatus
+      enum:
+      - STORED
+      - DISPATCHED
+      - DAMAGED
+      - LOST
+      type: string
+    StorageEventList:
+      title: StorageEventList
+      type: array
+      items:
+        $ref: '#/components/schemas/StorageEvent'
+      description: Event history for a storage record.
     StorageEvent:
+      title: StorageEvent
+      required:
+      - event_id
+      - storage_record_id
+      - event_type_id
+      - party_id
       type: object
       properties:
         event_id:
+          title: Event Id
           type: integer
-          format: int64
         storage_record_id:
+          title: Storage Record Id
           type: integer
-          format: int64
         event_type_id:
+          title: Event Type Id
           type: integer
-          format: int64
         event_time:
-          type: string
-          format: date-time
+          title: Event Time
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         party_id:
+          title: Party Id
           type: integer
-          format: int64
         details:
-          type: object
-          nullable: true
+          title: Details
+          anyOf:
+          - type: object
+            additionalProperties: true
+          - type: 'null'
+          default: null
+    ReceiptCreate:
+      title: ReceiptCreate
+      required:
+      - requestId
+      - shelfId
+      - cargoDescription
+      - cargoWeight
+      - cargoVolume
+      type: object
+      properties:
+        requestId:
+          title: Requestid
+          type: string
+        shelfId:
+          title: Shelfid
+          type: string
+        cargoDescription:
+          title: Cargodescription
+          type: string
+        cargoWeight:
+          title: Cargoweight
+          exclusiveMinimum: 0.0
+          type: number
+        cargoVolume:
+          title: Cargovolume
+          exclusiveMinimum: 0.0
+          type: number
+        entryDate:
+          title: Entrydate
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      description: 'POST /storage/receipts — put goods away on a shelf against a storage
+        request.
 
-    # --- Employees ---
+
+        The owning party is derived from the request; only the physical facts are
+
+        supplied here.'
+    ReservationFulfill:
+      title: ReservationFulfill
+      type: object
+      properties:
+        cargoDescription:
+          title: Cargodescription
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        cargoWeight:
+          title: Cargoweight
+          anyOf:
+          - exclusiveMinimum: 0.0
+            type: number
+          - type: 'null'
+          default: null
+        cargoVolume:
+          title: Cargovolume
+          anyOf:
+          - exclusiveMinimum: 0.0
+            type: number
+          - type: 'null'
+          default: null
+        entryDate:
+          title: Entrydate
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      description: 'POST /storage/reservations/{id}/fulfill — receive goods against
+        a reservation.
+
+
+        Shelf, request and owner come from the reservation. Cargo weight/volume are
+
+        optional and default to the reserved amounts; if given they must not exceed
+
+        what was booked.'
+    MoveRequest:
+      title: MoveRequest
+      required:
+      - targetShelfId
+      type: object
+      properties:
+        targetShelfId:
+          title: Targetshelfid
+          type: string
+        note:
+          title: Note
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      description: POST /storage/{id}/move — relocate a stored lot to another shelf.
+    DispatchRequest:
+      title: DispatchRequest
+      type: object
+      properties:
+        exitDate:
+          title: Exitdate
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        note:
+          title: Note
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      description: POST /storage/{id}/dispatch — release goods from the warehouse.
+    ConditionReport:
+      title: ConditionReport
+      type: object
+      properties:
+        note:
+          title: Note
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      description: Body for POST /storage/{id}/damage and /loss — an optional operator
+        note.
+    EmployeeList:
+      title: EmployeeList
+      type: array
+      items:
+        $ref: '#/components/schemas/EmployeeListItem'
+      description: List of employees.
     EmployeeListItem:
+      title: EmployeeListItem
+      required:
+      - employee_id
+      - employee_name
       type: object
       properties:
         employee_id:
+          title: Employee Id
           type: integer
-          format: int64
         employee_name:
+          title: Employee Name
           type: string
         email:
-          type: string
-          nullable: true
+          title: Email
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         phone:
-          type: string
-          nullable: true
+          title: Phone
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         hire_date:
-          type: string
-          format: date-time
-          nullable: true
+          title: Hire Date
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         roles:
-          type: string
+          title: Roles
+          anyOf:
+          - type: string
+          - type: 'null'
           description: Roles separated by commas
-
-    # --- Contractors (contracts) ---
-    ContractorStatus:
-      type: string
-      enum: [ACTIVE, INACTIVE]
-
+          default: null
+    ContractorSummaryList:
+      title: ContractorSummaryList
+      type: array
+      items:
+        $ref: '#/components/schemas/ContractorSummary'
+      description: List of contractors.
     Contact:
+      title: Contact
       type: object
       properties:
         type:
-          type: string
-          nullable: true
+          title: Type
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         details:
-          type: string
-          nullable: true
-
+          title: Details
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      description: Contact
+    ContractorStatus:
+      title: ContractorStatus
+      enum:
+      - ACTIVE
+      - INACTIVE
+      type: string
+      description: ContractorStatus
     ContractorSummary:
-      type: object
+      title: ContractorSummary
       required:
-        - id
-        - name
-        - status
-        - contacts
+      - id
+      - name
+      - status
+      - contacts
+      type: object
       properties:
         id:
+          title: Id
           type: string
         name:
+          title: Name
           type: string
         status:
           $ref: '#/components/schemas/ContractorStatus'
         tax_id_number:
-          type: string
-          nullable: true
+          title: Tax Id Number
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         contacts:
+          title: Contacts
           type: array
           items:
             $ref: '#/components/schemas/Contact'
-
-    AddressDetails:
-      type: object
-      properties:
-        address_id:
-          type: string
-          nullable: true
-        street_address:
-          type: string
-          nullable: true
-        city:
-          type: string
-          nullable: true
-        country:
-          type: string
-          nullable: true
-        postal_code:
-          type: string
-          nullable: true
-        address_type:
-          type: string
-          nullable: true
-
-    EmployeeSummaryEmployeeData:
-      type: object
-      properties:
-        type:
-          type: string
-          nullable: true
-        job_title:
-          type: string
-          nullable: true
-
-    EmployeeSummary:
-      type: object
-      properties:
-        employee_id:
-          type: string
-          nullable: true
-        employee_name:
-          type: string
-          nullable: true
-        employee_data:
-          $ref: '#/components/schemas/EmployeeSummaryEmployeeData'
-        contacts:
-          type: array
-          items:
-            $ref: '#/components/schemas/Contact'
-          nullable: true
-
+      description: ContractorSummary
     ContractorDetails:
-      type: object
+      title: ContractorDetails
       required:
-        - id
-        - name
-        - status
-        - contacts
-        - addresses
-        - employees
+      - id
+      - name
+      - status
+      - contacts
+      - addresses
+      - employees
+      type: object
       properties:
         id:
+          title: Id
           type: string
         name:
+          title: Name
           type: string
         status:
           $ref: '#/components/schemas/ContractorStatus'
         tax_id_number:
-          type: string
-          nullable: true
+          title: Tax Id Number
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         created_at:
-          type: string
-          format: date-time
-          nullable: true
+          title: Created At
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          default: null
         updated_at:
-          type: string
-          format: date-time
-          nullable: true
+          title: Updated At
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          default: null
         contacts:
+          title: Contacts
           type: array
           items:
             $ref: '#/components/schemas/Contact'
         addresses:
+          title: Addresses
           type: array
           items:
             $ref: '#/components/schemas/AddressDetails'
         employees:
+          title: Employees
           type: array
           items:
             $ref: '#/components/schemas/EmployeeSummary'
-
-    ContractorStatusUpdate:
+      description: ContractorDetails
+    AddressDetails:
+      title: AddressDetails
       type: object
-      required:
-        - status
       properties:
-        status:
-          $ref: '#/components/schemas/ContractorStatus'
-
+        address_id:
+          title: Address Id
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        street_address:
+          title: Street Address
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        city:
+          title: City
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        country:
+          title: Country
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        postal_code:
+          title: Postal Code
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        address_type:
+          title: Address Type
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      description: AddressDetails
+    EmployeeSummary:
+      title: EmployeeSummary
+      type: object
+      properties:
+        employee_id:
+          title: Employee Id
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        employee_name:
+          title: Employee Name
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        employee_data:
+          anyOf:
+          - $ref: '#/components/schemas/EmployeeSummaryEmployeeData'
+          - type: 'null'
+          default: null
+        contacts:
+          title: Contacts
+          anyOf:
+          - type: array
+            items:
+              $ref: '#/components/schemas/Contact'
+          - type: 'null'
+          default: null
+      description: EmployeeSummary
+    EmployeeSummaryEmployeeData:
+      title: EmployeeSummaryEmployeeData
+      type: object
+      properties:
+        type:
+          title: Type
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        job_title:
+          title: Job Title
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      description: EmployeeSummaryEmployeeData
     ContractorStatusUpdateResponse:
+      title: ContractorStatusUpdateResponse
+      required:
+      - message
       type: object
       properties:
         message:
+          title: Message
           type: string
-          example: "Contractor 123 status updated successfully to ACTIVE"
-
-    # --- Payments ---
-    Payment:
+    ContractorStatusUpdate:
+      title: ContractorStatusUpdate
+      required:
+      - status
       type: object
       properties:
-        payment_id:
-          type: integer
-          format: int64
-        storage_record_id:
-          type: integer
-          format: int64
-          nullable: true
-        party_id:
-          type: integer
-          format: int64
-          nullable: true
-        amount:
-          type: number
-          nullable: true
-        currency:
-          type: string
-          nullable: true
         status:
-          type: string
-          nullable: true
-        payment_date:
-          type: string
-          format: date-time
-          nullable: true
-        external_reference:
-          type: string
-          nullable: true
-
-    # --- Errors ---
-    Error:
+          $ref: '#/components/schemas/ContractorStatus'
+      description: ContractorStatusUpdate
+    WarehouseList:
+      title: WarehouseList
+      type: array
+      items:
+        $ref: '#/components/schemas/Warehouse'
+      description: List of warehouses.
+    LocationInfo:
+      title: LocationInfo
+      required:
+      - address
+      - city
+      - postalCode
+      - country
       type: object
       properties:
-        error:
+        address:
+          title: Address
           type: string
-          description: Error message
+        city:
+          title: City
+          type: string
+        postalCode:
+          title: Postalcode
+          type: string
+        country:
+          title: Country
+          type: string
+      description: Physical address of a warehouse (`location` table).
+    StructureStatus:
+      title: StructureStatus
+      enum:
+      - ACTIVE
+      - BLOCKED
+      - MAINTENANCE
+      - INACTIVE
+      type: string
+      description: 'Lifecycle status shared by every structure entity.
+
+
+        - ACTIVE: in service, available for allocation.
+
+        - BLOCKED: temporarily unavailable (e.g. damaged, audit hold).
+
+        - MAINTENANCE: out for repair/cleaning.
+
+        - INACTIVE: soft-deleted / decommissioned (set by DELETE).'
+    Warehouse:
+      title: Warehouse
+      required:
+      - id
+      - name
+      type: object
+      properties:
+        id:
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        description:
+          title: Description
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        status:
+          $ref: '#/components/schemas/StructureStatus'
+          default: ACTIVE
+        location:
+          anyOf:
+          - $ref: '#/components/schemas/LocationInfo'
+          - type: 'null'
+          default: null
+        zoneCount:
+          title: Zonecount
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+      description: Warehouse response (list item and details).
+    WarehouseCreate:
+      title: WarehouseCreate
+      required:
+      - name
+      - description
+      - location
+      type: object
+      properties:
+        name:
+          title: Name
+          type: string
+        description:
+          title: Description
+          type: string
+        location:
+          $ref: '#/components/schemas/LocationInfo'
+      description: POST /warehouses body. Creates the warehouse together with its
+        location.
+    WarehouseUpdate:
+      title: WarehouseUpdate
+      type: object
+      properties:
+        name:
+          title: Name
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        description:
+          title: Description
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/StructureStatus'
+          - type: 'null'
+          default: null
+      description: PATCH /warehouses/{id} body. All fields optional; only provided
+        keys change.
+    WarehouseInventory:
+      title: WarehouseInventory
+      required:
+      - warehouseId
+      - recordCount
+      - totalWeight
+      - totalVolume
+      type: object
+      properties:
+        warehouseId:
+          title: Warehouseid
+          type: string
+        recordCount:
+          title: Recordcount
+          type: integer
+        totalWeight:
+          title: Totalweight
+          type: number
+        totalVolume:
+          title: Totalvolume
+          type: number
+        zones:
+          title: Zones
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneInventory'
+      description: Warehouse-level inventory rollup, broken down by zone.
+    ZoneInventory:
+      title: ZoneInventory
+      required:
+      - zoneId
+      - zoneName
+      - recordCount
+      - totalWeight
+      - totalVolume
+      type: object
+      properties:
+        zoneId:
+          title: Zoneid
+          type: string
+        zoneName:
+          title: Zonename
+          type: string
+        recordCount:
+          title: Recordcount
+          type: integer
+        totalWeight:
+          title: Totalweight
+          type: number
+        totalVolume:
+          title: Totalvolume
+          type: number
+      description: Aggregated stored goods for a single zone.
+    ZoneList:
+      title: ZoneList
+      type: array
+      items:
+        $ref: '#/components/schemas/Zone'
+      description: List of zones.
+    Zone:
+      title: Zone
+      required:
+      - id
+      - warehouseId
+      - name
+      type: object
+      properties:
+        id:
+          title: Id
+          type: string
+        warehouseId:
+          title: Warehouseid
+          type: string
+        name:
+          title: Name
+          type: string
+        description:
+          title: Description
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        status:
+          $ref: '#/components/schemas/StructureStatus'
+          default: ACTIVE
+        aisleCount:
+          title: Aislecount
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+      description: Zone response.
+    ZoneCreate:
+      title: ZoneCreate
+      required:
+      - name
+      - description
+      type: object
+      properties:
+        name:
+          title: Name
+          type: string
+        description:
+          title: Description
+          type: string
+      description: POST /warehouses/{warehouseId}/zones body.
+    ZoneUpdate:
+      title: ZoneUpdate
+      type: object
+      properties:
+        name:
+          title: Name
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        description:
+          title: Description
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/StructureStatus'
+          - type: 'null'
+          default: null
+      description: PATCH /zones/{id} body.
+    AisleList:
+      title: AisleList
+      type: array
+      items:
+        $ref: '#/components/schemas/Aisle'
+      description: List of aisles.
+    Aisle:
+      title: Aisle
+      required:
+      - id
+      - zoneId
+      - label
+      - width
+      - widthUnit
+      type: object
+      properties:
+        id:
+          title: Id
+          type: string
+        zoneId:
+          title: Zoneid
+          type: string
+        label:
+          title: Label
+          type: string
+        width:
+          title: Width
+          type: integer
+        widthUnit:
+          title: Widthunit
+          type: string
+        status:
+          $ref: '#/components/schemas/StructureStatus'
+          default: ACTIVE
+        rackCount:
+          title: Rackcount
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+      description: Aisle response.
+    AisleCreate:
+      title: AisleCreate
+      required:
+      - label
+      - width
+      - widthUnit
+      type: object
+      properties:
+        label:
+          title: Label
+          type: string
+        width:
+          title: Width
+          exclusiveMinimum: 0.0
+          type: integer
+        widthUnit:
+          title: Widthunit
+          type: string
+      description: POST /zones/{zoneId}/aisles body.
+    AisleUpdate:
+      title: AisleUpdate
+      type: object
+      properties:
+        label:
+          title: Label
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        width:
+          title: Width
+          anyOf:
+          - exclusiveMinimum: 0.0
+            type: integer
+          - type: 'null'
+          default: null
+        widthUnit:
+          title: Widthunit
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/StructureStatus'
+          - type: 'null'
+          default: null
+      description: PATCH /aisles/{id} body.
+    RackList:
+      title: RackList
+      type: array
+      items:
+        $ref: '#/components/schemas/Rack'
+      description: List of racks.
+    Rack:
+      title: Rack
+      required:
+      - id
+      - aisleId
+      - label
+      - maxHeight
+      - heightUnit
+      type: object
+      properties:
+        id:
+          title: Id
+          type: string
+        aisleId:
+          title: Aisleid
+          type: string
+        label:
+          title: Label
+          type: string
+        maxHeight:
+          title: Maxheight
+          type: integer
+        heightUnit:
+          title: Heightunit
+          type: string
+        status:
+          $ref: '#/components/schemas/StructureStatus'
+          default: ACTIVE
+        shelfCount:
+          title: Shelfcount
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+      description: Rack response.
+    RackCreate:
+      title: RackCreate
+      required:
+      - label
+      - maxHeight
+      - heightUnit
+      type: object
+      properties:
+        label:
+          title: Label
+          type: string
+        maxHeight:
+          title: Maxheight
+          exclusiveMinimum: 0.0
+          type: integer
+        heightUnit:
+          title: Heightunit
+          type: string
+      description: POST /aisles/{aisleId}/racks body.
+    RackUpdate:
+      title: RackUpdate
+      type: object
+      properties:
+        label:
+          title: Label
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        maxHeight:
+          title: Maxheight
+          anyOf:
+          - exclusiveMinimum: 0.0
+            type: integer
+          - type: 'null'
+          default: null
+        heightUnit:
+          title: Heightunit
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/StructureStatus'
+          - type: 'null'
+          default: null
+      description: PATCH /racks/{id} body.
+    ShelfList:
+      title: ShelfList
+      type: array
+      items:
+        $ref: '#/components/schemas/Shelf'
+      description: List of shelves.
+    Shelf:
+      title: Shelf
+      required:
+      - id
+      - rackId
+      - level
+      - maxWeight
+      - maxVolume
+      type: object
+      properties:
+        id:
+          title: Id
+          type: string
+        rackId:
+          title: Rackid
+          type: string
+        level:
+          title: Level
+          type: string
+        locationCode:
+          title: Locationcode
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        status:
+          $ref: '#/components/schemas/StructureStatus'
+          default: ACTIVE
+        maxWeight:
+          title: Maxweight
+          type: number
+        maxVolume:
+          title: Maxvolume
+          type: number
+        reservedWeight:
+          title: Reservedweight
+          type: number
+          default: 0
+        reservedVolume:
+          title: Reservedvolume
+          type: number
+          default: 0
+        availableWeight:
+          title: Availableweight
+          type: number
+          default: 0
+        availableVolume:
+          title: Availablevolume
+          type: number
+          default: 0
+        occupiedWeight:
+          title: Occupiedweight
+          type: number
+          default: 0
+        occupiedVolume:
+          title: Occupiedvolume
+          type: number
+          default: 0
+        storedRecordCount:
+          title: Storedrecordcount
+          type: integer
+          default: 0
+      description: Shelf response, including capacity and current occupancy.
+    ShelfCreate:
+      title: ShelfCreate
+      required:
+      - level
+      - maxWeight
+      - maxVolume
+      type: object
+      properties:
+        level:
+          title: Level
+          type: string
+        maxWeight:
+          title: Maxweight
+          exclusiveMinimum: 0.0
+          type: number
+        maxVolume:
+          title: Maxvolume
+          exclusiveMinimum: 0.0
+          type: number
+      description: POST /racks/{rackId}/shelves body.
+    ShelfBulkCreate:
+      title: ShelfBulkCreate
+      required:
+      - count
+      - maxWeight
+      - maxVolume
+      type: object
+      properties:
+        count:
+          title: Count
+          maximum: 100
+          exclusiveMinimum: 0.0
+          type: integer
+        maxWeight:
+          title: Maxweight
+          exclusiveMinimum: 0.0
+          type: number
+        maxVolume:
+          title: Maxvolume
+          exclusiveMinimum: 0.0
+          type: number
+        levelPrefix:
+          title: Levelprefix
+          type: string
+          default: L
+      description: 'POST /racks/{rackId}/shelves:bulk body — provision N identical
+        shelves at once.
+
+
+        Levels are generated as `{levelPrefix}{1..count}` (default prefix "L").'
+    ShelfUpdate:
+      title: ShelfUpdate
+      type: object
+      properties:
+        level:
+          title: Level
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        maxWeight:
+          title: Maxweight
+          anyOf:
+          - exclusiveMinimum: 0.0
+            type: number
+          - type: 'null'
+          default: null
+        maxVolume:
+          title: Maxvolume
+          anyOf:
+          - exclusiveMinimum: 0.0
+            type: number
+          - type: 'null'
+          default: null
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/StructureStatus'
+          - type: 'null'
+          default: null
+      description: PATCH /shelves/{id} body.
+    StorageRecordItemList:
+      title: StorageRecordItemList
+      type: array
+      items:
+        $ref: '#/components/schemas/StorageRecordItem'
+      description: List of currently stored cargo lots.
+    StorageRecordItem:
+      title: StorageRecordItem
+      required:
+      - recordId
+      - partyId
+      - cargoWeight
+      - cargoVolume
+      type: object
+      properties:
+        recordId:
+          title: Recordid
+          type: string
+        partyId:
+          title: Partyid
+          type: string
+        partyName:
+          title: Partyname
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        warehouseId:
+          title: Warehouseid
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        shelfId:
+          title: Shelfid
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        locationCode:
+          title: Locationcode
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        cargoDescription:
+          title: Cargodescription
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        cargoWeight:
+          title: Cargoweight
+          type: number
+        cargoVolume:
+          title: Cargovolume
+          type: number
+        entryDate:
+          title: Entrydate
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      description: A single cargo lot currently stored on a shelf.
+    ValidationErrorModel:
+      title: ValidationErrorModel
+      required:
+      - type
+      - loc
+      - msg
+      - input
+      type: object
+      properties:
+        type:
+          title: Error Type
+          type: string
+          description: A computer-readable identifier of the error type.
+        loc:
+          title: Location
+          type: array
+          items: {}
+          description: The error's location as a list.
+        msg:
+          title: Message
+          type: string
+          description: A human readable explanation of the error.
+        input:
+          title: Input
+          description: The input provided for validation.
+        url:
+          title: URL
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: The URL to further information about the error.
+          default: null
+        ctx:
+          title: Error context
+          anyOf:
+          - type: object
+            additionalProperties: true
+          - type: 'null'
+          description: An optional object which contains values required to render
+            the error message.
+          default: null
+tags:
+- name: Health
+  description: Service liveness / readiness
+- name: Payments
+  description: Storage payments
+- name: StorageOperations
+  description: Goods receipt / move / dispatch / write-off
+- name: Storage
+  description: Storage-record event history
+- name: Employees
+  description: Warehouse staff
+- name: Contractors
+  description: Contractor companies
+- name: WarehouseStructure
+  description: Warehouse / zone / aisle / rack / shelf CRUD
+- name: Inventory
+  description: Current stored-goods state

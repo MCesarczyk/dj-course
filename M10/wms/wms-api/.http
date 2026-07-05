@@ -69,7 +69,7 @@ Accept: application/json
 ########################################################
 
 ### Get employees for warehouse
-GET {{host}}/warehouse/{{warehouse_id}}
+GET {{host}}/warehouses/{{warehouse_id}}/employees
 Accept: application/json
 
 ########################################################
@@ -78,4 +78,236 @@ Accept: application/json
 
 ### Storage event history for a storage record
 GET {{host}}/storage/{{storage_record_id}}/events
+Accept: application/json
+
+########################################################
+### Storage operations (przyjęcie / przesunięcie / wydanie)
+########################################################
+
+@request_id = 1
+@target_shelf_id = 5
+
+@reservation_id = 26
+
+### Przyjęcie realizujące rezerwację (cargo domyślnie z rezerwacji)
+POST {{host}}/storage/reservations/{{reservation_id}}/fulfill
+Content-Type: application/json
+
+{ "cargoDescription": "Palety zgodne z rezerwacją" }
+
+### Przyjęcie: umieść towar na półce (właściciel z requestu)
+POST {{host}}/storage/receipts
+Content-Type: application/json
+
+{
+    "requestId": "{{request_id}}",
+    "shelfId": "{{shelf_id}}",
+    "cargoDescription": "Palety z kawą",
+    "cargoWeight": 80,
+    "cargoVolume": 0.9
+}
+
+### Szczegóły rekordu składowania
+GET {{host}}/storage/{{storage_record_id}}
+Accept: application/json
+
+### Przesunięcie na inną półkę
+POST {{host}}/storage/{{storage_record_id}}/move
+Content-Type: application/json
+
+{ "targetShelfId": "{{target_shelf_id}}", "note": "konsolidacja" }
+
+### Wydanie z magazynu
+POST {{host}}/storage/{{storage_record_id}}/dispatch
+Content-Type: application/json
+
+{ "note": "wydano kurierowi" }
+
+### Uszkodzenie: flaga DAMAGED (towar zostaje na półce)
+POST {{host}}/storage/{{storage_record_id}}/damage
+Content-Type: application/json
+
+{ "note": "rozerwane opakowanie" }
+
+### Zaginięcie: write-off LOST (zdejmowane ze stanu)
+POST {{host}}/storage/{{storage_record_id}}/loss
+Content-Type: application/json
+
+{ "note": "brak przy inwentaryzacji" }
+
+### Rejestr rekordów (pełny, z filtrami i statusem)
+GET {{host}}/storage/records?warehouseId={{warehouse_id}}
+Accept: application/json
+
+### Rejestr: tylko uszkodzone
+GET {{host}}/storage/records?status=DAMAGED
+Accept: application/json
+
+### Ścieżka audytu (RECEIVED -> MOVED -> DISPATCHED / DAMAGED / LOST)
+GET {{host}}/storage/{{storage_record_id}}/events
+Accept: application/json
+
+########################################################
+### Warehouse structure CRUD (Magazyn/Strefa/Rząd/Szafa/Półka)
+########################################################
+
+@zone_id = 1
+@aisle_id = 1
+@rack_id = 1
+@shelf_id = 1
+
+### List warehouses (active only)
+GET {{host}}/warehouses
+Accept: application/json
+
+### List warehouses incl. soft-deleted
+GET {{host}}/warehouses?includeInactive=true
+Accept: application/json
+
+### Create warehouse (with location)
+POST {{host}}/warehouses
+Content-Type: application/json
+
+{
+    "name": "DC North",
+    "description": "Northern distribution center",
+    "location": {
+        "address": "ul. Logistyczna 1",
+        "city": "Wrocław",
+        "postalCode": "50-001",
+        "country": "PL"
+    }
+}
+
+### Get warehouse details
+GET {{host}}/warehouses/{{warehouse_id}}
+Accept: application/json
+
+### Update warehouse
+PATCH {{host}}/warehouses/{{warehouse_id}}
+Content-Type: application/json
+
+{ "status": "MAINTENANCE" }
+
+### Soft-delete warehouse (409 if it has active zones)
+DELETE {{host}}/warehouses/{{warehouse_id}}
+
+### --- Zones ---
+### List zones of a warehouse
+GET {{host}}/warehouses/{{warehouse_id}}/zones
+Accept: application/json
+
+### Create zone in a warehouse
+POST {{host}}/warehouses/{{warehouse_id}}/zones
+Content-Type: application/json
+
+{ "name": "Zone A", "description": "Ambient storage" }
+
+### Get / update / delete a zone
+GET {{host}}/zones/{{zone_id}}
+Accept: application/json
+
+PATCH {{host}}/zones/{{zone_id}}
+Content-Type: application/json
+
+{ "name": "Zone A1" }
+
+DELETE {{host}}/zones/{{zone_id}}
+
+### --- Aisles ---
+### List / create aisles of a zone
+GET {{host}}/zones/{{zone_id}}/aisles
+Accept: application/json
+
+POST {{host}}/zones/{{zone_id}}/aisles
+Content-Type: application/json
+
+{ "label": "A-01", "width": 180, "widthUnit": "cm" }
+
+GET {{host}}/aisles/{{aisle_id}}
+Accept: application/json
+
+PATCH {{host}}/aisles/{{aisle_id}}
+Content-Type: application/json
+
+{ "width": 200 }
+
+DELETE {{host}}/aisles/{{aisle_id}}
+
+### --- Racks ---
+### List / create racks of an aisle
+GET {{host}}/aisles/{{aisle_id}}/racks
+Accept: application/json
+
+POST {{host}}/aisles/{{aisle_id}}/racks
+Content-Type: application/json
+
+{ "label": "R-01", "maxHeight": 240, "heightUnit": "cm" }
+
+GET {{host}}/racks/{{rack_id}}
+Accept: application/json
+
+PATCH {{host}}/racks/{{rack_id}}
+Content-Type: application/json
+
+{ "status": "BLOCKED" }
+
+DELETE {{host}}/racks/{{rack_id}}
+
+### --- Shelves ---
+### List shelves of a rack (with occupancy)
+GET {{host}}/racks/{{rack_id}}/shelves
+Accept: application/json
+
+### Create one shelf
+POST {{host}}/racks/{{rack_id}}/shelves
+Content-Type: application/json
+
+{ "level": "1", "maxWeight": 500, "maxVolume": 1.5 }
+
+### Bulk-provision 5 shelves
+POST {{host}}/racks/{{rack_id}}/shelves:bulk
+Content-Type: application/json
+
+{ "count": 5, "maxWeight": 500, "maxVolume": 1.5, "levelPrefix": "L" }
+
+### Get shelf (capacity + occupancy + locationCode)
+GET {{host}}/shelves/{{shelf_id}}
+Accept: application/json
+
+### Update shelf
+PATCH {{host}}/shelves/{{shelf_id}}
+Content-Type: application/json
+
+{ "maxWeight": 600 }
+
+### Soft-delete shelf (409 if active reservations / open records)
+DELETE {{host}}/shelves/{{shelf_id}}
+
+########################################################
+### Inventory state (co realnie leży w magazynie)
+########################################################
+
+### Shelf details now include occupied (physically stored) next to reserved
+GET {{host}}/shelves/{{shelf_id}}
+Accept: application/json
+
+### What is physically stored on a shelf (replaces /shelves/{id}/contents)
+GET {{host}}/inventory?shelfId={{shelf_id}}
+Accept: application/json
+
+### Warehouse inventory rollup per zone
+GET {{host}}/warehouses/{{warehouse_id}}/inventory
+Accept: application/json
+
+### All currently stored cargo lots in a warehouse
+GET {{host}}/inventory?warehouseId={{warehouse_id}}
+Accept: application/json
+
+### Where is a given customer's cargo?
+GET {{host}}/inventory?partyId={{party_id}}
+Accept: application/json
+
+### Stored cargo in a specific zone
+GET {{host}}/inventory?zoneId={{zone_id}}
 Accept: application/json

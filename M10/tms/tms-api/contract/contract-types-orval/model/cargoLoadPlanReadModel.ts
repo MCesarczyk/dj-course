@@ -6,8 +6,8 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CargoLoadPlanStatus } from './cargoLoadPlanStatus';
+import type { CarrierReadModel } from './carrierReadModel';
 import type { PalletUnitReadModel } from './palletUnitReadModel';
-import type { TrailerReadModel } from './trailerReadModel';
 import type { WeightUnit } from './weightUnit';
 
 /**
@@ -23,7 +23,7 @@ export interface CargoLoadPlanReadModel {
    */
   version: number;
   weightUnit: WeightUnit;
-  trailer: TrailerReadModel;
+  carrier: CarrierReadModel;
   /**
    * Currently used loading metres
    * @minimum 0

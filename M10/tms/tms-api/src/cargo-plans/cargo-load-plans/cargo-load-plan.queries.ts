@@ -1,8 +1,9 @@
 import { pool } from '../../database';
 import type { WeightUnit } from '../../shared/weight';
+import { Length } from '../../shared/length';
 import type { CargoLoadPlanReadModel } from '../../types/data-contracts';
 import { PalletSpec } from '../pallets/pallet-spec';
-import { TrailerFactory, toTrailerReadModel } from '../trailers';
+import { CarrierFactory, toCarrierReadModel } from '../carriers';
 import type { CargoLoadPlanDbRow } from './cargo-load-plan.repository';
 import { toReadModel } from './cargo-load-plan.readmodel';
 
@@ -20,7 +21,7 @@ export interface CargoLoadPlanQueries {
 export class SqlCargoLoadPlanQueries implements CargoLoadPlanQueries {
   async findPlan(id: string, weightUnit: WeightUnit = 'KG'): Promise<CargoLoadPlanReadModel | null> {
     const { rows: planRows } = await pool.query(
-      `SELECT id, trailer_type, status, current_ldm, version
+      `SELECT id, carrier_type, status, current_ldm, version
        FROM cargo_plans.cargo_load_plans
        WHERE id = $1`,
       [id],
@@ -29,7 +30,7 @@ export class SqlCargoLoadPlanQueries implements CargoLoadPlanQueries {
     if (planRows.length === 0) return null;
 
     const planRow = planRows[0];
-    const trailer = TrailerFactory.fromType(planRow.trailer_type);
+    const carrier = CarrierFactory.fromType(planRow.carrier_type);
 
     const { rows: unitRows } = await pool.query(
       `SELECT id, pallet_type, cargo_type, description, weight_kg, cargo_height_mm,
@@ -42,7 +43,7 @@ export class SqlCargoLoadPlanQueries implements CargoLoadPlanQueries {
     const row: CargoLoadPlanDbRow = {
       id: planRow.id,
       status: planRow.status,
-      trailer: toTrailerReadModel(trailer),
+      carrier: toCarrierReadModel(carrier),
       currentLdm: parseFloat(planRow.current_ldm),
       version: planRow.version,
       units: unitRows.map(u => {
@@ -53,7 +54,7 @@ export class SqlCargoLoadPlanQueries implements CargoLoadPlanQueries {
           cargoType: u.cargo_type,
           description: u.description ?? null,
           weightKg: parseFloat(u.weight_kg),
-          totalHeightMm: spec.height + parseInt(u.cargo_height_mm, 10),
+          totalHeightMm: spec.height.add(Length.from(parseInt(u.cargo_height_mm, 10), 'MM')).valueIn('MM'),
           requirements: {
             isTemperatureControlled: u.is_temperature_controlled,
             requiresSideLoading: u.requires_side_loading,

@@ -6,14 +6,83 @@ DROP TABLE IF EXISTS customers;
 DROP TABLE IF EXISTS driver_licenses;
 DROP TABLE IF EXISTS driver_license_types;
 DROP TABLE IF EXISTS drivers;
+DROP TABLE IF EXISTS vehicle_history_events;
+DROP TABLE IF EXISTS vehicle_documents;
 DROP TABLE IF EXISTS vehicles;
+DROP TABLE IF EXISTS vehicle_models;
+DROP TABLE IF EXISTS vehicle_brands;
 
+-- ─── Fleet catalog: brands (marki) ───────────────────────────────────────────
+CREATE TABLE vehicle_brands (
+    id      SERIAL PRIMARY KEY,
+    name    VARCHAR(80) UNIQUE NOT NULL,
+    country VARCHAR(80)
+);
+
+-- ─── Fleet catalog: models (modele) ──────────────────────────────────────────
+-- Rozróżnia pojazdy modularne (TRACTOR_UNIT + SEMI_TRAILER) od monolitycznych
+-- (VAN, BOX_TRUCK). Tylko naczepy (SEMI_TRAILER) mają rodzaj zabudowy (trailer_type).
+CREATE TABLE vehicle_models (
+    id           SERIAL PRIMARY KEY,
+    brand_id     INT NOT NULL REFERENCES vehicle_brands(id) ON DELETE CASCADE,
+    name         VARCHAR(120) NOT NULL,
+    kind         VARCHAR(20)  NOT NULL,
+    trailer_type VARCHAR(30),
+
+    CONSTRAINT uq_vehicle_model UNIQUE (brand_id, name),
+    CONSTRAINT chk_vehicle_model_kind
+        CHECK (kind IN ('TRACTOR_UNIT', 'SEMI_TRAILER', 'VAN', 'BOX_TRUCK')),
+    CONSTRAINT chk_vehicle_model_trailer_type
+        CHECK (
+            -- Only semi-trailers carry a body type; every other kind (tractor unit,
+            -- van, box truck) is a self-contained vehicle with no trailer_type.
+            (kind = 'SEMI_TRAILER' AND trailer_type IS NOT NULL) OR
+            (kind <> 'SEMI_TRAILER' AND trailer_type IS NULL)
+        )
+);
+
+-- ─── Fleet: vehicle instances (egzemplarze) ──────────────────────────────────
+-- Rozbudowa addytywna: legacy kolumny (make/model/year/fuel_tank_capacity)
+-- pozostają, nowe pola (katalog, rejestracja, przebieg, specs) są opcjonalne.
 CREATE TABLE vehicles (
-    id INT PRIMARY KEY,
-    make VARCHAR(50),
-    model VARCHAR(50),
-    year INT,
-    fuel_tank_capacity DECIMAL(5,1)
+    id                     INT PRIMARY KEY,
+    make                   VARCHAR(50),
+    model                  VARCHAR(50),
+    year                   INT,
+    fuel_tank_capacity     DECIMAL(5,1),
+    model_id               INT REFERENCES vehicle_models(id),
+    kind                   VARCHAR(20),
+    registration_number    VARCHAR(20),
+    vin                    VARCHAR(17),
+    first_registration_date DATE,
+    mileage_km             INT,
+    status                 VARCHAR(20) DEFAULT 'active',
+    specs                  JSONB,
+
+    CONSTRAINT chk_vehicle_kind
+        CHECK (kind IS NULL OR kind IN ('TRACTOR_UNIT', 'SEMI_TRAILER', 'VAN', 'BOX_TRUCK'))
+);
+
+-- ─── Fleet: vehicle documents (dokumenty egzemplarza) ────────────────────────
+CREATE TABLE vehicle_documents (
+    id              SERIAL PRIMARY KEY,
+    vehicle_id      INT NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    doc_type        VARCHAR(40) NOT NULL,
+    document_number VARCHAR(60),
+    issue_date      DATE,
+    expiry_date     DATE,
+    file_url        TEXT,
+    notes           TEXT
+);
+
+-- ─── Fleet: vehicle history events (krótka historia egzemplarza) ─────────────
+CREATE TABLE vehicle_history_events (
+    id          SERIAL PRIMARY KEY,
+    vehicle_id  INT NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    event_type  VARCHAR(40) NOT NULL,
+    event_date  DATE NOT NULL,
+    mileage_km  INT,
+    description TEXT
 );
 
 CREATE TABLE drivers (
@@ -113,3 +182,10 @@ CREATE INDEX idx_customers_last_name_lower_pattern ON customers (LOWER(last_name
 CREATE INDEX idx_notifications_user ON notifications(user_id);
 CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 CREATE INDEX idx_driver_licenses_expiry ON driver_licenses(expiry_date);
+CREATE INDEX idx_vehicle_models_brand ON vehicle_models(brand_id);
+CREATE INDEX idx_vehicle_models_kind ON vehicle_models(kind);
+CREATE INDEX idx_vehicles_model ON vehicles(model_id);
+CREATE INDEX idx_vehicles_kind ON vehicles(kind);
+CREATE INDEX idx_vehicle_documents_vehicle ON vehicle_documents(vehicle_id);
+CREATE INDEX idx_vehicle_documents_expiry ON vehicle_documents(expiry_date);
+CREATE INDEX idx_vehicle_history_vehicle ON vehicle_history_events(vehicle_id);

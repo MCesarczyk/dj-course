@@ -21,7 +21,8 @@
     "contract:validate": "npx @redocly/cli lint contract/openapi.yaml",
     "contract:validate:minimal": "npx @redocly/cli lint --extends minimal contract/openapi.yaml",
     "contract:serve": "nodemon --watch contract --watch src -e yaml -i contract/openapi.yaml --exec \"node scripts/serve-contract.js\"",
-    "test:cucumber": "cucumber-js"
+    "test:cucumber": "cucumber-js",
+    "lint:vo-leaks": "bash scripts/check-vo-leaks.sh"
   },
   "dependencies": {
     "@graphql-tools/schema": "^10.0.31",

@@ -1,121 +1,191 @@
-import { PactV3, MatchersV3 } from '@pact-foundation/pact';
-import path from 'path';
-import pact from '@pact-foundation/pact-cli';
+/**
+ * Pact consumer test — CargoPlanConsole → TmsApi (cargo-plans module).
+ *
+ * Exercises the full load-plan lifecycle the console client drives:
+ *   1. create a plan            POST   /cargo-plans
+ *   2. add cargo                POST   /cargo-plans/{id}/cargo
+ *   3. remove cargo             DELETE /cargo-plans/{id}/cargo/{unitId}
+ *   4. change the carrier       PUT    /cargo-plans/{id}/carrier
+ *   5. finalize the plan        POST   /cargo-plans/{id}/finalize
+ *   6. read the plan            GET    /cargo-plans/{id}
+ *
+ * The IDs in steps 2–6 are injected at verification time via
+ * `fromProviderState`: each provider state creates the resource on the live
+ * API and returns the real id, which Pact substitutes into the request path.
+ * That keeps the contract free of hard-coded UUIDs and decoupled from the DB.
+ *
+ * CDC highlight (step 6): the expected GET body omits the carrier's
+ * `capabilities` and each unit's `requirements`. This consumer does not use
+ * them, so they are not in the contract. The provider still returns them — and
+ * verification passes, because Pact only checks the fields the consumer declares.
+ */
 
-const { like, integer, string, eachLike } = MatchersV3;
+import path from 'path';
+import { PactV3, MatchersV3 } from '@pact-foundation/pact';
+import { CargoPlansClient } from './cargo-plans-client';
+
+const { integer, number, uuid, string, boolean, eachLike, fromProviderState } = MatchersV3;
+
+// Concrete example values used while running against the Pact mock server.
+const EXAMPLE_PLAN_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const EXAMPLE_UNIT_ID = 'b2c3d4e5-f6a7-8901-bcde-f12345678901';
 
 const provider = new PactV3({
-  consumer: 'TmsFrontend',
+  consumer: 'CargoPlanConsole',
   provider: 'TmsApi',
   dir: path.resolve(process.cwd(), 'pacts'),
 });
 
 async function runTest(): Promise<void> {
-  // Interaction 1: GET /customers – paginated customer list
+  // ── 1. Create a new load plan ────────────────────────────────────────────
   provider
-    .given('customers exist')
-    .uponReceiving('a request for the customer list')
-    .withRequest({ method: 'GET', path: '/customers' })
-    .willRespondWith({
-      status: 200,
+    .given('the provider is ready to create load plans')
+    .uponReceiving('a request to create a load plan')
+    .withRequest({
+      method: 'POST',
+      path: '/cargo-plans',
       headers: { 'Content-Type': 'application/json' },
-      body: {
-        data: eachLike({
-          id: integer(1),
-          first_name: string('Maida'),
-          last_name: string('Dach'),
-          nationality: string('Poland'),
-          email: string('forestraynor@bauch.io'),
-        }),
-        pagination: {
-          page: integer(1),
-          limit: integer(20),
-          total: integer(500),
-          totalPages: integer(25),
-        },
-      },
+      body: { carrierType: 'standard-curtainside' },
+    })
+    .willRespondWith({
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+      body: { id: uuid(EXAMPLE_PLAN_ID) },
     });
 
-  // Interaction 2: GET /transportation-orders?customer_id=1 – orders for customer 1
+  // ── 2. Add cargo to the plan ─────────────────────────────────────────────
   provider
-    .given('customer 1 has transportation orders')
-    .uponReceiving('a request for transportation orders of customer 1')
+    .given('a draft load plan exists', { planId: EXAMPLE_PLAN_ID })
+    .uponReceiving('a request to add cargo to the load plan')
+    .withRequest({
+      method: 'POST',
+      path: fromProviderState('/cargo-plans/${planId}/cargo', `/cargo-plans/${EXAMPLE_PLAN_ID}/cargo`),
+      headers: { 'Content-Type': 'application/json' },
+      body: {
+        palletType: 'epal1',
+        cargoType: 'GENERAL',
+        weightKg: 600,
+        cargoHeightMm: 1200,
+      },
+    })
+    .willRespondWith({ status: 204 });
+
+  // ── 3. Remove cargo from the plan ────────────────────────────────────────
+  provider
+    .given('a draft load plan with a cargo unit exists', { planId: EXAMPLE_PLAN_ID, unitId: EXAMPLE_UNIT_ID })
+    .uponReceiving('a request to remove a cargo unit from the load plan')
+    .withRequest({
+      method: 'DELETE',
+      path: fromProviderState(
+        '/cargo-plans/${planId}/cargo/${unitId}',
+        `/cargo-plans/${EXAMPLE_PLAN_ID}/cargo/${EXAMPLE_UNIT_ID}`,
+      ),
+    })
+    .willRespondWith({ status: 204 });
+
+  // ── 4. Change the carrier type ───────────────────────────────────────────
+  provider
+    .given('a draft load plan exists', { planId: EXAMPLE_PLAN_ID })
+    .uponReceiving('a request to change the carrier type of the load plan')
+    .withRequest({
+      method: 'PUT',
+      path: fromProviderState('/cargo-plans/${planId}/carrier', `/cargo-plans/${EXAMPLE_PLAN_ID}/carrier`),
+      headers: { 'Content-Type': 'application/json' },
+      body: { carrierType: 'reefer' },
+    })
+    .willRespondWith({ status: 204 });
+
+  // ── 5. Finalize the plan ─────────────────────────────────────────────────
+  provider
+    .given('a draft load plan with a cargo unit exists', { planId: EXAMPLE_PLAN_ID, unitId: EXAMPLE_UNIT_ID })
+    .uponReceiving('a request to finalize the load plan')
+    .withRequest({
+      method: 'POST',
+      path: fromProviderState('/cargo-plans/${planId}/finalize', `/cargo-plans/${EXAMPLE_PLAN_ID}/finalize`),
+    })
+    .willRespondWith({ status: 204 });
+
+  // ── 6. Get the plan (CDC: no `capabilities`, no `requirements`) ───────────
+  provider
+    .given('a load plan with a cargo unit exists', { planId: EXAMPLE_PLAN_ID })
+    .uponReceiving('a request for the load plan details')
     .withRequest({
       method: 'GET',
-      path: '/transportation-orders',
-      query: { customer_id: '1' },
+      path: fromProviderState('/cargo-plans/${planId}', `/cargo-plans/${EXAMPLE_PLAN_ID}`),
     })
     .willRespondWith({
       status: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: eachLike({
-        customer_id: integer(1),
-        order_number: like('#00472'),
-        amount: like('43.19'),
-        status: like('DELIVERED'),
-      }),
+      body: {
+        id: uuid(EXAMPLE_PLAN_ID),
+        status: string('DRAFT'),
+        version: integer(1),
+        weightUnit: string('KG'),
+        carrier: {
+          // NOTE: `capabilities` intentionally omitted — consumer does not use it.
+          type: string('standard-curtainside'),
+          vehicleClass: string('MODULAR'),
+          requiresTractor: boolean(true),
+          canCarryPallets: boolean(true),
+          maxWeightCapacityKg: number(24000),
+          widthMm: integer(2400),
+          heightMm: integer(2700),
+          maxLdm: number(13.6),
+          // BREAKING (v2): brand-new field this consumer now demands.
+          axleCount: integer(3),
+        },
+        currentLdm: number(0.4),
+        // BREAKING (v2): renamed from `plannedWeight`.
+        plannedWeightKg: number(600),
+        units: eachLike({
+          // NOTE: `requirements` intentionally omitted — consumer does not use it.
+          id: uuid(EXAMPLE_UNIT_ID),
+          palletLabel: string('EPAL 1'),
+          cargoType: string('GENERAL'),
+          // BREAKING (v2): renamed from `weight`.
+          weightKg: number(600),
+          totalHeightMm: integer(1400),
+        }),
+      },
     });
 
-  await provider.executeTest(async (mockService) => {
-    // Verify customer list
-    const customersRes = await fetch(`${mockService.url}/customers`);
-    const customersData = (await customersRes.json()) as {
-      data: Array<{
-        id: number;
-        first_name: string;
-        last_name: string;
-        email: string;
-        nationality: string;
-      }>;
-      pagination: { page: number; limit: number; total: number; totalPages: number };
-    };
+  // ── Drive the real consumer client against the Pact mock server ───────────
+  await provider.executeTest(async (mockServer) => {
+    const client = new CargoPlansClient(mockServer.url);
 
-    if (!Array.isArray(customersData.data) || customersData.data.length === 0) {
-      throw new Error(`Expected non-empty data array, got: ${JSON.stringify(customersData)}`);
-    }
-    if (!customersData.pagination || typeof customersData.pagination.total !== 'number') {
-      throw new Error(`Expected pagination object, got: ${JSON.stringify(customersData)}`);
-    }
+    const planId = await client.createPlan('standard-curtainside');
+    if (!planId) throw new Error('createPlan returned no id');
 
-    if (customersData.data[0].nationality !== 'Poland') {
-      throw new Error(`Expected nationality=Poland, got: ${JSON.stringify(customersData.data[0])}`);
-    }
-    
+    await client.addCargo(EXAMPLE_PLAN_ID, {
+      palletType: 'epal1',
+      cargoType: 'GENERAL',
+      weightKg: 600,
+      cargoHeightMm: 1200,
+    });
 
-    // Verify transportation orders for customer 1
-    const ordersRes = await fetch(`${mockService.url}/transportation-orders?customer_id=1`);
-    const ordersData = (await ordersRes.json()) as Array<{
-      customer_id: number;
-      order_number: string;
-      amount: string;
-      status: string;
-    }>;
+    await client.removeCargo(EXAMPLE_PLAN_ID, EXAMPLE_UNIT_ID);
 
-    if (!Array.isArray(ordersData) || ordersData.length === 0) {
-      throw new Error(`Expected non-empty orders array, got: ${JSON.stringify(ordersData)}`);
+    await client.changeCarrier(EXAMPLE_PLAN_ID, 'reefer');
+
+    await client.finalize(EXAMPLE_PLAN_ID);
+
+    const plan = await client.getPlan(EXAMPLE_PLAN_ID);
+    if (plan.carrier.type !== 'standard-curtainside') {
+      throw new Error(`Unexpected carrier type: ${JSON.stringify(plan)}`);
     }
-    if (ordersData[0].customer_id !== 1) {
-      throw new Error(`Expected customer_id=1, got: ${JSON.stringify(ordersData[0])}`);
+    if (!Array.isArray(plan.units) || plan.units.length === 0) {
+      throw new Error(`Expected at least one unit, got: ${JSON.stringify(plan)}`);
+    }
+    // The consumer only reads these fields — never `capabilities` / `requirements`.
+    if (plan.units[0].cargoType !== 'GENERAL') {
+      throw new Error(`Unexpected cargoType: ${JSON.stringify(plan.units[0])}`);
     }
   });
 
-  const opts = {
-    pactFilesOrDirs: [path.resolve(process.cwd(), 'pacts')],
-    pactBroker: 'http://localhost:9292',
-    consumerVersion: '1.0.0-' + Date.now(),
-    tags: ['main'],
-  };
-
-  try {
-    await pact.publishPacts(opts);
-    console.log('Pacts published to Broker');
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.warn('Could not publish to Broker (is it running?):', message);
-  }
+  console.log('✅ Consumer contract satisfied — pact written to ./pacts');
 }
 
 runTest().catch((err) => {
-  console.error(err);
+  console.error('❌ Consumer test failed:', err);
   process.exit(1);
 });

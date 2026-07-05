@@ -181,7 +181,7 @@ Table policy_instalments {
 
   indexes {
     (policy_id, due_date) [name: 'idx_policy_instalments_policy_due']
-    // No standalone (due_date) — re-add if fleet-wide "due this week" queries appear.
+    due_date              [name: 'idx_policy_instalments_unpaid', note: 'partial WHERE paid_date IS NULL']
   }
 }
 
@@ -325,9 +325,12 @@ Table spare_parts {
   stock_quantity      decimal(10,3) [not null, default: 0]
   min_stock_threshold decimal(10,3) [not null, default: 0]  // alert below this level
   unit                varchar(20)   [not null]           // pcs, L, kg …
+  is_low_stock        boolean       [note: 'GENERATED ALWAYS AS (stock_quantity < min_stock_threshold) STORED']
 
-  // No additional indexes — oem_number is UNIQUE (implicit unique btree).
-  // Do NOT regenerate idx_spare_parts_oem_number; it would duplicate the constraint.
+  // oem_number is UNIQUE → implicit unique btree; do not duplicate.
+  indexes {
+    id [name: 'idx_spare_parts_low_stock', note: 'partial WHERE is_low_stock']
+  }
 }
 
 Table spare_part_aliases {
@@ -384,8 +387,8 @@ Table alerts {
   indexes {
     (vehicle_id, `raised_at desc`) [name: 'idx_alerts_vehicle_raised']  // "latest alerts for vehicle X"
     alert_rule_id                  [name: 'idx_alerts_rule_id']
-    status                         [name: 'idx_alerts_status']           // step 4 will turn this partial
-    assigned_to                    [name: 'idx_alerts_assigned_to']      // partial WHERE assigned_to IS NOT NULL (in SQL)
+    `raised_at desc`               [name: 'idx_alerts_pending_by_raised', note: "partial WHERE status = 'pending'"]
+    assigned_to                    [name: 'idx_alerts_assigned_to', note: 'partial WHERE assigned_to IS NOT NULL']
   }
 }
 

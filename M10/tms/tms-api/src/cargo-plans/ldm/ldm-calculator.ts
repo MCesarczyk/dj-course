@@ -1,21 +1,27 @@
 import { PalletUnit } from '../pallets/pallet-unit';
-import type { PalletLoadableTrailerSpec } from '../trailers';
+import type { PalletLoadableCarrierSpec } from '../carriers';
+import { Length } from '../../shared/length';
+import { Ldm } from './ldm';
 
 /**
  * Domain Service for calculating LDM.
+ * The only place where geometric lengths (pallet footprints) are converted
+ * into consumed loading capacity (Ldm).
  */
 export class LdmCalculator {
-  public static calculate(units: PalletUnit[], trailer: PalletLoadableTrailerSpec): number {
-    if (units.length === 0) return 0;
+  public static calculate(units: PalletUnit[], carrier: PalletLoadableCarrierSpec): Ldm {
+    if (units.length === 0) return Ldm.zero();
 
-    const sortedUnits = [...units].sort((a, b) => b.getSnapshot().spec.length - a.getSnapshot().spec.length);
+    const sortedUnits = [...units].sort((a, b) =>
+      Length.compare(b.getSnapshot().spec.length, a.getSnapshot().spec.length)
+    );
     const rows: PalletUnit[][] = [[]];
 
     for (const unit of sortedUnits) {
       let placed = false;
       for (const row of rows) {
-        const rowWidth = row.reduce((sum, u) => sum + u.getSnapshot().spec.width, 0);
-        if (rowWidth + unit.getSnapshot().spec.width <= trailer.widthMm) {
+        const rowWidth = row.reduce((sum, u) => sum.add(u.getSnapshot().spec.width), Length.zero());
+        if (rowWidth.add(unit.getSnapshot().spec.width).fitsWithin(carrier.width)) {
           row.push(unit);
           placed = true;
           break;
@@ -24,12 +30,12 @@ export class LdmCalculator {
       if (!placed) rows.push([unit]);
     }
 
-    const totalLdmMm = rows.reduce((acc, row) => {
+    const usedFloorLength = rows.reduce((acc, row) => {
       if (row.length === 0) return acc;
-      const maxDepthInRow = Math.max(...row.map(u => u.getSnapshot().spec.length));
-      return acc + maxDepthInRow;
-    }, 0);
+      const [first, ...rest] = row.map(u => u.getSnapshot().spec.length);
+      return acc.add(Length.max(first, ...rest));
+    }, Length.zero());
 
-    return Number((totalLdmMm / 1000).toFixed(2));
+    return Ldm.fromFloorLength(usedFloorLength);
   }
 }

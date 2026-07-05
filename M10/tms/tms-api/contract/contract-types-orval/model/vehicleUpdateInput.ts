@@ -5,32 +5,10 @@
  * Transportation Management System API
  * OpenAPI spec version: 1.0.0
  */
+import type { VehicleCreateInput } from './vehicleCreateInput';
 
 /**
  * Payload for updating an existing vehicle. All fields are optional (partial update). Provide only the fields you want to change.
 
  */
-export interface VehicleUpdateInput {
-  /**
-   * Vehicle manufacturer / brand
-   * @maxLength 50
-   * @nullable
-   */
-  make?: string | null;
-  /**
-   * Vehicle model name
-   * @maxLength 50
-   */
-  model?: string;
-  /**
-   * Manufacturing year
-   * @nullable
-   */
-  year?: number | null;
-  /**
-   * Fuel tank capacity in litres (positive number)
-   * @exclusiveMinimum 0
-   * @nullable
-   */
-  fuel_tank_capacity?: number | null;
-}
+export type VehicleUpdateInput = VehicleCreateInput;

@@ -1,0 +1,379 @@
+###
+# Fleet catalog & instances — vehicle brands, models, vehicles, documents, history
+# httpyac requests. Run the API first: `npm run dev` (http://localhost:3000).
+###
+
+@baseUrl = http://localhost:3000
+@brandsUrl = {{baseUrl}}/vehicle-brands
+@modelsUrl = {{baseUrl}}/vehicle-models
+@vehiclesUrl = {{baseUrl}}/vehicles
+
+@page = 1
+@limit = 10
+@missingId = 999999
+
+###
+# ─── Vehicle brands (marki) ──────────────────────────────────────────────────
+###
+
+### List brands (paginated)
+GET {{brandsUrl}}?page={{page}}&limit={{limit}}
+
+### Get brand by id
+GET {{brandsUrl}}/1
+
+### Get missing brand — 404
+GET {{brandsUrl}}/{{missingId}}
+
+# @name createBrand
+### Create brand
+POST {{brandsUrl}}
+Content-Type: application/json
+
+{
+  "name": "Fliegl",
+  "country": "Germany"
+}
+
+### Create duplicate brand — 409
+POST {{brandsUrl}}
+Content-Type: application/json
+
+{
+  "name": "Volvo"
+}
+
+### Create invalid brand (missing name) — 400
+POST {{brandsUrl}}
+Content-Type: application/json
+
+{
+  "country": "Poland"
+}
+
+### Update brand
+PUT {{brandsUrl}}/{{createBrand.id}}
+Content-Type: application/json
+
+{
+  "country": "Austria"
+}
+
+### Delete brand
+DELETE {{brandsUrl}}/{{createBrand.id}}
+
+### Method not allowed on collection — 405
+PATCH {{brandsUrl}}
+
+###
+# ─── Vehicle models (modele) ─────────────────────────────────────────────────
+###
+
+### List models (paginated)
+GET {{modelsUrl}}?page={{page}}&limit={{limit}}
+
+### List only tractor units (ciągniki siodłowe)
+GET {{modelsUrl}}?kind=TRACTOR_UNIT
+
+### List only semi-trailers (naczepy)
+GET {{modelsUrl}}?kind=SEMI_TRAILER
+
+### List only vans (furgony — monolityczne, np. Fiat Ducato, Renault Master)
+GET {{modelsUrl}}?kind=VAN
+
+### List only box trucks (ciężarówki ze stałą zabudową — np. MAN TGL)
+GET {{modelsUrl}}?kind=BOX_TRUCK
+
+### List models of a given brand
+GET {{modelsUrl}}?brandId=1
+
+### Invalid kind filter — 400
+GET {{modelsUrl}}?kind=SPACESHIP
+
+### Get model by id
+GET {{modelsUrl}}/1
+
+# @name createTractorModel
+### Create tractor unit model (ciągnik siodłowy)
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 1,
+  "name": "FH 540 Aero",
+  "kind": "TRACTOR_UNIT"
+}
+
+# @name createTrailerModel
+### Create semi-trailer model (naczepa chłodnia)
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 9,
+  "name": "S.KO Cool Smart",
+  "kind": "SEMI_TRAILER",
+  "trailerType": "reefer"
+}
+
+### Invalid: semi-trailer without trailerType — 400
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 9,
+  "name": "Broken Trailer",
+  "kind": "SEMI_TRAILER"
+}
+
+### Invalid: tractor with trailerType — 400
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 1,
+  "name": "Broken Tractor",
+  "kind": "TRACTOR_UNIT",
+  "trailerType": "curtain"
+}
+
+### Create VAN model (monolityczny furgon — Fiat = brandId 12), no trailerType
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 12,
+  "name": "Scudo",
+  "kind": "VAN"
+}
+
+### Create BOX_TRUCK model (ciężarówka ze stałą zabudową — MAN = brandId 4)
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 4,
+  "name": "TGM 15.250",
+  "kind": "BOX_TRUCK"
+}
+
+### Invalid: VAN with trailerType — 400 (tylko SEMI_TRAILER ma trailerType)
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 12,
+  "name": "Ducato Reefer",
+  "kind": "VAN",
+  "trailerType": "reefer"
+}
+
+### Invalid: unknown brandId — 400
+POST {{modelsUrl}}
+Content-Type: application/json
+
+{
+  "brandId": 999999,
+  "name": "Ghost",
+  "kind": "TRACTOR_UNIT"
+}
+
+### Update model
+PUT {{modelsUrl}}/{{createTractorModel.id}}
+Content-Type: application/json
+
+{
+  "name": "FH 540 Aero II"
+}
+
+### Delete model
+DELETE {{modelsUrl}}/{{createTrailerModel.id}}
+
+###
+# ─── Vehicles (egzemplarze) ──────────────────────────────────────────────────
+###
+
+### List vehicles (paginated)
+GET {{vehiclesUrl}}?page={{page}}&limit={{limit}}
+
+### Filter vehicles: only tractor units
+GET {{vehiclesUrl}}?kind=TRACTOR_UNIT
+
+### Filter vehicles: only semi-trailers
+GET {{vehiclesUrl}}?kind=SEMI_TRAILER
+
+### Filter vehicles by catalog model
+GET {{vehiclesUrl}}?modelId=1
+
+### Get vehicle by id (with model + brand + documents + history)
+GET {{vehiclesUrl}}/1
+
+### Get missing vehicle — 404
+GET {{vehiclesUrl}}/{{missingId}}
+
+# @name createTractor
+### Create a tractor unit instance (catalog-linked)
+POST {{vehiclesUrl}}
+Content-Type: application/json
+
+{
+  "model_id": 1,
+  "kind": "TRACTOR_UNIT",
+  "make": "Volvo",
+  "model": "FH 460",
+  "year": 2024,
+  "fuel_tank_capacity": 600,
+  "registration_number": "WA 12345",
+  "vin": "YV2RT40A8FB123456",
+  "first_registration_date": "2024-03-15",
+  "mileage_km": 12000,
+  "status": "active",
+  "specs": {
+    "power_kw": 338,
+    "euro_norm": "EURO6",
+    "axles": 2,
+    "fuel_type": "diesel"
+  }
+}
+
+# @name createTrailer
+### Create a semi-trailer instance (reefer)
+POST {{vehiclesUrl}}
+Content-Type: application/json
+
+{
+  "model_id": 16,
+  "kind": "SEMI_TRAILER",
+  "make": "Krone",
+  "model": "Cool Liner",
+  "year": 2023,
+  "registration_number": "WB 98765",
+  "vin": "WKE00000000000123",
+  "first_registration_date": "2023-06-01",
+  "mileage_km": 45000,
+  "status": "active",
+  "specs": {
+    "euro_pallets": 33,
+    "volume_m3": 86.5,
+    "interior_height_m": 2.7,
+    "has_tail_lift": false,
+    "has_refrigeration": true
+  }
+}
+
+### Create legacy-style vehicle (make/model only, backward compatible)
+POST {{vehiclesUrl}}
+Content-Type: application/json
+
+{
+  "make": "Toyota",
+  "model": "Corolla",
+  "year": 2022,
+  "fuel_tank_capacity": 55
+}
+
+### Invalid: bad kind — 400
+POST {{vehiclesUrl}}
+Content-Type: application/json
+
+{
+  "kind": "SPACESHIP"
+}
+
+### Invalid: unknown model_id — 400
+POST {{vehiclesUrl}}
+Content-Type: application/json
+
+{
+  "model_id": 999999,
+  "make": "Ghost"
+}
+
+### Update vehicle (change mileage & status)
+PUT {{vehiclesUrl}}/{{createTractor.id}}
+Content-Type: application/json
+
+{
+  "mileage_km": 18000,
+  "status": "in_service"
+}
+
+### Delete vehicle
+DELETE {{vehiclesUrl}}/{{createTrailer.id}}
+
+### Method not allowed on item — 405
+PATCH {{vehiclesUrl}}/1
+
+###
+# ─── Vehicle documents (dokumenty egzemplarza) ───────────────────────────────
+###
+
+### List documents for a vehicle
+GET {{vehiclesUrl}}/1/documents
+
+### Documents for missing vehicle — 404
+GET {{vehiclesUrl}}/{{missingId}}/documents
+
+# @name createDoc
+### Add an insurance (OC) document
+POST {{vehiclesUrl}}/1/documents
+Content-Type: application/json
+
+{
+  "doc_type": "insurance_oc",
+  "document_number": "OC/2026/54321",
+  "issue_date": "2026-01-01",
+  "expiry_date": "2026-12-31",
+  "notes": "Odnowienie polisy OC"
+}
+
+### Invalid document type — 400
+POST {{vehiclesUrl}}/1/documents
+Content-Type: application/json
+
+{
+  "doc_type": "not_a_real_type"
+}
+
+### Delete a document
+DELETE {{vehiclesUrl}}/1/documents/{{createDoc.id}}
+
+### Delete missing document — 404
+DELETE {{vehiclesUrl}}/1/documents/{{missingId}}
+
+###
+# ─── Vehicle history (krótka historia egzemplarza) ───────────────────────────
+###
+
+### List history for a vehicle
+GET {{vehiclesUrl}}/1/history
+
+### Add an inspection event
+POST {{vehiclesUrl}}/1/history
+Content-Type: application/json
+
+{
+  "event_type": "inspection",
+  "event_date": "2026-05-10",
+  "mileage_km": 150000,
+  "description": "Badanie techniczne — wynik pozytywny"
+}
+
+### Add a repair event
+POST {{vehiclesUrl}}/1/history
+Content-Type: application/json
+
+{
+  "event_type": "repair",
+  "event_date": "2026-06-20",
+  "mileage_km": 152000,
+  "description": "Wymiana sprzęgła"
+}
+
+### Invalid: missing event_date — 400
+POST {{vehiclesUrl}}/1/history
+Content-Type: application/json
+
+{
+  "event_type": "inspection"
+}

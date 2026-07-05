@@ -2,6 +2,7 @@ import { CargoType } from '../cargo/cargo.types';
 import { CargoRequirements } from '../cargo/cargo.types';
 import { PalletSpec } from './pallet-spec';
 import { Weight } from '../../shared/weight';
+import { Length } from '../../shared/length';
 import { UUID } from '../../shared/uuid';
 import { ok, fail, type Result } from '../../shared/result';
 import {
@@ -14,7 +15,7 @@ import {
  * Domain Entity representing a physical pallet with cargo.
  */
 export class PalletUnit {
-  private readonly totalHeightMm: number; // (!) 🤨🤨🤨
+  private readonly totalHeight: Length; // 🔥🔥🔥 Length VO — stacking is an explicit domain operation (add), not ad-hoc arithmetic
 
   // 🔥🔥🔥 Constructor is private - only 'create' or 'rehydrate' can call it
   private constructor(
@@ -23,9 +24,9 @@ export class PalletUnit {
     private readonly cargoType: CargoType,
     private readonly requirements: CargoRequirements,
     private readonly weight: Weight,
-    cargoHeightMm: number
+    private readonly cargoHeight: Length
   ) {
-    this.totalHeightMm = spec.height + cargoHeightMm;
+    this.totalHeight = spec.height.add(cargoHeight);
   }
 
   public getSnapshot() {
@@ -35,7 +36,8 @@ export class PalletUnit {
       cargoType: this.cargoType,
       requirements: this.requirements,
       weight: this.weight,
-      totalHeightMm: this.totalHeightMm,
+      cargoHeight: this.cargoHeight,
+      totalHeight: this.totalHeight,
     };
   }
 
@@ -44,15 +46,15 @@ export class PalletUnit {
     cargoType: CargoType,
     requirements: CargoRequirements,
     weight: Weight,
-    cargoHeightMm: number,
+    cargoHeight: Length,
   ): Result<PalletUnit, PalletDomainError> {
     if (!spec.isCargoTypeAllowed(cargoType)) {
       return fail(new PalletCargoTypeNotAllowedError(cargoType, spec.label));
     }
     if (spec.isWeightExceeded(weight)) {
-      return fail(new PalletWeightExceedsCapacityError(weight.valueInKg, spec.maxLoadCapacity.valueInKg, spec.label));
+      return fail(new PalletWeightExceedsCapacityError(weight, spec.maxLoadCapacity, spec.label));
     }
-    return ok(new PalletUnit(UUID.newUUID<'CargoUnit'>(), spec, cargoType, requirements, weight, cargoHeightMm));
+    return ok(new PalletUnit(UUID.newUUID<'CargoUnit'>(), spec, cargoType, requirements, weight, cargoHeight));
   }
 
   static rehydrate(
@@ -61,8 +63,8 @@ export class PalletUnit {
     cargoType: CargoType,
     requirements: CargoRequirements,
     weight: Weight,
-    cargoHeightMm: number
+    cargoHeight: Length
   ): PalletUnit {
-    return new PalletUnit(id, spec, cargoType, requirements, weight, cargoHeightMm);
+    return new PalletUnit(id, spec, cargoType, requirements, weight, cargoHeight);
   }
 }
